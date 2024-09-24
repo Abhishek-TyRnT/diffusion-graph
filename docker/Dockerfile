@@ -1,0 +1,20 @@
+FROM nvidia/cuda:12.6.1-cudnn-devel-ubuntu22.04
+
+ARG username
+ARG UID
+RUN apt update && \
+    apt install -y clang \
+                    cmake \
+                    build-essential \
+                    python3-pip \
+                    sudo
+
+COPY requirements.txt /opt/requirements.txt
+WORKDIR /opt
+RUN pip3 install -r requirements.txt
+RUN useradd -u ${UID} ${username} && \
+    usermod -aG sudo ${username} && \
+    echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+
+ENV HOME=/home/${username}

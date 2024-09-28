@@ -19,6 +19,10 @@ RUN useradd -u ${UID} ${username} && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 RUN mkdir /llvm-build && \
-    chown ${username} /llvm-build
+    chown ${username} /llvm-build && \
+    mkdir /home/${username} && \
+    chown ${username} /home/${username} && \
+    echo "#!/bin/bash \nsource /home/${username}/vllm-project/scripts/build" >> /home/${username}/.bashrc && \
+    chown ${username} /home/${username}/.bashrc && \
+    chmod +x /home/${username}/.bashrc
 
-ENV HOME=/home/${username}

@@ -24,7 +24,7 @@ run() {
     then
         docker start -i ${CONTAINER_NAME}
     else
-        docker run -it -v $(pwd):/home/${user} \
+        docker run -it -v $(pwd):/home/${user}/vllm-project \
                 -v $VOLUME_NAME:/llvm-build \
                 --name $CONTAINER_NAME \
                 --user $(id -u) \

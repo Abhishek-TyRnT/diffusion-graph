@@ -1,0 +1,49 @@
+#!/bin/bash
+
+COMMIT_ID="${COMMIT_ID:-d418a03e01e6a31b51b0c9dd42ba46da6c47f89d}"
+
+build_llvm(){
+    cd /llvm-build/llvm-project
+    git pull
+    git checkout $COMMIT_ID
+    cmake -B build \
+      -G Ninja \
+      -DCMAKE_CXX_COMPILER=clang++ \
+      -DCMAKE_C_COMPILER=clang \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DLLVM_ENABLE_ASSERTIONS=ON \
+      -DLLVM_ENABLE_PROJECTS=mlir \
+      -DLLVM_TARGETS_TO_BUILD=host \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+      -DMLIR_ENABLE_BINDINGS_PYTHON=ON \
+      llvm
+
+    cmake --build build -j$(nproc)
+    cd $HOME
+}
+
+build_torch-mlir(){
+    export LLVM_INSTALL_DIR=/llvm-build/llvm-project/build
+    cd $HOME/vllm-project/external/torch-mlir
+    cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER=clang \
+          -DPython3_EXECUTABLE=$(which python3) \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DPython3_FIND_VIRTUALENV=ONLY \
+          -DMLIR_DIR="$LLVM_INSTALL_DIR/lib/cmake/mlir/" \
+          -DLLVM_DIR="$LLVM_INSTALL_DIR/lib/cmake/llvm/" \
+          -DMLIR_ENABLE_BINDINGS_PYTHON=ON \
+          -DLLVM_TARGETS_TO_BUILD=host \
+          -DTORCH_MLIR_ENABLE_STABLEHLO=OFF \
+          .
+    cmake --build build -j$(nproc)
+    cd $HOME
+
+}
+
+clean_torch-mlir(){
+    cd $HOME
+    rm -rf $HOME/vllm-project/external/torch-mlir/build
+}

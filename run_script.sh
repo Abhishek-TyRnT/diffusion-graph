@@ -36,4 +36,13 @@ run() {
 
 }
 
+stop() {
+    if docker ps -a --format '{{.Names}}' | grep -w "$CONTAINER_NAME" > /dev/null; 
+    then
+        docker rm $CONTAINER_NAME
+    else
+        echo "$CONTAINER_NAME doesn't exist"
+    fi
+}
+
 $1

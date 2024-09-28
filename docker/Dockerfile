@@ -7,7 +7,9 @@ RUN apt update && \
                     cmake \
                     build-essential \
                     python3-pip \
-                    sudo
+                    sudo \
+                    git \
+                    ccache
 
 COPY requirements.txt /opt/requirements.txt
 WORKDIR /opt
@@ -16,5 +18,7 @@ RUN useradd -u ${UID} ${username} && \
     usermod -aG sudo ${username} && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
+RUN mkdir /llvm-build && \
+    chown ${username} /llvm-build
 
 ENV HOME=/home/${username}

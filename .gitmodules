@@ -1,0 +1,4 @@
+[submodule "external/torch-mlir"]
+	path = external/torch-mlir
+	url = https://github.com/Abhishek-TyRnT/torch-mlir.git
+	branch = master

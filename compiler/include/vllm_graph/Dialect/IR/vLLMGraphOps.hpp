@@ -1,0 +1,40 @@
+
+#ifndef VLLM_GRAPH_DIALECT_VLLM_GRAPH_IR_VLLMGRAPHOPS_H
+#define VLLM_GRAPH_DIALECT_VLLM_GRAPH_IR_VLLMGRAPHOPS_H
+
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Matchers.h"
+#include "mlir/IR/OpDefinition.h"
+#include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/SymbolTable.h"
+#include "mlir/Interfaces/CastInterfaces.h"
+
+
+#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
+#include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
+
+#define GET_OP_CLASSES
+#include "vllm_graph/Dialect/IR/vLLMGraphOps.h.inc"
+
+namespace mlir {
+namespace vllm_graph {
+namespace detail {
+
+struct vllm_constant_device_op_binder {
+  std::string &bind_value;
+
+  /// Creates a matcher instance that binds the value to bv if match succeeds.
+  vllm_constant_device_op_binder(std::string &bv) : bind_value(bv) {}
+
+  bool match(Operation *op) {
+    if (auto constantDevice = dyn_cast<vllm_graph::ConstantDeviceOp>(op)) {
+      bind_value = constantDevice.getValue().str();
+      return true;
+    }
+    return false;
+  }
+};
+} //detail
+
+} //vllm_graph
+} //mlir

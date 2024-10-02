@@ -1,0 +1,27 @@
+
+
+#include "vllm_graph/Dialect/IR/vLLMGraphOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/TypeUtilities.h"
+#include "mlir/Support/LLVM.h"
+#include "torch-mlir/Dialect/Torch/Utils/Utils.h"
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/Support/Casting.h"
+
+//===----------------------------------------------------------------------===//
+// ConstantDeviceOp
+//===----------------------------------------------------------------------===//
+
+using namespace mlir;
+using namespace mlir::vllm_graph;
+
+
+void ConstantDeviceOp::getAsmResultNames(
+    function_ref<void(Value, StringRef)> setNameFn) {
+  setNameFn(getResult(), getValue());
+}
+

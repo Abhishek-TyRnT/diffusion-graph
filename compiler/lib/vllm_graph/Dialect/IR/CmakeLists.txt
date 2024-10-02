@@ -1,0 +1,25 @@
+add_mlir_library(vLLMGraphIRDialect
+  vLLMGraphDialect.cpp
+  vLLMGraphOps.cpp
+  vLLMGraphOpsODSGenerated.cpp
+
+  ADDITIONAL_HEADER_DIRS
+  ${PROJECT_SOURCE_DIR}/include/vllm_graph/Dialect
+
+  DEPENDS
+  MLIRTorchOpsIncGen
+  MLIRTorchTypesIncGen
+
+  LINK_LIBS PUBLIC
+  MLIRBytecodeOpInterface
+  MLIRBytecodeReader
+  MLIRBytecodeWriter
+  MLIRFuncDialect
+  MLIRIR
+  MLIRSupport
+  MLIRControlFlowInterfaces
+  MLIRInferTypeOpInterface
+  MLIRSideEffectInterfaces
+)
+
+torch_mlir_target_includes(vLLMGraphIRDialect)

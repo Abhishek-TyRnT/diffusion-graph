@@ -18,7 +18,7 @@ def vLLMGraphIR_Dialect : Dialect {
 
     }];
 
-    let hasRegionArgAttrVerify = 1;
+    //let hasRegionArgAttrVerify = 1;
     let hasConstantMaterializer = 1;
     let useDefaultTypePrinterParser = 0;
 

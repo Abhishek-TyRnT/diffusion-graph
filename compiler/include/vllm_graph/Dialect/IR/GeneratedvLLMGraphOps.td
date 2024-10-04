@@ -8,9 +8,7 @@ def vllm_ReluOp : vLLMGraph_Op<"vllm.Relu", [
     
     let summary = "Generated op for `vllm::Relu : (Tensor, Scalar, Scalar) -> (Tensor)`";
     let arguments = (ins
-        AnyTorchTensorType:$self,
-        AnyTorchScalarType:$min_val,
-        AnyTorchScalarType:$max_val
+        AnyTorchTensorType:$self
     );
     let results = (outs
         AnyTorchOptionalTensorType:$result

@@ -7,7 +7,7 @@
 #include "mlir/Pass/Pass.h"
 #include <memory>
 
-namespace mlir::vllm_graph::torch {
+namespace mlir::vllm_graph {
 
 std::unique_ptr<OperationPass<func::FuncOp>> createTorchTovLLMGraph();
 

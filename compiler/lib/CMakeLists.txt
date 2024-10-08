@@ -13,7 +13,7 @@ set(LinkedLibs
    vLLMGraphTorchTovLLMGraph
    )
 
-add_mlir_library(TorchMLIRInitAll
+add_mlir_library(vLLMGraphInitAll
 InitAll.cpp
 
 LINK_LIBS PUBLIC

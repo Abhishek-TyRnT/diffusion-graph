@@ -10,8 +10,17 @@ add_mlir_conversion_library(vLLMGraphTorchTovLLMGraph
   LINK_LIBS PUBLIC
   MLIRIR
   MLIRPass
-  MLIRTosaDialect
   vLLMGraphIRDialect
 )
 
-torch_mlir_target_includes(TorchMLIRTorchToTosa)
+set(linked_libs vLLMGraphTorchTovLLMGraph)
+add_mlir_library(vLLMGraphConversionPasses
+  Passes.cpp
+
+  DEPENDS
+  vLLMGraphConversionTorchTovLLMGraphPassIncGen
+
+  LINK_LIBS PUBLIC
+  ${linked_libs}
+)
+

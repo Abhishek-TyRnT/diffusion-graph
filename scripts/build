@@ -30,6 +30,7 @@ build_torch-mlir(){
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_COMPILER=clang \
           -DPython3_EXECUTABLE=$(which python3) \
+          -DCMAKE_PREFIX_PATH=build \
           -DPython3_FIND_VIRTUALENV=ONLY \
           -DCMAKE_CXX_COMPILER=clang++ \
           -DPython3_FIND_VIRTUALENV=ONLY \

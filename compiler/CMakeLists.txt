@@ -7,11 +7,14 @@ find_package(MLIR REQUIRED CONFIG)
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-add_subdirectory(${TORCH_MLIR_SOURCE_DIR} ${CMAKE_BINARY_DIR}/external/torch-mlir)
+set(TORCH_MLIR_BUILD_DIR ${CMAKE_BINARY_DIR}/external/torch-mlir)
+add_subdirectory(${TORCH_MLIR_SOURCE_DIR} ${TORCH_MLIR_BUILD_DIR})
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
+include_directories(${TORCH_MLIR_SOURCE_DIR}/include)
+include_directories(${TORCH_MLIR_BUILD_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 

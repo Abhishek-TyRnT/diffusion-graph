@@ -30,14 +30,16 @@ def vLLMGraphIR_Dialect : Dialect {
     }];
 }
 
-class vLLMGraphOpTrait<string name> : NativeOpTrait<"> {
+class vLLMGraphOpTrait<string name> : NativeOpTrait<""> {
     let trait = name;
     let cppNamespace = "::mlir::vllm_graph::OpTrait";
 }
 
-def HasValueSemantics : vLLMGraphOpTrait<"HasValueSemantics">;
-def ReadOnly : vLLMGraphOpTrait<"ReadOnly">;
-def IsTrailingUnderscoreInplaceVariant
+def vLLMHasValueSemantics : vLLMGraphOpTrait<"HasValueSemantics">;
+def vLLMReadOnly : vLLMGraphOpTrait<"ReadOnly">;
+def vLLMIsTrailingUnderscoreInplaceVariant
     : vLLMGraphOpTrait<"IsTrailingUnderscoreInplaceVariant">;
-def AllowsTypeRefinement : vLLMGraphOpTrait<"AllowsTypeRefinement">;
-def AllowedInModuleInitializer : vLLMGraphOpTrait<"AllowedInModuleInitializer">;
+def vLLMAllowsTypeRefinement : vLLMGraphOpTrait<"AllowsTypeRefinement">;
+def vLLMAllowedInModuleInitializer : vLLMGraphOpTrait<"AllowedInModuleInitializer">;
+
+#endif

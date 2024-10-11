@@ -4,7 +4,7 @@ mlir_tablegen(vLLMGraphOps.cpp.inc -gen-op-defs)
 mlir_tablegen(vLLMGraphIRDialect.h.inc -gen-dialect-decls -dialect=vllm_graph)
 mlir_tablegen(vLLMGraphIRDialect.cpp.inc -gen-dialect-defs -dialect=vllm_graph)
 add_public_tablegen_target(MLIRvLLMGraphOpsIncGen)
-add_dependencies(mlir-headers MLIRvLLMGraphOpsIncGen)
+add_dependencies(mlir-headers MLIRvLLMGraphOpsIncGen MLIRTorchTypesIncGen)
 
 
 add_mlir_doc(vLLMGraphIRDialect vLLMGraphIRDialect vLLMGraph/ -gen-dialect-doc)

@@ -1,6 +1,6 @@
 
 #include "vllm_graph/Conversion/TorchTovLLMGraph.hpp"
-#include "PassDetail.h"
+#include "../PassDetail.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
 #include "mlir/IR/Matchers.h"

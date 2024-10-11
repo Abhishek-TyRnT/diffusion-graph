@@ -2,7 +2,7 @@
 #include "InitAll.hpp"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Dialect.h"
-#include "vllm_graph/Conversion/Passes.h"
+#include "vllm_graph/Conversion/Passes.hpp"
 #include "vllm_graph/Conversion/TorchTovLLMGraph.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 

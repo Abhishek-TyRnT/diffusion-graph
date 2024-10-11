@@ -1,4 +1,4 @@
-#include "vllm_graph/Conversion/Passes.h"
+#include "vllm_graph/Conversion/Passes.hpp"
 
 
 namespace {

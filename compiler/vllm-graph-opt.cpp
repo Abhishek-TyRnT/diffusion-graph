@@ -1,7 +1,7 @@
 
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 #include "mlir/Transforms/Passes.h"
-#include "InitAll.h"
+#include "InitAll.hpp"
 
 using namespace mlir;
 

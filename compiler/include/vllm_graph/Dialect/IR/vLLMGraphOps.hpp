@@ -38,3 +38,5 @@ struct vllm_constant_device_op_binder {
 
 } //vllm_graph
 } //mlir
+
+#endif

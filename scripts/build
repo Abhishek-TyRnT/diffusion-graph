@@ -33,7 +33,6 @@ build_torch-mlir(){
           -DCMAKE_PREFIX_PATH=build \
           -DPython3_FIND_VIRTUALENV=ONLY \
           -DCMAKE_CXX_COMPILER=clang++ \
-          -DPython3_FIND_VIRTUALENV=ONLY \
           -DMLIR_DIR="$LLVM_INSTALL_DIR/lib/cmake/mlir/" \
           -DLLVM_DIR="$LLVM_INSTALL_DIR/lib/cmake/llvm/" \
           -DMLIR_ENABLE_BINDINGS_PYTHON=ON \
@@ -41,6 +40,7 @@ build_torch-mlir(){
           -DTORCH_MLIR_ENABLE_STABLEHLO=OFF \
           -DTORCH_MLIR_ENABLE_PYTORCH_EXTENSIONS=ON \
           -DTORCH_MLIR_ENABLE_JIT_IR_IMPORTER=ON \
+          -DTORCH_MLIR_OUT_OF_TREE_BUILD=ON \
           .
     cmake --build build -j$(nproc)
     cd $HOME

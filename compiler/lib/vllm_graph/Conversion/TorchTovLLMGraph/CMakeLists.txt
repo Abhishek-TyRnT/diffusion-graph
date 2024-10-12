@@ -10,5 +10,6 @@ add_mlir_conversion_library(vLLMGraphTorchTovLLMGraph
   LINK_LIBS PUBLIC
   MLIRIR
   MLIRPass
+  MLIRSupport
   vLLMGraphIRDialect
 )

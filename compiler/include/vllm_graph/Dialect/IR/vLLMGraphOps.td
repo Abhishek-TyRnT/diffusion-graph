@@ -3,7 +3,9 @@
 #define VLLMGRAPH_OPS
 
 include "vllm_graph/Dialect/IR/vLLMGraphBase.td"
+include "mlir/Bytecode/BytecodeOpInterface.td"
 include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"

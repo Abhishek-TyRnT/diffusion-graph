@@ -7,12 +7,20 @@
 #include "mlir/Pass/Pass.h"
 #include <memory>
 
+namespace mlir {
+namespace vllm_graph{
+
+void registerConversionPasses();
+} // vllm_graph
+} // mlir
+
 namespace mlir::vllm_graph {
 
 std::unique_ptr<OperationPass<func::FuncOp>> createTorchTovLLMGraph();
 
 void registerTorchTovLLMGraphPasses();
 
-} // mlir::vllm_graph::torch
+} // mlir::vllm_graph
+
 
 #endif

@@ -9,9 +9,9 @@
 
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchOps.h"
+#include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.cpp.inc"
 #include "torch-mlir/Dialect/Torch/IR/TorchOps.cpp.inc"
-#include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 
 
 #include "llvm/ADT/StringExtras.h"
@@ -20,7 +20,7 @@
 using namespace mlir;
 using namespace mlir::vllm_graph;
 using namespace mlir::torch::Torch;
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.cpp.inc"
+#include "vllm_graph/Dialect/IR/vLLMGraphIRDialect.cpp.inc"
 
 #define GET_TYPEDEF_CLASSES
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.cpp.inc"

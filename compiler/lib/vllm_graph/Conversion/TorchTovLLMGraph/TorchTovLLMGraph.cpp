@@ -2,7 +2,9 @@
 #include "vllm_graph/Conversion/TorchTovLLMGraph.hpp"
 #include "../PassDetail.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
+#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "mlir/IR/Matchers.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include <numeric>
@@ -37,7 +39,7 @@ LogicalResult ConvertAtenOp<ReluOp>::matchAndRewrite(
                                        "Only Tensor types supported in vllm_graph");
     }
 
-    rewriter.replaceOpWithNewOp<ReluOp>(op, getTypeConverter()->convertType(op.getType()));
+    rewriter.replaceOpWithNewOp<ReluOp>(op, getTypeConverter()->convertType(op.getType()), self);
     return success();
 
     }

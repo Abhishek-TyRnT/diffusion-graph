@@ -9,10 +9,10 @@ namespace mlir {
 namespace vllm_graph {
 
 /// Parse a type registered to this dialect.
-Type parseTorchDialectType(AsmParser &parser);
+Type parsevLLMGraphDialectType(AsmParser &parser);
 
 /// Print a type registered to this dialect.
-void printTorchDialectType(Type type, AsmPrinter &printer);
+void printvLLMGraphDialectType(Type type, AsmPrinter &printer);
 } // namespace vllm_graph
 } // namespace mlir
 

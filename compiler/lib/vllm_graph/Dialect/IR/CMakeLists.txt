@@ -11,6 +11,7 @@ add_mlir_library(vLLMGraphIRDialect
   DEPENDS
   MLIRTorchOpsIncGen
   MLIRTorchTypesIncGen
+  
 
   LINK_LIBS PUBLIC
   MLIRBytecodeOpInterface
@@ -22,6 +23,7 @@ add_mlir_library(vLLMGraphIRDialect
   MLIRControlFlowInterfaces
   MLIRInferTypeOpInterface
   MLIRSideEffectInterfaces
+  TorchMLIRTorchDialect
 )
 
 #torch_mlir_target_includes(vLLMGraphIRDialect)

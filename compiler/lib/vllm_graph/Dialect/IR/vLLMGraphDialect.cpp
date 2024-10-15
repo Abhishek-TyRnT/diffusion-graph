@@ -7,11 +7,13 @@
 #include "mlir/Transforms/InliningUtils.h"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 
-#include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
+//#include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchOps.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
-#include "torch-mlir/Dialect/Torch/IR/TorchDialect.cpp.inc"
-#include "torch-mlir/Dialect/Torch/IR/TorchOps.cpp.inc"
+#include "torch-mlir/Dialect/Torch/IR/TorchTypes.h.inc"
+
+// #include "torch-mlir/Dialect/Torch/IR/TorchDialect.cpp.inc"
+// #include "torch-mlir/Dialect/Torch/IR/TorchOps.cpp.inc"
 
 
 #include "llvm/ADT/StringExtras.h"
@@ -19,45 +21,39 @@
 
 using namespace mlir;
 using namespace mlir::vllm_graph;
+using namespace mlir::torch;
 using namespace mlir::torch::Torch;
 #include "vllm_graph/Dialect/IR/vLLMGraphIRDialect.cpp.inc"
 
-#define GET_TYPEDEF_CLASSES
-#include "torch-mlir/Dialect/Torch/IR/TorchTypes.cpp.inc"
+// #define GET_TYPEDEF_CLASSES
+// #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h.inc"
+
+// #include "torch-mlir/Dialect/Torch/IR/TorchTypes.cpp.inc"
 
 
 Type vllm_graph::parsevLLMGraphDialectType(AsmParser &parser){
-    SMLoc typeLoc = parse.getCurrentLocation();
-    StringRef mnemonic;
-    Type genType;
-    auto parseResult = generatedTypeParser(parser, &mnemonic, genType);
-    if(parseResult.has_value())
-        return genType;
-    parser.emitError(typeLoc) << "unknown  type `" << mnemonic << "` in dialect `"
-                                << vLLMGraphDialectDialect::getDialectNamespace() << "`";
-    return {};
+    return Torch::parseTorchDialectType(parser);
 }
 
-void vllm_graph::printvLLMGraphDialectType(Type type, AsmPrinter &printer) const {
-    if (succeeded(generatedTypePrinter(type, printer)))
-        return; 
+void vllm_graph::printvLLMGraphDialectType(Type type, AsmPrinter &printer) {
+    Torch::printTorchDialectType(type, printer);
 }
 
 
 //===----------------------------------------------------------------------===//
-// Torch dialect parseType/printType methods.
+// vLLMGraphIR dialect parseType/printType methods.
 //===----------------------------------------------------------------------===//
 
 /// Parse a type registered to this dialect.
-Type vLLMGraphDialect::parseType(DialectAsmParser &parser) const {
-  return parseTorchDialectType(parser);
+Type vLLMGraphIRDialect::parseType(DialectAsmParser &parser) const {
+  return parsevLLMGraphDialectType(parser);
 }
 /// Print a type registered to this dialect.
-void vLLMGraphDialect::printType(Type type, DialectAsmPrinter &printer) const {
-  printTorchDialectType(type, printer);
+void vLLMGraphIRDialect::printType(Type type, DialectAsmPrinter &printer) const {
+  printvLLMGraphDialectType(type, printer);
 }
 
-void vLLMGraphDialect::initialize() {
+void vLLMGraphIRDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.cpp.inc"
@@ -69,7 +65,7 @@ void vLLMGraphDialect::initialize() {
     
 }
 
-Operation *vLLMGraphDialect::materializeConstant(OpBuilder &builder,
+Operation *vLLMGraphIRDialect::materializeConstant(OpBuilder &builder,
                                              Attribute value, Type type,
                                              Location loc) {
     if (auto integerType = dyn_cast<Torch::IntType>(type))

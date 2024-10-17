@@ -46,5 +46,6 @@ target_link_libraries(vllm-graph-opt PRIVATE
   vLLMGraphInitAll
   vLLMGraphIRDialect
   vLLMGraphConversionPasses
+  TorchMLIRTorchDialect
   ${dependency_libraries}
 )

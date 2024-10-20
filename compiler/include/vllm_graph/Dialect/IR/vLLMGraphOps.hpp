@@ -41,8 +41,20 @@ struct vllm_constant_device_op_binder {
   }
 };
 } //detail
-
 } //vllm_graph
 } //mlir
+
+namespace mlir {
+namespace vllm_graph {
+
+ParseResult parseDefaultvLLMGraphOp(OpAsmParser &parser, OperationState &result,
+                                int numOperands, int numResults);
+// Print a generated Torch op in the default format.
+void printDefaultvLLMGraphOp(OpAsmPrinter &p, Operation *op, int numOperands,
+                         int numResults);
+
+}
+
+}
 
 #endif

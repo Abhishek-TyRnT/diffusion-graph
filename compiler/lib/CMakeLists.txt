@@ -9,7 +9,7 @@ set(LinkedLibs
    vLLMGraphIRDialect
 
    # Conversion Passes
-   vLLMGraphTorchTovLLMGraph
+   vLLMGraphConversionPasses
    )
 
 add_mlir_library(vLLMGraphInitAll

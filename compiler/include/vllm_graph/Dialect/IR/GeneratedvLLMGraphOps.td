@@ -14,4 +14,12 @@ def vllm_ReluOp : vLLMGraph_Op<"vllm.Relu", [
         AnyTorchOptionalTensorType:$result
     );
     let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult ReluOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void ReluOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
 }

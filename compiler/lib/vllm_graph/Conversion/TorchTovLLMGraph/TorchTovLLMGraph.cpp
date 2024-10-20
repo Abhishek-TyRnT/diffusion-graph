@@ -4,7 +4,9 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
+#include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Matchers.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include <numeric>
@@ -43,4 +45,40 @@ LogicalResult ConvertAtenOp<ReluOp>::matchAndRewrite(
     return success();
 
     }
+}
+
+namespace {
+class ConvertTorchTovLLMGraph : public ConvertTorchTovLLMGraphBase<ConvertTorchTovLLMGraph> {
+public:
+    void getDependentDialects(DialectRegistry &registry) const override {
+        registry.insert<vllm_graph::vLLMGraphIRDialect>();
+        registry.insert<arith::ArithDialect>();
+
+    }
+
+    void runOnOperation() override {
+        MLIRContext *context = &getContext();
+        ConversionTarget target(*context);
+        target.addLegalDialect<vllm_graph::vLLMGraphIRDialect, arith::ArithDialect>();
+
+        TypeConverter typeConverter;
+        typeConverter.addConversion([](Type type) { return type; });
+
+        target.addIllegalDialect<mlir::torch::Torch::TorchDialect>();
+
+        RewritePatternSet patterns(context);
+        target.addIllegalOp<vllm_graph::ReluOp>();                                               
+        patterns.add<ConvertAtenOp<vllm_graph::ReluOp>>(typeConverter,        
+                                                         context);
+        
+        if (failed(applyPartialConversion(getOperation(), target,
+                                      std::move(patterns))))
+            return signalPassFailure();
+    }
+};
+} // namespace
+
+std::unique_ptr<OperationPass<func::FuncOp>> mlir::vllm_graph::createTorchTovLLMGraph()
+{
+     return std::make_unique<ConvertTorchTovLLMGraph>();
 }

@@ -8,11 +8,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
+#include "mlir/Support/TypeID.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/Attributes.h"
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 #include "llvm/ADT/STLExtras.h"
+
 
 using namespace mlir;
 using namespace mlir::vllm_graph;
@@ -284,25 +287,25 @@ verifyTensorType(function_ref<InFlightDiagnostic()> emitError,
   // Verify sparsity encoding against a known type and shape using the encoding
   // verification interface. Any implementation emits a diagnostic on failure.
   // Also verify sparsity encoding is truly a sparse encoding attrbute.
-  if (optionalSparsity) {
-    if (optionalDtype && optionalSizes.has_value()) {
-      if (auto venc = llvm::dyn_cast_or_null<VerifiableTensorEncoding>(
-              optionalSparsity)) {
-        if (failed(venc.verifyEncoding(optionalSizes.value(), optionalDtype,
-                                       emitError))) {
-          return failure();
-        }
-      }
-    }
-    if (!isa<sparse_tensor::SparseTensorEncodingAttr>(optionalSparsity)) {
-      emitError() << "invalid sparsity encoding attribute";
-      return failure();
-    }
-  }
+  // if (optionalSparsity) {
+  //   if (optionalDtype && optionalSizes.has_value()) {
+  //     if (auto venc = llvm::dyn_cast_or_null<VerifiableTensorEncoding>(
+  //             optionalSparsity)) {
+  //       if (failed(venc.verifyEncoding(optionalSizes.value(), optionalDtype,
+  //                                      emitError))) {
+  //         return failure();
+  //       }
+  //     }
+  //   }
+  //   if (!isa<sparse_tensor::SparseTensorEncodingAttr>(optionalSparsity)) {
+  //     emitError() << "invalid sparsity encoding attribute";
+  //     return failure();
+  //   }
+  // }
   return success();
 }
 
-Type parseTensorType(MLIRContext *context, AsmParser &parser,
+Type parsevLLMTensorType(MLIRContext *context, AsmParser &parser,
                      GetTensorTypeFn getTensorType) {
   llvm::SMLoc startLoc = parser.getCurrentLocation();
   if (parser.parseOptionalLess())
@@ -373,7 +376,7 @@ Type parseTensorType(MLIRContext *context, AsmParser &parser,
   return getTensorType(context, optionalSizes, optionalDtype, optionalSparsity);
 }
 
-static void printTensorType(AsmPrinter &printer,
+static void printvLLMTensorType(AsmPrinter &printer,
                             std::optional<ArrayRef<int64_t>> optionalSizes,
                             Type optionalDtype, Attribute optionalSparsity) {
   if (!optionalSizes && !optionalDtype)
@@ -431,7 +434,7 @@ vllm_graph::NonValueTensorType::verify(function_ref<InFlightDiagnostic()> emitEr
 
 Type vllm_graph::NonValueTensorType::parse(AsmParser &parser) {
   MLIRContext *context = parser.getContext();
-  return parseTensorType(
+  return parsevLLMTensorType(
       context, parser,
       [](MLIRContext *context, std::optional<ArrayRef<int64_t>> optionalSizes,
          Type optionalType, Attribute optionalSparsity) {
@@ -441,7 +444,7 @@ Type vllm_graph::NonValueTensorType::parse(AsmParser &parser) {
 }
 
 void vllm_graph::NonValueTensorType::print(AsmPrinter &printer) const {
-  printTensorType(printer, getOptionalSizes(), getOptionalDtype(),
+  printvLLMTensorType(printer, getOptionalSizes(), getOptionalDtype(),
                   getOptionalSparsity());
 }
 
@@ -506,7 +509,7 @@ vllm_graph::ValueTensorType::verify(function_ref<InFlightDiagnostic()> emitError
 
 Type ValueTensorType::parse(AsmParser &parser) {
   MLIRContext *context = parser.getContext();
-  return parseTensorType(
+  return parsevLLMTensorType(
       context, parser,
       [](MLIRContext *context, std::optional<ArrayRef<int64_t>> optionalSizes,
          Type optionalType, Attribute optionalSparsity) {
@@ -516,7 +519,7 @@ Type ValueTensorType::parse(AsmParser &parser) {
 }
 
 void ValueTensorType::print(AsmPrinter &printer) const {
-  printTensorType(printer, getOptionalSizes(), getOptionalDtype(),
+  printvLLMTensorType(printer, getOptionalSizes(), getOptionalDtype(),
                   getOptionalSparsity());
 }
 

@@ -5,12 +5,15 @@
 #include "vllm_graph/Conversion/Passes.hpp"
 #include "vllm_graph/Conversion/TorchTovLLMGraph.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
+#include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
+
 
 
 void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
 {
     registry.insert<mlir::func::FuncDialect>();
     registry.insert<mlir::vllm_graph::vLLMGraphIRDialect>();
+    registry.insert<mlir::torch::Torch::TorchDialect>();
 
 }
 

@@ -7,9 +7,14 @@ set(LinkedLibs
     
    # Dialects
    vLLMGraphIRDialect
+   TorchMLIRTorchDialect
+   MLIRSparseTensorDialect
 
    # Conversion Passes
    vLLMGraphConversionPasses
+
+   #Utils
+   TorchMLIRTorchUtils
    )
 
 add_mlir_library(vLLMGraphInitAll

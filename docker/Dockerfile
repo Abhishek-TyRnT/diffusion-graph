@@ -23,8 +23,8 @@ RUN mkdir /llvm-build && \
     mkdir /home/${username} && \
     chown ${username} /home/${username} && \
     echo "#!/bin/bash \nsource /home/${username}/vllm-project/scripts/build" >> /home/${username}/.bashrc && \
-    echo "export PYTHONPATH=/home/${username}/vllm-project/external/torch-mlir/build/python_packages/torch_mlir" >> /home/${username}/.bashrc && \
-    echo "export PATH=$PATH:/home/${username}/vllm-project/external/torch-mlir/build/bin" >> /home/${username}/.bashrc && \
+    echo "export PYTHONPATH=/home/${username}/vllm-project/compiler/build/external/torch-mlir/build/python_packages/torch_mlir" >> /home/${username}/.bashrc && \
+    echo "export PATH=$PATH:/home/${username}/vllm-project/compiler/build/bin" >> /home/${username}/.bashrc && \
     chown ${username} /home/${username}/.bashrc && \
     chmod +x /home/${username}/.bashrc
 

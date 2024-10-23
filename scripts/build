@@ -23,9 +23,10 @@ build_llvm(){
     cd $HOME
 }
 
-build_torch-mlir(){
+build_compiler(){
     export LLVM_INSTALL_DIR=/llvm-build/llvm-project/build
-    cd $HOME/vllm-project/external/torch-mlir
+    current_dir=$(pwd)
+    cd $HOME/vllm-project/compiler
     cmake -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_COMPILER=clang \
@@ -35,6 +36,7 @@ build_torch-mlir(){
           -DCMAKE_CXX_COMPILER=clang++ \
           -DMLIR_DIR="$LLVM_INSTALL_DIR/lib/cmake/mlir/" \
           -DLLVM_DIR="$LLVM_INSTALL_DIR/lib/cmake/llvm/" \
+          -DTORCH_MLIR_SOURCE_DIR=$HOME/vllm-project/external/torch-mlir \
           -DMLIR_ENABLE_BINDINGS_PYTHON=ON \
           -DLLVM_TARGETS_TO_BUILD=host \
           -DTORCH_MLIR_ENABLE_STABLEHLO=OFF \
@@ -42,12 +44,12 @@ build_torch-mlir(){
           -DTORCH_MLIR_ENABLE_JIT_IR_IMPORTER=ON \
           -DTORCH_MLIR_OUT_OF_TREE_BUILD=ON \
           .
+    
     cmake --build build -j$(nproc)
-    cd $HOME
-
+    cd $current_dir
 }
 
-clean_torch-mlir(){
+clean_compiler(){
     cd $HOME
-    rm -rf $HOME/vllm-project/external/torch-mlir/build
+    rm -rf $HOME/vllm-project/compiler/build
 }

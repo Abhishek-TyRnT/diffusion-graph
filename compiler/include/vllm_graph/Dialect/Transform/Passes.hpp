@@ -11,7 +11,7 @@ namespace vllm_graph {
 
 #include "vllm_graph/Dialect/Transform/Passes.h.inc"
 
-std::unique_ptr<OperationPass<ModuleOp>> createGlobalFunctionPass();
+std::unique_ptr<OperationPass<ModuleOp>> createConvertGlobalFunctionPass();
 
 void createTorchTovLLMGraphPipeline(OpPassManager &pm);
 

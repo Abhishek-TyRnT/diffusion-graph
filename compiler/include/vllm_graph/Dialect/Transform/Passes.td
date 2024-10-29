@@ -6,7 +6,7 @@ include "mlir/Pass/PassBase.td"
 
 def ConvertGlobalFunctionPass : Pass<"convert-global-function-pass", "ModuleOp"> {
     let summary = "This Pass converts global function of Torch IR to vllm_graph supported dtypes.";
-    let description = ["This pass is created to make sure that the arguments of the forward function is always vllm_graph_dtypes"]
+    let description = [{This pass is created to make sure that the arguments of the forward function is always vllm_graph_dtypes}];
     
 }
 

@@ -6,7 +6,7 @@
 #include "vllm_graph/Conversion/TorchTovLLMGraph.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
-
+#include "vllm_graph/Dialect/Transform/Passes.hpp"
 
 
 void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
@@ -18,6 +18,7 @@ void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
 }
 
 void mlir::vllm_graph::registerAllPasses() {
+    mlir::vllm_graph::registervLLMGraphPasses();
     mlir::vllm_graph::registerConversionPasses();
 }
 

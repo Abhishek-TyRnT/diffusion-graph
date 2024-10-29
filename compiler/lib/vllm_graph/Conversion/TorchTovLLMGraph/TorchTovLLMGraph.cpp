@@ -54,7 +54,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenReluOp>::matchAndRewrite(
         opType = cast<Type>(vLLMvTensor);
     }
 
-    Value new_op = rewriter.replaceOpWithNewOp<vllm_graph::ReluOp>(op, getTypeConverter()->convertType(opType), self);
+    Value new_op = rewriter.replaceOpWithNewOp<vllm_graph::ReluOp>(op, getTypeConverter()->convertType(selfTy), self);
     llvm::outs() << new_op << "\n";
     return success();
 
@@ -70,6 +70,7 @@ public:
                   ConversionPatternRewriter &rewriter) const override {
     
     mlir::FunctionType oldFuncType = op.getFunctionType();
+    llvm::outs() << op << "\n";
 
     // Get current argument and result types
     llvm::ArrayRef<mlir::Type> oldArgTypes = oldFuncType.getInputs();
@@ -181,6 +182,7 @@ public:
         typeConverter.addConversion([](Type type) { return type; });
 
         target.addIllegalDialect<mlir::torch::Torch::TorchDialect>();
+        //llvm::outs() << getOperation() << "\n";
 
         RewritePatternSet patterns(context);
         target.addIllegalOp<mlir::torch::Torch::AtenReluOp>();                                               

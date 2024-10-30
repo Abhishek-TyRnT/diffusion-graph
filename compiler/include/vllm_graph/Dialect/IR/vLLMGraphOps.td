@@ -42,10 +42,10 @@ def vllm_CastOp : vLLMGraph_Op<"vllm.cast_op",[Pure]> {
     This Op acts a buffer between them, but will be removed in downstream passes. 
   }];
     let arguments = (ins
-        Torch_ValueTensorType:$input
+        AnyType:$input
     );
     let results = (outs
-        AnyTorchOptionalTensorType:$result
+        AnyType:$result
     );
     let hasCustomAssemblyFormat = 1;
     let extraClassDefinition = [{

@@ -35,4 +35,27 @@ def vllm_ConstantDeviceOp : vLLMGraph_Op<"constant.device",
   let assemblyFormat = "$value attr-dict";
 }
 
+def vllm_CastOp : vLLMGraph_Op<"vllm.cast_op",[Pure]> {
+  let summary = "Acts as temporary cast Op when Dialect is being transformed";
+  let description = [{
+    When Torch Dialect is being lowered to vllm_graph Dialect, For chaning just function signatures,
+    This Op acts a buffer between them, but will be removed in downstream passes. 
+  }];
+    let arguments = (ins
+        AnyType:$input
+    );
+    let results = (outs
+        AnyType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult CastOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void CastOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}
+
 #endif // VLLMGRAPH_OPS

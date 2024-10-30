@@ -17,6 +17,13 @@ using namespace mlir::vllm_graph;
 
 void replaceFuncDtypes(func::FuncOp &op)
 {
+    /*
+    The function replaces the torch.dtypes vllm_graph dtypes. It also adds a
+    temporary cast Op, so as to not disturb Ops that have been transformed.
+
+    NOTE: Currently only tested for single return types.
+    
+    */
     mlir::FunctionType oldFuncType = op.getFunctionType();
     MLIRContext *context = op.getContext();
     mlir::OpBuilder builder(context);
@@ -27,8 +34,9 @@ void replaceFuncDtypes(func::FuncOp &op)
 
     
     llvm::SmallVector<mlir::Type, 4> newArgTypes;
-    //MLIRContext *context = op.getContext();
 
+
+    //Making a list of dtype conversions from old torch dtypes to new vllm_graph_dtypes.
     auto typeConverter_fn = [context](Type type) {
     Type opType;
     if(auto torchvTensor = cast<mlir::torch::Torch::ValueTensorType>(type)){
@@ -58,35 +66,42 @@ void replaceFuncDtypes(func::FuncOp &op)
             newResultTypes.push_back(argType);  
     }
 
-
-    // Create the new function type with the updated argument types
-    // mlir::FunctionType newFuncType = builder.getFunctionType(newArgTypes, newResultTypes);
-    // auto newFuncOp = builder.create<mlir::func::FuncOp>(op.getLoc(), op.getName(), newFuncType);
+    // Function Type with new dtypes
     mlir::FunctionType newFuncType = builder.getFunctionType(newArgTypes, newResultTypes);
-    // auto *entryBlock = &newFuncOp.getBody().front();
+
     op.setType(newFuncType);
-    mlir::Value arg;
+    mlir::Block &entryBlock = op.getBody().front();
+    builder.setInsertionPointToStart(&entryBlock);
+
+    /*Inserting an CastOp so as to not disturb subsequent Ops. 
+    Note that in subsequent passes the cast Ops will be eliminated
+    */
     for (unsigned i = 0; i < op.getNumArguments(); ++i) {
-        arg = op.getArgument(i);
+        mlir::Value arg = op.getArgument(i);
+        mlir::Value::user_range opList = arg.getUsers();
+        mlir::Location loc = mlir::UnknownLoc::get(context);
+
+        auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[0], arg);
+        mlir::Value castOpResult = castOp.getResult();
+        for (mlir::Operation *user : opList) {
+            for(int j = 0; j < user->getNumOperands(); j++)
+            {
+                // CHecking whether an arg and ops operand are same thing.
+                if(user->getOperand(j) == arg)
+                    user->setOperand(j, castOpResult);
+            }
+        }
+
         arg.setType(newArgTypes[i]);
-    // You can now use `arg` for further processing
     }
 
-    mlir::Block &entryBlock = op.getBody().front();
-    mlir::Operation &nextOp = entryBlock.front();
-    mlir::Location loc = nextOp.getLoc();
-     
-    builder.setInsertionPointToStart(&entryBlock);
-    auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[0], arg);
-    mlir::Value castOpResult = castOp.getResult();
-    nextOp.setOperand(0, castOpResult);
 
+    //Same logic for return types.
     for(mlir::Operation &currOp : entryBlock)
     {
         if(mlir::isa<func::ReturnOp>(currOp))
         {
             auto returnOp = mlir::cast<func::ReturnOp>(currOp);
-            std::cout << __LINE__ << std::endl;
             mlir::Operation *returnOperation = returnOp.getOperation();
             mlir::Value returnValue = returnOperation->getOperand(0);
             builder.setInsertionPoint(returnOp);
@@ -122,25 +137,6 @@ public:
 
     void runOnOperation() override {
         MLIRContext *context = &getContext();
-        // ConversionTarget target(*context);
-        // target.addLegalDialect<vllm_graph::vLLMGraphIRDialect, func::FuncDialect>();
-
-        // TypeConverter typeConverter;
-        // typeConverter.addConversion([](Type type) { return type; });
-
-        // target.addIllegalDialect<mlir::torch::Torch::TorchDialect>();
-
-        // RewritePatternSet patterns(context);
-        // // target.addIllegalOp<mlir::torch::Torch::AtenReluOp>();                                               
-        // // patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenReluOp>>(typeConverter,        
-        // //                                                  context);
-        // patterns.add<ConvertFuncOp>(typeConverter,context);
-        //llvm::outs() << getOperation() << "\n";
-    //     for (auto &op : getOperation().getBody()->getOperations()) {
-    // // Process each operation here
-    // // For example, print the operation
-    //         op.print(llvm::outs());
-    //     }
         ModuleOp op = getOperation();
         if (failed(convertFuncOp(op)))
             return signalPassFailure();

@@ -11,7 +11,7 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "torch-mlir/Dialect/Torch/IR/TorchTypes.td"
+include "vllm_graph/Dialect/IR/vLLMGraphTypes.td"
 
 class vLLMGraph_Op<string mnenomic, list<Trait> traits = []>
     : Op<vLLMGraphIR_Dialect, mnenomic, traits> {

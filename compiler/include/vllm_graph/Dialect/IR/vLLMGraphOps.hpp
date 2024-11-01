@@ -14,8 +14,9 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Bytecode/BytecodeOpInterface.h"
 
+#include "vllm_graph/Dialect/IR/vLLMGraphTrait.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
-#include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
+#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTraits.h"
 
 

@@ -1,9 +1,9 @@
 
 
 def vllm_ReluOp : vLLMGraph_Op<"vllm.Relu", [
-        AllowsTypeRefinement,
-        HasValueSemantics,
-        ReadOnly
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
     ]> {
     
     let summary = "Generated op for `vllm::Relu : (Tensor, Scalar, Scalar) -> (Tensor)`";

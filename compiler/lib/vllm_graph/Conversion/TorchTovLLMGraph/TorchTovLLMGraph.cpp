@@ -132,6 +132,40 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrit
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenTransposeIntOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value Input = op.getOperand(0);
+    Value dim0 = op.getOperand(1);
+    Value dim1 = op.getOperand(2);
+
+    //converting from torch.int to simply int32 
+    if(isa<mlir::torch::Torch::IntType>(dim0.getType()))
+        dim0.setType(rewriter.getIntegerType(32));
+    else
+        assert(false && "dim0 must be integer");
+    
+    if(isa<mlir::torch::Torch::IntType>(dim1.getType()))
+        dim1.setType(rewriter.getIntegerType(32));
+    else
+        assert(false && "dim1 must be integer");    
+    
+    Value result = op.getResult();
+
+    MLIRContext *context = op.getContext();
+
+    Type InputType = convertTorchvTypeTovLLMvType(Input.getType(), context);
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+
+    Input.setType(InputType);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::TransposeOp>(op, resultType, Input, dim0, dim1);
+    return mlir::success();
+    
+}
+
+template <>
 LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     mlir::vllm_graph::CastOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -157,7 +191,7 @@ LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     return success();
 
     }
-}
+} //namespace 
 
 
 
@@ -190,6 +224,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenTransposeIntOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::vllm_graph::CastOp>();

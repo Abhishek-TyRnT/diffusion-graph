@@ -51,3 +51,30 @@ def vllm_AddOp : vLLMGraph_Op<"vllm.add", [
 
 
 }
+
+def vllm_TransposeOp : vLLMGraph_Op<"vllm.transpose", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm::Transpose : (Tensor, scalar, scalar) -> (Tensor)`";
+    let arguments = (ins
+        AnyTorchTensorType:$input,
+        I32:$dim0,
+        I32:$dim1
+        );
+    
+    let results = (outs 
+            AnyTorchTensorType:$result);
+    
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+    ParseResult TransposeOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void TransposeOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+    }];
+    }

@@ -166,6 +166,24 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>::matchAndRew
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndRewrite(
+    mlir::torch::Torch::ValueTensorLiteralOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value Literalvalue = op.getResult();
+    auto LiteralType = cast<mlir::torch::Torch::ValueTensorType>(Literalvalue.getType());
+    assert(LiteralType && "Only Value tensor supported as of now");
+    Type elemType = LiteralType.getOptionalDtype();
+    SmallVector<int64_t> shape = cast<SmallVector<int64_t>>(LiteralType.getOptionalSizes());
+    
+    RankedTensorType LiteralTensorType = RankedTensorType::get(shape, elemType);
+    Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, LiteralTensorType, op.getValue());
+    llvm::outs() << arithOp << "\n";
+    return success();
+
+    }
+
+template <>
 LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     mlir::vllm_graph::CastOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -229,6 +247,11 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenTransposeIntOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>>(typeConverter,        
                                                          context);
+        
+        target.addIllegalOp<mlir::torch::Torch::ValueTensorLiteralOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>>(typeConverter,        
+                                                         context);
+                                            
 
         target.addIllegalOp<mlir::vllm_graph::CastOp>();
         patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        

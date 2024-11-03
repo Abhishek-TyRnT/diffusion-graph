@@ -486,4 +486,11 @@ def AnyTorchType : AnyTypeOf<[
 
 def AnyTorchListType : ListOf<[AnyType], "Any Torch list Type">;
 
+// Creating option between RankedTensorType and vllm_graph.vtensor Type
+def TorchTypeOrTensorType : AnyTypeOf<[
+   Torch_ValueTensorType,
+   I32Tensor,
+   F32Tensor
+], "Any Torch Value tensor Type or ranked Tensor Type">;
+
 #endif // VLLMM_GRAPH_TYPES

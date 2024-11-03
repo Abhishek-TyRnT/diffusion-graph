@@ -34,7 +34,7 @@ def vllm_AddOp : vLLMGraph_Op<"vllm.add", [
     let summary = "Generated op for `vllm::Add : (Tensor, Tensor , scalar) -> (Tensor)`";
     let arguments = (ins 
         AnyTorchTensorType:$input1, 
-        AnyTorchTensorType:$input2,  
+        TorchTypeOrTensorType:$input2,  
         I32:$alpha);
     
     let results = (outs
@@ -60,7 +60,7 @@ def vllm_TransposeOp : vLLMGraph_Op<"vllm.transpose", [
     
     let summary = "Generated op for `vllm::Transpose : (Tensor, scalar, scalar) -> (Tensor)`";
     let arguments = (ins
-        AnyTorchTensorType:$input,
+        TorchTypeOrTensorType:$input,
         I32:$dim0,
         I32:$dim1
         );
@@ -77,4 +77,29 @@ def vllm_TransposeOp : vLLMGraph_Op<"vllm.transpose", [
         printDefaultvLLMGraphOp(printer, *this, 1, 1);
     }
     }];
+}
+
+def vllm_MatmulOp : vLLMGraph_Op<"vllm.matmul", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm:matmul : (Tensor, Tensor) -> (Tensor)`:";
+    let arguments = (ins
+        AnyTorchTensorType:$input,
+        TorchTypeOrTensorType:$weight);
+    
+    let results = (outs
+        AnyTorchTensorType:$result);
+    
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+    ParseResult MatmulOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
     }
+    void MatmulOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+    }];
+}

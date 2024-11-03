@@ -36,7 +36,7 @@ Type convertTorchvTypeTovLLMvType(Type type, MLIRContext *context){
     }
 
     else
-        return torchvTensor;
+        return type;
 }
 
 namespace {
@@ -123,6 +123,18 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrit
     Type Input2Type = convertTorchvTypeTovLLMvType(Tensor2.getType(), context);
     Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
 
+    // A special case where the input os coming from a literal tensor, meaning 
+    // it is stored as constant, In vLLM Dialect the constants are stored as builtin MLIR types
+    // Hence if it a constant then the input is RankedTensorType rather than vllm.vtensor. 
+    if (auto *defOp = Tensor2.getDefiningOp()){
+        if(defOp->getName() == mlir::OperationName("torch.vtensor.literal", op.getContext())){            
+            mlir::torch::Torch::ValueTensorType valueTensor = cast<mlir::torch::Torch::ValueTensorType>(Input2Type);
+            SmallVector<int64_t> sizes = cast<SmallVector<int64_t>>(valueTensor.getOptionalSizes());
+            Type dtype = valueTensor.getOptionalDtype();
+            RankedTensorType RankedInput = RankedTensorType::get(sizes, dtype);
+            Input2Type = cast<Type>(RankedInput);
+        }
+    }
     Tensor1.setType(Input1Type);
     Tensor2.setType(Input2Type);
 
@@ -156,6 +168,19 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>::matchAndRew
     MLIRContext *context = op.getContext();
 
     Type InputType = convertTorchvTypeTovLLMvType(Input.getType(), context);
+
+    // A special case where the input os coming from a literal tensor, meaning 
+    // it is stored as constant, In vLLM Dialect the constants are stored as builtin MLIR types
+    // Hence if it a constant then the input is RankedTensorType rather than vllm.vtensor. 
+    if (auto *defOp = Input.getDefiningOp()){
+        if(defOp->getName() == mlir::OperationName("torch.vtensor.literal", op.getContext())){            
+            mlir::torch::Torch::ValueTensorType valueTensor = cast<mlir::torch::Torch::ValueTensorType>(InputType);
+            SmallVector<int64_t> sizes = cast<SmallVector<int64_t>>(valueTensor.getOptionalSizes());
+            Type dtype = valueTensor.getOptionalDtype();
+            RankedTensorType RankedInput = RankedTensorType::get(sizes, dtype);
+            InputType = cast<Type>(RankedInput);
+        }
+    }
     Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
 
     Input.setType(InputType);
@@ -177,9 +202,30 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndR
     SmallVector<int64_t> shape = cast<SmallVector<int64_t>>(LiteralType.getOptionalSizes());
     
     RankedTensorType LiteralTensorType = RankedTensorType::get(shape, elemType);
-    Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, LiteralTensorType, op.getValue());
-    llvm::outs() << arithOp << "\n";
+    rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, LiteralTensorType, op.getValue());
     return success();
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenMatmulOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = op.getOperand(0);
+    Value weight = op.getOperand(1);
+
+    Value result = op.getResult();
+    MLIRContext *context = op.getContext();
+    //TODO : Add dimension check
+
+    Type inputType = convertTorchvTypeTovLLMvType(input.getType(), context);
+    Type weightType = convertTorchvTypeTovLLMvType(weight.getType(), context);
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+    input.setType(inputType);
+    weight.setType(weightType);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::MatmulOp>(op, resultType, input, weight);
+    return mlir::success();
 
     }
 
@@ -252,6 +298,9 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>>(typeConverter,        
                                                          context);
                                             
+        target.addIllegalOp<mlir::torch::Torch::AtenMatmulOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>>(typeConverter,        
+                                                         context);
 
         target.addIllegalOp<mlir::vllm_graph::CastOp>();
         patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        

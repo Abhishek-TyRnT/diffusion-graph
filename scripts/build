@@ -43,6 +43,7 @@ build_compiler(){
           -DTORCH_MLIR_ENABLE_PYTORCH_EXTENSIONS=ON \
           -DTORCH_MLIR_ENABLE_JIT_IR_IMPORTER=ON \
           -DTORCH_MLIR_OUT_OF_TREE_BUILD=ON \
+          -DPYBIND11_PATH=$(python3 -c 'import pybind11; print(pybind11.__path__[0])')/share/cmake \
           .
     
     cmake --build build -j$(nproc)

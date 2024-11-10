@@ -41,25 +41,7 @@ include(AddMLIR)
 add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(interface)
-
-add_llvm_executable(vllm-graph-opt vllm-graph-opt.cpp)
-
-install(TARGETS vllm-graph-opt
-EXPORT vLLLMGraphTargets
-RUNTIME DESTINATION ${LLVM_TOOLS_INSTALL_DIR}
-COMPONENT vllm-graph-opt)
-
-set(dependency_libraries)
-
-target_link_libraries(vllm-graph-opt PRIVATE
-  MLIROptLib
-  MLIRTransforms
-  vLLMGraphCompiler
-  vLLMGraphIRDialect
-  vLLMGraphConversionPasses
-  TorchMLIRTorchDialect
-  ${dependency_libraries}
-)
+add_subdirectory(tools)
 
 # pybind11_add_module(graph_compiler python/vLLMGraphBindings.cpp)
 # install(TARGETS graph_compiler DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)

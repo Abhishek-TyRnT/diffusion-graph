@@ -6,8 +6,11 @@ extern "C" {
 #endif
 
 #include <mlir-c/IR.h>
+#include <pybind11/pybind11.h>
 
-void registervLLMGraphDialect(MlirContext &contextc);
+namespace py = pybind11;
+
+py::object registervLLMGraphDialect();
 
 void registervLLMGraphPasses();
 

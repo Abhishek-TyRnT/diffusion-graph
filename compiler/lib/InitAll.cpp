@@ -1,6 +1,5 @@
 
 #include "InitAll.hpp"
-#include "InitAllc.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Dialect.h"
 #include "vllm_graph/Conversion/Passes.hpp"
@@ -8,31 +7,21 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 #include "vllm_graph/Dialect/Transform/Passes.hpp"
-
-using namespace mlir::vllm_graph;
-
+#include <iostream>
 
 void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
 {
-    registry.insert<mlir::func::FuncDialect>();
+    //registry.insert<mlir::func::FuncDialect>();
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     registry.insert<mlir::vllm_graph::vLLMGraphIRDialect>();
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     registry.insert<mlir::torch::Torch::TorchDialect>();
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
 
 }
 
 void mlir::vllm_graph::registerAllPasses() {
     mlir::vllm_graph::registervLLMGraphPasses();
     mlir::vllm_graph::registerConversionPasses();
-}
-
-void registervLLMGraphDialect(MlirContext &contextc){
-    mlir::MLIRContext *context = reinterpret_cast<mlir::MLIRContext*>(contextc.ptr);
-    mlir::DialectRegistry registry = context->getDialectRegistry();
-    registerAllDialects(registry);
-
-}
-
-void registervLLMGraphPasses(){
-    registerAllPasses();
 }
 

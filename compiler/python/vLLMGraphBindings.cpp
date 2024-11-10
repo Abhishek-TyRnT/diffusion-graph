@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/Pass/Pass.h>
+#include "mlir/IR/BuiltinDialect.h"
 #include "InitAllc.h"
 #include "InitAll.hpp"
 #include "mlir-c/Bindings/Python/Interop.h"
@@ -34,6 +35,7 @@ static py::object castMlirContextToPythonObject(MlirContext& context) {
 py::object registervLLMGraphDialect(){
     mlir::DialectRegistry registry;
     mlir::vllm_graph::registerAllDialects(registry);
+    registry.insert<mlir::BuiltinDialect>();
     MlirDialectRegistry registryc;
     registryc.ptr = &registry;
     // if(!unwrap(context))

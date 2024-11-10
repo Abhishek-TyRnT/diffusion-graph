@@ -24,6 +24,7 @@ include_directories(${MLIR_INCLUDE_DIRS})
 include_directories(${TORCH_MLIR_SOURCE_DIR}/include)
 include_directories(${TORCH_MLIR_BUILD_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/interface)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories("/usr/include/python3.10")
 
@@ -39,6 +40,7 @@ include(AddMLIR)
 
 add_subdirectory(include)
 add_subdirectory(lib)
+add_subdirectory(interface)
 
 add_llvm_executable(vllm-graph-opt vllm-graph-opt.cpp)
 
@@ -52,16 +54,16 @@ set(dependency_libraries)
 target_link_libraries(vllm-graph-opt PRIVATE
   MLIROptLib
   MLIRTransforms
-  vLLMGraphInitAll
+  vLLMGraphCompiler
   vLLMGraphIRDialect
   vLLMGraphConversionPasses
   TorchMLIRTorchDialect
   ${dependency_libraries}
 )
 
-pybind11_add_module(graph_compiler python/vLLMGraphBindings.cpp)
-install(TARGETS graph_compiler DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)
-target_link_libraries(graph_compiler PRIVATE 
-  vLLMGraphInitAll
-  MLIRCAPIIR)
+# pybind11_add_module(graph_compiler python/vLLMGraphBindings.cpp)
+# install(TARGETS graph_compiler DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)
+# target_link_libraries(graph_compiler PRIVATE 
+#   vLLMGraphInitAll
+#   MLIRCAPIIR)
 

@@ -10,7 +10,10 @@ void mlir::vllm_graph::registervLLMGraphPasses(){
     ::registerPasses();
 }
 
-void createTorchTovLLMGraphPipeline(OpPassManager &pm){
+void mlir::vllm_graph::createTorchTovLLMGraphPipeline(PassManager &pm){
 
+    //mlir::OpPassManager &ModuleOpPM = pm.nest<mlir::ModuleOp>();
     pm.addPass(createConvertGlobalFunctionPass());
+    mlir::OpPassManager &FuncOpPM = pm.nest<mlir::func::FuncOp>();
+    FuncOpPM.addPass(createTorchTovLLMGraph());
 }

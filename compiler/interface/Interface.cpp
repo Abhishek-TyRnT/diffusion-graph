@@ -5,11 +5,14 @@
 #include "llvm/Support/SourceMgr.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/Parser/Parser.h"
+#include "mlir-c/IR.h"
+#include "mlir-c/Support.h"
 
 using namespace mlir;
 using namespace mlir::vllm_graph;
 
-vLLMGraph::vLLMGraph(){
+
+vLLMGraphBase::vLLMGraphBase(){
     DialectRegistry registry;
     registerAllDialects(registry);
     registerAllPasses();
@@ -19,11 +22,11 @@ vLLMGraph::vLLMGraph(){
     createTorchTovLLMGraphPipeline(*passmanager);
 }
 
-vLLMGraph::~vLLMGraph(){
+vLLMGraphBase::~vLLMGraphBase(){
     delete context;
 }
 
-OwningOpRef<mlir::ModuleOp> vLLMGraph::convert(std::string IRFile){
+OwningOpRef<mlir::ModuleOp> vLLMGraphBase::convert(std::string IRFile){
     llvm::SourceMgr sourceMgr;
     auto fileOrErr = llvm::MemoryBuffer::getFile(IRFile);
     if (!fileOrErr) {
@@ -46,6 +49,13 @@ OwningOpRef<mlir::ModuleOp> vLLMGraph::convert(std::string IRFile){
     llvm::outs() << *module << "\n";
     return module;
 }
+
+// py::pyobject vLLMGraph::compile(std::string IRFile){
+//     OwningOpRef<mlir::ModuleOp> module = convert(IRFile);
+//     MlirModule moduleC;
+//     moduleC.ptr = module;
+//     return castMlirModuleToPythonObject(moduleC);
+// }
 
 
 

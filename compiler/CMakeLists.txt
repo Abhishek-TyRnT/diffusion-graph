@@ -42,6 +42,7 @@ add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(interface)
 add_subdirectory(tools)
+add_subdirectory(python)
 
 # pybind11_add_module(graph_compiler python/vLLMGraphBindings.cpp)
 # install(TARGETS graph_compiler DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)

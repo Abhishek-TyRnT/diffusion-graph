@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
         llvm::errs() << "Input File not provided" << "\n";
         exit(-1);
     }
-    mlir::vllm_graph::vLLMGraph graph;
+    mlir::vllm_graph::vLLMGraphBase graph;
     graph.convert(argv[1]);
     return 0;
 

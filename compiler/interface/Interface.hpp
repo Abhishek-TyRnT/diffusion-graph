@@ -10,15 +10,16 @@ using namespace mlir;
 namespace mlir{
 namespace vllm_graph{
 
-class vLLMGraph{
+class vLLMGraphBase{
 
 public:
-    vLLMGraph();
+    vLLMGraphBase();
     OwningOpRef<mlir::ModuleOp> convert(std::string IRFile);
+    //pybind11::pyobject compile(std::string IRFile);
     void print(ModuleOp module);
-    ~vLLMGraph();
+    ~vLLMGraphBase();
 
-private:
+protected:
     MLIRContext *context;
     std::unique_ptr<PassManager> passmanager;
 };

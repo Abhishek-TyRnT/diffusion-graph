@@ -6,17 +6,19 @@
 #include <any>
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "llvm/ADT/DenseMap.h"
 
+using NestedValueType = std::variant<std::string, std::vector<int64_t>, std::vector<std::string>>;
+using ValueType = std::variant<std::string, 
+                    std::unordered_map<std::string, NestedValueType>>;
 class GraphWriter{
 /*The Graph Writer class converts the vllm_graph IR to unordered map to subsequently 
     convert to json format.*/
-using NestedValueType = std::variant<std::string, std::vector<int64_t>>;
-using ValueType = std::variant<std::string, 
-                    std::unordered_map<std::string, NestedValueType>>;
+
 
 private:
     std::unordered_map<std::string, ValueType> graph;
-    std::unordered_map<uint64_t, mlir::Operation*> opMap;
+    llvm::DenseMap<mlir::Value, std::string> opMap;
     //Counter to keep number of ops
     uint64_t opCount = 0;
     //Counter to keep number of args

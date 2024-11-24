@@ -20,9 +20,9 @@
 namespace py = pybind11;
 using namespace mlir::vllm_graph;
 
-using NestedValueType = std::variant<std::string, std::vector<int64_t>>;
-using ValueType = std::variant<std::string, 
-                    std::unordered_map<std::string, NestedValueType>>;
+// using NestedValueType = std::variant<std::string, std::vector<int64_t>>;
+// using ValueType = std::variant<std::string, 
+//                     std::unordered_map<std::string, NestedValueType>>;
 
 
 static py::object getMlirIrClass(const char* className) {

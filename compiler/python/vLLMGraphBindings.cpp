@@ -1,11 +1,13 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>  // For STL containers
+#include <pybind11/complex.h>
 #include "Interface.hpp"
 #include "GraphConvertor/GraphWriter.hpp"
 #include <mlir/IR/Dialect.h>
 // #include <mlir/Pass/Pass.h>
 #include "mlir/IR/BuiltinDialect.h"
 #include <unordered_map>
+#include <any>
 // #include "InitAllc.h"
 // #include "InitAll.hpp"
 #include "mlir-c/BuiltinAttributes.h"
@@ -18,7 +20,10 @@
 namespace py = pybind11;
 using namespace mlir::vllm_graph;
 
-using ValueType = std::variant<std::string, std::unordered_map<std::string, std::string>>;
+using NestedValueType = std::variant<std::string, std::vector<int64_t>>;
+using ValueType = std::variant<std::string, 
+                    std::unordered_map<std::string, NestedValueType>>;
+
 
 static py::object getMlirIrClass(const char* className) {
   return py::module::import(MAKE_MLIR_PYTHON_QUALNAME("ir")).attr(className);

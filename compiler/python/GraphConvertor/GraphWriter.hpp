@@ -3,13 +3,16 @@
 
 #include <unordered_map>
 #include <variant>
+#include <any>
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
 
 class GraphWriter{
 /*The Graph Writer class converts the vllm_graph IR to unordered map to subsequently 
     convert to json format.*/
-using ValueType = std::variant<std::string, std::unordered_map<std::string, std::string>>;
+using NestedValueType = std::variant<std::string, std::vector<int64_t>>;
+using ValueType = std::variant<std::string, 
+                    std::unordered_map<std::string, NestedValueType>>;
 
 private:
     std::unordered_map<std::string, ValueType> graph;

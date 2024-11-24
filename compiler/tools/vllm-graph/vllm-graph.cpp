@@ -9,7 +9,8 @@ int main(int argc, char **argv) {
         exit(-1);
     }
     mlir::vllm_graph::vLLMGraphBase graph;
-    graph.convert(argv[1]);
+    OwningOpRef<mlir::ModuleOp> moduleOp = graph.convert(argv[1]);
+    llvm::outs() << *moduleOp << "\n";
     return 0;
 
 }

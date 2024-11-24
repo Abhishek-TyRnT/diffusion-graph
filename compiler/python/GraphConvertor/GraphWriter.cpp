@@ -11,13 +11,15 @@ void GraphWriter::addOp(mlir::Operation *op){
 
     for(mlir::Value operand : op->getOperands()){
         if(mlir::isa<mlir::BlockArgument>(operand)){
-            std::string argName = "arg" + argCount++;
+            std::stringstream argName;
+            argName << "arg" << argCount++;
             mlir::Type argType = operand.getType();
             mlir::vllm_graph::ValueTensorType RankedArg = 
                         mlir::cast<mlir::vllm_graph::ValueTensorType>(argType);
-            std::unordered_map<std::string, std::string> map;
+            std::unordered_map<std::string, NestedValueType> map;
             if(RankedArg){
                 llvm::ArrayRef<int64_t> shape = RankedArg.getSizes();
+                std::vector<int64_t> shapeVec(shape.begin(), shape.end());
                 mlir::Type elementType = RankedArg.getDtype();
                 std::string elementTypeName;
                 llvm::raw_string_ostream os(elementTypeName);
@@ -25,7 +27,8 @@ void GraphWriter::addOp(mlir::Operation *op){
 
                 map["vllm_graph_type"] = "vllm_graph.vtensor";
                 map["dtype"] = elementTypeName;
-                graph[argName] = map;
+                map["shape"] = shapeVec;
+                graph[argName.str()] = map;
 
             }
         }

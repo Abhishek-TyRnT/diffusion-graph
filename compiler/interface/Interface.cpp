@@ -46,7 +46,6 @@ OwningOpRef<mlir::ModuleOp> vLLMGraphBase::convert(std::string IRFile){
     
     if(failed(passmanager->run(*module)))
         llvm::errs() << "The Pass failed to run"<< "\n";
-    llvm::outs() << *module << "\n";
     return module;
 }
 

@@ -8,7 +8,6 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
-#include <iostream>
 
 using namespace mlir;
 using namespace mlir::vllm_graph;

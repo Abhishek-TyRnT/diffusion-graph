@@ -10,7 +10,7 @@
 
 using NestedValueType = std::variant<std::string, std::vector<int64_t>, std::vector<std::string>>;
 using ValueType = std::variant<std::string, 
-                    std::unordered_map<std::string, NestedValueType>>;
+                    std::unordered_map<std::string, NestedValueType>, std::vector<std::string>>;
 class GraphWriter{
 /*The Graph Writer class converts the vllm_graph IR to unordered map to subsequently 
     convert to json format.*/
@@ -28,6 +28,7 @@ private:
 public:
     
     void build(mlir::OwningOpRef<mlir::ModuleOp> &module);
+    GraphWriter();
     std::unordered_map<std::string, ValueType> getGraph(){ return graph; }
 };
 #endif

@@ -9,11 +9,15 @@
 
 void GraphWriter::addOp(mlir::Operation *op){
 
+    // if(auto FuncOp = mlir::cast<mlir::func::FuncOp>(*op)){
+
+    // }
     for(mlir::Value operand : op->getOperands()){
         if(mlir::isa<mlir::BlockArgument>(operand)){
             std::stringstream argName;
             argName << "arg" << argCount++;
             opMap[operand] = argName.str();
+            std::get<std::vector<std::string>>(graph["entrypoint"]).push_back(argName.str());
             mlir::Type argType = operand.getType();
             mlir::vllm_graph::ValueTensorType RankedArg = 
                         mlir::cast<mlir::vllm_graph::ValueTensorType>(argType);
@@ -87,6 +91,10 @@ void GraphWriter::addOp(mlir::Operation *op){
                 
         }
     }
+}
+
+GraphWriter::GraphWriter(){
+    graph["entrypoint"] = std::vector<std::string>({});
 }
 void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
     module->walk([this](mlir::Operation *op) {

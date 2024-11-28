@@ -4,14 +4,12 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Value.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
 #include <iostream>
 
 void GraphWriter::addOp(mlir::Operation *op){
 
-    // if(auto FuncOp = mlir::cast<mlir::func::FuncOp>(*op)){
-
-    // }
     for(mlir::Value operand : op->getOperands()){
         if(mlir::isa<mlir::BlockArgument>(operand)){
             std::stringstream argName;
@@ -47,9 +45,12 @@ void GraphWriter::addOp(mlir::Operation *op){
         ssa_id << opCount << "." << resCount++;
         std::unordered_map<std::string, NestedValueType> map;
         mlir::Type resType = res.getType();
-        mlir::vllm_graph::ValueTensorType Rankedres = 
-                    mlir::cast<mlir::vllm_graph::ValueTensorType>(resType);
-        if(Rankedres){
+        //Case when it's a constant op 
+        if(mlir::isa<mlir::arith::ConstantOp>(*op))
+            std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
+        
+        if(mlir::isa<mlir::vllm_graph::ValueTensorType>(resType)){
+            auto Rankedres = mlir::cast<mlir::vllm_graph::ValueTensorType>(resType);
             llvm::ArrayRef<int64_t> shape = Rankedres.getSizes();
             std::vector<int64_t> shapeVec(shape.begin(), shape.end());
             mlir::Type elementType = Rankedres.getDtype();
@@ -64,6 +65,29 @@ void GraphWriter::addOp(mlir::Operation *op){
 
         }
 
+        else if(mlir::isa<mlir::RankedTensorType>(resType)){
+            auto Rankedres = mlir::cast<mlir::RankedTensorType>(resType);
+            llvm::ArrayRef<int64_t> shape = Rankedres.getShape();
+            std::vector<int64_t> shapeVec(shape.begin(), shape.end());
+            mlir::Type elementType = Rankedres.getElementType();
+            std::string elementTypeName;
+            llvm::raw_string_ostream os(elementTypeName);
+            elementType.print(os); // Prints the element type
+
+            map["vllm_graph_type"] = "tensor";
+            map["dtype"] = elementTypeName;
+            map["output_shape"] = shapeVec;
+            map["op_name"] = op->getName().getStringRef().str();
+        }
+        // Only for non tensor scalar type
+        else{
+            std::string elementTypeName;
+            llvm::raw_string_ostream os(elementTypeName);
+            resType.print(os);
+            map["dtype"] = elementTypeName;
+            map["op_name"] = op->getName().getStringRef().str();
+        }
+        opMap[res] = ssa_id.str();
         graph[ssa_id.str()] = map;
         for(mlir::Value operand : op->getOperands()){
             if(!opMap.count(operand)){
@@ -91,10 +115,13 @@ void GraphWriter::addOp(mlir::Operation *op){
                 
         }
     }
+
+    opCount++;
 }
 
 GraphWriter::GraphWriter(){
     graph["entrypoint"] = std::vector<std::string>({});
+    graph["constants"] = std::vector<std::string>({});
 }
 void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
     module->walk([this](mlir::Operation *op) {

@@ -49,13 +49,6 @@ OwningOpRef<mlir::ModuleOp> vLLMGraphBase::convert(std::string IRFile){
     return module;
 }
 
-// py::pyobject vLLMGraph::compile(std::string IRFile){
-//     OwningOpRef<mlir::ModuleOp> module = convert(IRFile);
-//     MlirModule moduleC;
-//     moduleC.ptr = module;
-//     return castMlirModuleToPythonObject(moduleC);
-// }
-
 
 
 

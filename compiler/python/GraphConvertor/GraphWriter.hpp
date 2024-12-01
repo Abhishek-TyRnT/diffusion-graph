@@ -1,6 +1,7 @@
 #ifndef VLLM_GRAPH_GRAPH_WRITER_H
 #define VLLM_GRAPH_GRAPH_WRITER_H
 
+#include "H5Cpp.h"  // HDF5 C++ API
 #include <unordered_map>
 #include <variant>
 #include <any>
@@ -15,15 +16,17 @@ class GraphWriter{
 /*The Graph Writer class converts the vllm_graph IR to unordered map to subsequently 
     convert to json format.*/
 
-
 private:
     std::unordered_map<std::string, ValueType> graph;
     llvm::DenseMap<mlir::Value, std::string> opMap;
+    H5::H5File file;
     //Counter to keep number of ops
     uint64_t opCount = 0;
     //Counter to keep number of args
     uint64_t argCount = 0; 
     void addOp(mlir::Operation *op);
+    template<typename ElemType>
+    void storeWeights(ElemType val, std::string ssa_id);
 
 public:
     

@@ -8,6 +8,40 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
 #include <iostream>
 
+
+
+template<> 
+void GraphWriter::storeWeights<mlir::DenseElementsAttr>(mlir::DenseElementsAttr val, std::string ssa_id){
+    std::vector<float> denseVal(val.getValues<float>().begin(), val.getValues<float>().end());
+    hsize_t dims[1] = {denseVal.size()};
+    H5::DataSpace dataspace(1, dims);
+    // Create the dataset
+    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
+    dataset.write(denseVal.data(), H5::PredType::NATIVE_FLOAT);
+    
+}
+
+template<>
+void GraphWriter::storeWeights<mlir::IntegerAttr>(mlir::IntegerAttr val, std::string ssa_id){
+    int64_t value = val.getInt();
+    hsize_t dims[1] = {1};
+    H5::DataSpace dataspace(1, dims);
+    // Create the dataset
+    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_INT, dataspace);
+    dataset.write(&value, H5::PredType::NATIVE_INT);
+}
+
+template<>
+void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string ssa_id){
+    double value = val.getValueAsDouble();
+    hsize_t dims[1] = {1};
+    H5::DataSpace dataspace(1, dims);
+    // Create the dataset
+    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
+    dataset.write(&value, H5::PredType::NATIVE_FLOAT);
+}
+
+
 void GraphWriter::addOp(mlir::Operation *op){
 
     for(mlir::Value operand : op->getOperands()){
@@ -46,8 +80,19 @@ void GraphWriter::addOp(mlir::Operation *op){
         std::unordered_map<std::string, NestedValueType> map;
         mlir::Type resType = res.getType();
         //Case when it's a constant op 
-        if(mlir::isa<mlir::arith::ConstantOp>(*op))
+        if(mlir::isa<mlir::arith::ConstantOp>(*op)){
+            auto constOp = mlir::cast<mlir::arith::ConstantOp>(*op);
+            auto attr = constOp.getValue();
+            if (auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr)) {
+                storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
+            } else if(auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(attr)){
+                storeWeights<mlir::IntegerAttr>(intAttr, ssa_id.str());
+            }
+            else if(auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(attr)){
+                storeWeights<mlir::FloatAttr>(floatAttr, ssa_id.str());
+            }
             std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
+        }
         
         if(mlir::isa<mlir::vllm_graph::ValueTensorType>(resType)){
             auto Rankedres = mlir::cast<mlir::vllm_graph::ValueTensorType>(resType);
@@ -119,9 +164,12 @@ void GraphWriter::addOp(mlir::Operation *op){
     opCount++;
 }
 
-GraphWriter::GraphWriter(){
+GraphWriter::GraphWriter(std::string weightsPath){
     graph["entrypoint"] = std::vector<std::string>({});
     graph["constants"] = std::vector<std::string>({});
+
+    file = H5::H5File(weightsPath, H5F_ACC_TRUNC);
+
 }
 void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
     module->walk([this](mlir::Operation *op) {

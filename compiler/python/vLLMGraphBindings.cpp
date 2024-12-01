@@ -26,6 +26,9 @@ private:
     GraphWriter convertor;
 
 public:
+
+vLLMGraph(std::string weightsPath) : convertor(weightsPath){}
+
 std::unordered_map<std::string, ValueType> compile(std::string IRFile){
     mlir::OwningOpRef<mlir::ModuleOp> moduleRef = convert(IRFile);
     convertor.build(moduleRef);
@@ -38,6 +41,6 @@ std::unordered_map<std::string, ValueType> compile(std::string IRFile){
 PYBIND11_MODULE(graph_compiler, m){
 
     py::class_<vLLMGraph>(m, "vLLMGraph")
-        .def(py::init())
+        .def(py::init<std::string& >())
         .def("convert", &vLLMGraph::compile);
 }

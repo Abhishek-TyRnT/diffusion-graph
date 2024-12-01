@@ -9,7 +9,10 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/DenseMap.h"
 
-using NestedValueType = std::variant<std::string, std::vector<int64_t>, std::vector<std::string>>;
+using NestedValueType = std::variant<std::string, 
+                            std::vector<int64_t>, 
+                            std::vector<std::string>, 
+                            int, float>;
 using ValueType = std::variant<std::string, 
                     std::unordered_map<std::string, NestedValueType>, std::vector<std::string>>;
 class GraphWriter{
@@ -31,7 +34,7 @@ private:
 public:
     
     void build(mlir::OwningOpRef<mlir::ModuleOp> &module);
-    GraphWriter();
+    GraphWriter(std::string weightsPath);
     std::unordered_map<std::string, ValueType> getGraph(){ return graph; }
 };
 #endif

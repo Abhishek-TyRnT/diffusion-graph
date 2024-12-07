@@ -14,9 +14,9 @@ class vLLMGraphBase{
 
 public:
     vLLMGraphBase();
-    OwningOpRef<mlir::ModuleOp> convert(std::string IRFile);
-    //pybind11::pyobject compile(std::string IRFile);
-    void print(ModuleOp module);
+    void convert(OwningOpRef<mlir::ModuleOp> &module);
+    OwningOpRef<mlir::ModuleOp> parse(std::string IR);
+    OwningOpRef<mlir::ModuleOp> parseFromFile(std::string IRFile);
     ~vLLMGraphBase();
 
 protected:

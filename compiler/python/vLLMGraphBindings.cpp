@@ -4,17 +4,9 @@
 #include "Interface.hpp"
 #include "GraphConvertor/GraphWriter.hpp"
 #include <mlir/IR/Dialect.h>
-// #include <mlir/Pass/Pass.h>
 #include "mlir/IR/BuiltinDialect.h"
 #include <unordered_map>
 #include <any>
-// #include "InitAllc.h"
-// #include "InitAll.hpp"
-#include "mlir-c/BuiltinAttributes.h"
-#include "mlir-c/BuiltinTypes.h"
-#include "mlir-c/Diagnostics.h"
-#include "mlir-c/Bindings/Python/Interop.h"
-#include "mlir/CAPI/IR.h"
 #include <iostream>
 
 namespace py = pybind11;
@@ -29,8 +21,9 @@ public:
 
 vLLMGraph(std::string weightsPath) : convertor(weightsPath){}
 
-std::unordered_map<std::string, ValueType> compile(std::string IRFile){
-    mlir::OwningOpRef<mlir::ModuleOp> moduleRef = convert(IRFile);
+std::unordered_map<std::string, ValueType> compile(std::string IR){
+    mlir::OwningOpRef<mlir::ModuleOp> moduleRef = parse(IR);
+    convert(moduleRef);
     convertor.build(moduleRef);
     
     return convertor.getGraph();
@@ -42,5 +35,5 @@ PYBIND11_MODULE(graph_compiler, m){
 
     py::class_<vLLMGraph>(m, "vLLMGraph")
         .def(py::init<std::string& >())
-        .def("convert", &vLLMGraph::compile);
+        .def("compile", &vLLMGraph::compile);
 }

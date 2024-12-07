@@ -26,27 +26,53 @@ vLLMGraphBase::~vLLMGraphBase(){
     delete context;
 }
 
-OwningOpRef<mlir::ModuleOp> vLLMGraphBase::convert(std::string IRFile){
-    llvm::SourceMgr sourceMgr;
+OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parse(std::string IR){
+    // llvm::SourceMgr sourceMgr;
+    // // auto fileOrErr = llvm::MemoryBuffer::getFile(IRFile);
+    // // if (!fileOrErr) {
+    // //     llvm::errs() << "Could not open input file\n";
+    // //     return nullptr;
+    // // }
+    // sourceMgr.AddNewSourceBuffer(IR, llvm::SMLoc());
+
+    // Parse the file into an MLIR module.
+    mlir::ParserConfig parserConfig(context);
+    auto OpRef =
+        mlir::parseSourceString(IR, parserConfig);
+    
+    if (!OpRef) {
+        llvm::errs() << "Failed to parse MLIR IR\n";
+    }
+
+    // Cast OwningOpRef<Operation*> to OwningOpRef<ModuleOp>
+    if (!isa<ModuleOp>(OpRef.get())) {
+        llvm::errs() << "The operation is not a ModuleOp\n";
+    }
+
+    auto moduleOpRef = mlir::OwningOpRef<ModuleOp>(mlir::cast<ModuleOp>(OpRef.release()));
+
+    return moduleOpRef;
+}
+
+OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parseFromFile(std::string IRFile){
+    
     auto fileOrErr = llvm::MemoryBuffer::getFile(IRFile);
     if (!fileOrErr) {
         llvm::errs() << "Could not open input file\n";
         return nullptr;
     }
-    sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
+    //TODO fix this
+    return parse("empty string");
+}
 
-    // Parse the file into an MLIR module.
-    mlir::ParserConfig parserConfig(context);
-    OwningOpRef<ModuleOp> module =
-        mlir::parseSourceFile<ModuleOp>(sourceMgr, parserConfig);
+void vLLMGraphBase::convert(OwningOpRef<ModuleOp> &module){
+
     if (!module) {
         llvm::errs() << "Error parsing MLIR file\n";
-        return nullptr;
     }
     
     if(failed(passmanager->run(*module)))
         llvm::errs() << "The Pass failed to run"<< "\n";
-    return module;
 }
 
 

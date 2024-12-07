@@ -56,13 +56,19 @@ OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parse(std::string IR){
 
 OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parseFromFile(std::string IRFile){
     
+    llvm::SourceMgr sourceMgr;
     auto fileOrErr = llvm::MemoryBuffer::getFile(IRFile);
     if (!fileOrErr) {
         llvm::errs() << "Could not open input file\n";
         return nullptr;
     }
-    //TODO fix this
-    return parse("empty string");
+    sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
+
+    // Parse the file into an MLIR module.
+    mlir::ParserConfig parserConfig(context);
+    OwningOpRef<ModuleOp> module =
+        mlir::parseSourceFile<ModuleOp>(sourceMgr, parserConfig);
+    return module;
 }
 
 void vLLMGraphBase::convert(OwningOpRef<ModuleOp> &module){

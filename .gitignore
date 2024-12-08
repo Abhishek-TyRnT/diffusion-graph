@@ -5,3 +5,4 @@ temp_script.sh
 test.cpp
 CMakeLists.txt
 weight.h5
+build

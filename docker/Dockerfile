@@ -19,7 +19,7 @@ RUN useradd -u ${UID} ${username} && \
     usermod -aG sudo ${username} && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-ENV TORCH_MLIR_PATH="/home/${username}/vllm-project/build/external/torch-mlir/build/python_packages/torch_mlir"
+ENV TORCH_MLIR_PATH="/home/${username}/vllm-project/build/external/torch-mlir/python_packages/torch_mlir"
 ENV VLLM_COMPILER="/home/${username}/vllm-project/build/python"
 RUN mkdir /llvm-build && \
     chown ${username} /llvm-build && \

@@ -35,6 +35,7 @@ public:
     
     void build(mlir::OwningOpRef<mlir::ModuleOp> &module);
     GraphWriter(std::string weightsPath);
+    void closeFile() { file.close(); }
     std::unordered_map<std::string, ValueType> getGraph(){ return graph; }
 };
 #endif

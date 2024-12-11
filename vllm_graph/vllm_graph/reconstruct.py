@@ -5,46 +5,51 @@ import torch
 import json
 import h5py
 import os
+from collections import deque
 
 
 class vLLMGraphModel(torch.nn.Module):
     def __init__(self, graph_dict: dict, weight_path: str):
-        weights = h5py.File(weight_path, 'r')
-        for constant in graph_dict["constants"]:
-            data_name = f"weights_dataset{constant}"
-            data = weights[data_name]
-            dtype = graph_dict[constant]['dtype']
-            tensor = torch.tensor(data, TYPE_MAP[dtype])
-            if(graph_dict[constant].get("shape", None) is not None):
-                tensor = torch.reshape(tensor, graph_dict[constant]["shape"])
+        super().__init__()
+        self.weights = h5py.File(weight_path, 'r')
+        self.graph_dict = graph_dict
+        for constant in self.graph_dict["constants"]:
+            data_name = f"weight_datasets{constant}"
+            data = self.weights[data_name]
+            dtype = self.graph_dict[constant]['dtype']
+            
+            if(self.graph_dict[constant].get("output_shape", None) is None):
+                ssa_id = constant.split(".")[0]
+                var_name = f"weight_{ssa_id}"
+                setattr(self, var_name, list(data)[0])
+                continue
+
+            tensor = torch.tensor(data, dtype = TYPE_MAP[dtype])
+            tensor = torch.reshape(tensor, self.graph_dict[constant]["output_shape"])
             
             ssa_id = constant.split(".")[0]
             var_name = f"weight_{ssa_id}"
-            weight = torch.nn.Parameter(tensor)
+            weight = torch.nn.Parameter(tensor, requires_grad=False)
             setattr(self, var_name, weight)
 
 
 class vLLMGraph:
     def __init__(self, model_name: str, temp_directory: str | None = None):
         if temp_directory is None:
-            root_folder = os.path.dirname(os.path.dirname(__file__))
+            root_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             self.temp_directory = f"{root_folder}/temp_files/{model_name}"
             self.weights_directory = f"{root_folder}/temp_files/{model_name}/weights.h5"
         else:
             self.temp_directory = f"{temp_directory}/{model_name}"
             self.weights_directory = f"{temp_directory}/{model_name}/weights.h5"
         
+        if not os.path.exists(self.temp_directory):
+            os.makedirs(self.temp_directory)
         self.graph_compiler = GraphCompiler(self.weights_directory)
         self.graph_dict : dict = {}
     
-    def compile(self, model: torch.nn.Module):
-        self.graph_dict = self.graph_compiler.compile(model)
-        #This marks all the nodes as not visited
-        #TODO: add this flag while creating dict
-        for node in self.graph_dict:
-            if node in ["entrypoint", "constants"]:
-                continue
-            self.graph_dict[node]['visited'] = False
+    def compile(self, model: torch.nn.Module, inputs: torch.Tensor):
+        self.graph_dict = self.graph_compiler.compile(model, inputs)
 
     
     def store_graph_dict(self):
@@ -56,13 +61,102 @@ class vLLMGraph:
         print(f"model.json stored in {self.temp_directory}")
     
 
-    
-    def reconstruct(self) -> torch.nn.Module:
-        node_graph = {}
-        fx_graph = Graph()
+    def topological_sort(self, graph_dict: dict, Nodes: list)->list:
+        # Vector to store indegree of each vertex
+        indegree = {vertex: 0 for vertex in Nodes}
+        for ssa_id in Nodes:
+            for vertex in graph_dict[ssa_id].get("next_nodes", []):
+                indegree[vertex] += 1
+
+        # Queue to store vertices with indegree 0
+        q = deque()
+        for ssa_id in Nodes:
+            if indegree[ssa_id] == 0:
+                q.append(ssa_id)
+        result = []
+        while q:
+            node = q.popleft()
+            result.append(node)
+            # Decrease indegree of adjacent vertices as the current node is in topological order
+            for adjacent in graph_dict[node].get("next_nodes", []):
+                indegree[adjacent] -= 1
+                # If indegree becomes 0, push it to the queue
+                if indegree[adjacent] == 0:
+                    q.append(adjacent)
+
+        # Check for cycle
+        if len(result) != len(Nodes):
+            raise ValueError("InValid Graph!, Graph is not topologically sortable")
+        
+        return result
+
+    def construct_graph(self, nodes: list[str]) -> torch.fx.Graph:
+        graph_nodes = {}
+        graph = torch.fx.Graph()
+        for node in nodes:
+            node_type = self.graph_dict[node].get("op_name", None)
+            if(node_type is None):
+                raise ValueError(f"op name for {node} is invalid")
+            
+            if node_type == "input_arg":
+                graph_nodes[node] = graph.placeholder(node)
+            
+            elif node_type == "arith.constant":
+                ssa_id = node.split(".")[0]
+                graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
+            
+            elif node_type == "vllm_graph.vllm.add":
+                add_func = OP_MAP.get(node_type, None)
+                input_args = []
+                input_kwargs = {}
+                for inp in self.graph_dict[node]['input_nodes']:
+                    if self.graph_dict[inp]["vllm_graph_type"] == "scalar":
+                        input_kwargs["alpha"] = graph_nodes[inp]
+                        
+                    else:
+                        input_args.append(graph_nodes[inp])
+                
+                graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
+                
+            else:
+                op_func = OP_MAP.get(node_type, None)
+                if op_func is None:
+                  raise ValueError(f"op function for {node_type} is not defined!")
+                input_args = []
+                for inp in self.graph_dict[node]['input_nodes']:
+                    input_args.append(graph_nodes[inp])
+                
+                graph_nodes[node] = graph.call_function(op_func, args=tuple(input_args))
+        
+        last_node = node
+        graph.output(graph_nodes[last_node])
+        return graph
+                
+
+
+
+    def reconstruct(self) -> torch.fx.GraphModule:
+
+        assert len(self.graph_dict) != 0, "Model not compiled"
         model = vLLMGraphModel(self.graph_dict, self.weights_directory)
-        for arg in self.graph_dict['entrypoint']:
-            node_graph[arg] = fx_graph.placeholder(arg)
+        Nodes = []
+        for node in self.graph_dict:
+            if node in ['entrypoint', 'constants']:
+                continue
+            Nodes.append(node)
+        
+        #Topologically sorted nodes will ensure we don't have node as input which was
+        #not declared before.
+        topologically_sorted_nodes = self.topological_sort(self.graph_dict, Nodes)
+        module_graph = self.construct_graph(topologically_sorted_nodes)
+        return torch.fx.GraphModule(model, module_graph)
+
+
+
+
+
+        
+            
         
 
 

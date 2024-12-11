@@ -9,5 +9,5 @@ OP_MAP = {
     "vllm_graph.vllm.Relu": torch.nn.functional.relu,
     "vllm_graph.vllm.add": torch.add,
     "vllm_graph.vllm.transpose": torch.transpose,
-    "vllm_graph.vllm.matmul": torch.bmm
+    "vllm_graph.vllm.matmul": torch.matmul
 }

@@ -1,4 +1,4 @@
-from .graph_compiler import vLLMGraph
+from graph_compiler import vLLMGraph
 import torch
 from torch.nn import Module
 from torch_mlir import torchscript

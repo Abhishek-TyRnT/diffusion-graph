@@ -18,6 +18,8 @@ void GraphWriter::storeWeights<mlir::DenseElementsAttr>(mlir::DenseElementsAttr 
     // Create the dataset
     H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
     dataset.write(denseVal.data(), H5::PredType::NATIVE_FLOAT);
+    dataspace.close();
+    dataset.close();
     
 }
 
@@ -29,6 +31,8 @@ void GraphWriter::storeWeights<mlir::IntegerAttr>(mlir::IntegerAttr val, std::st
     // Create the dataset
     H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_INT, dataspace);
     dataset.write(&value, H5::PredType::NATIVE_INT);
+    dataspace.close();
+    dataset.close();
 }
 
 template<>
@@ -39,6 +43,8 @@ void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string
     // Create the dataset
     H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
     dataset.write(&value, H5::PredType::NATIVE_FLOAT);
+    dataspace.close();
+    dataset.close();
 }
 
 
@@ -65,7 +71,9 @@ void GraphWriter::addOp(mlir::Operation *op){
                 map["vllm_graph_type"] = "vllm_graph.vtensor";
                 map["dtype"] = elementTypeName;
                 map["shape"] = shapeVec;
-
+                std::vector<std::string> input_nodes = {};
+                map["input_nodes"] = input_nodes;
+                map["op_name"] = "input_arg";
             }
 
             graph[argName.str()] = map;
@@ -129,16 +137,19 @@ void GraphWriter::addOp(mlir::Operation *op){
             std::string elementTypeName;
             llvm::raw_string_ostream os(elementTypeName);
             resType.print(os);
+            map["vllm_graph_type"] = "scalar";
             map["dtype"] = elementTypeName;
             map["op_name"] = op->getName().getStringRef().str();
         }
         opMap[res] = ssa_id.str();
-        graph[ssa_id.str()] = map;
+        
+        std::vector<std::string> input_nodes = {};
         for(mlir::Value operand : op->getOperands()){
             if(!opMap.count(operand)){
                 llvm::errs() << "Operand : " << operand << " was not added.\n";
                 throw std::runtime_error("op not added");
             }
+            input_nodes.push_back(opMap[operand]);
             std::string operandSSA_id = opMap[operand];
             ValueType prevNodeData = graph[operandSSA_id]; 
             if(std::holds_alternative<std::unordered_map<std::string, NestedValueType>>(prevNodeData)){       
@@ -159,6 +170,8 @@ void GraphWriter::addOp(mlir::Operation *op){
             }
                 
         }
+        map["input_nodes"] = input_nodes;
+        graph[ssa_id.str()] = map;
     }
 
     opCount++;
@@ -171,6 +184,7 @@ GraphWriter::GraphWriter(std::string weightsPath){
     file = H5::H5File(weightsPath, H5F_ACC_TRUNC);
 
 }
+
 void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
     module->walk([this](mlir::Operation *op) {
         // Print the operation name

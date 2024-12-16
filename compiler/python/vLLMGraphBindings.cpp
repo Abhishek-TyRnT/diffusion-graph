@@ -25,6 +25,7 @@ std::unordered_map<std::string, ValueType> compile(std::string IR){
     mlir::OwningOpRef<mlir::ModuleOp> moduleRef = parse(IR);
     convert(moduleRef);
     convertor.build(moduleRef);
+    convertor.closeFile();
     
     return convertor.getGraph();
 }

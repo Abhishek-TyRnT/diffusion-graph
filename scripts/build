@@ -26,7 +26,7 @@ build_llvm(){
 build_compiler(){
     export LLVM_INSTALL_DIR=/llvm-build/llvm-project/build
     current_dir=$(pwd)
-    cd $HOME/vllm-project/compiler
+    cd $HOME/vllm-project
     cmake -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_COMPILER=clang \
@@ -44,7 +44,7 @@ build_compiler(){
           -DTORCH_MLIR_ENABLE_JIT_IR_IMPORTER=ON \
           -DTORCH_MLIR_OUT_OF_TREE_BUILD=ON \
           -DPYBIND11_PATH=$(python3 -c 'import pybind11; print(pybind11.__path__[0])')/share/cmake \
-          .
+          ./compiler
     
     cmake --build build -j$(nproc)
     cd $current_dir
@@ -52,5 +52,5 @@ build_compiler(){
 
 clean_compiler(){
     cd $HOME
-    rm -rf $HOME/vllm-project/compiler/build
+    rm -rf $HOME/vllm-project/build
 }

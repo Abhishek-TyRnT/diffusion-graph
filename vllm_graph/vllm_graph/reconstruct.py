@@ -49,10 +49,15 @@ class vLLMGraph:
         self.graph_dict : dict = {}
     
     def compile(self, model: torch.nn.Module, inputs: torch.Tensor):
+        """
+        Compiles the model and returns a topologically unsorted
+        graph in dictionary format and stores it in graph_dict object of the class 
+        """
         self.graph_dict = self.graph_compiler.compile(model, inputs)
 
     
     def store_graph_dict(self):
+        """Stores the graph dict for debugging purposes"""
     
         assert len(self.graph_dict) != 0, "Model not compiled"
         with open(f"{self.temp_directory}/model.json") as f:
@@ -91,6 +96,7 @@ class vLLMGraph:
         return result
 
     def construct_graph(self, nodes: list[str]) -> torch.fx.Graph:
+        """Reconstructs torch.fx.Graph from grapg dict."""
         graph_nodes = {}
         graph = torch.fx.Graph()
         for node in nodes:
@@ -105,6 +111,7 @@ class vLLMGraph:
                 ssa_id = node.split(".")[0]
                 graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
             
+
             elif node_type == "vllm_graph.vllm.add":
                 add_func = OP_MAP.get(node_type, None)
                 input_args = []

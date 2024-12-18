@@ -9,6 +9,7 @@
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/IR/Types.h"
 #include "mlir/IR/Matchers.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -95,6 +96,19 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>::matchAndRewrite(
     return mlir::success();
 
 }
+
+// template <>
+// LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantNoneOp>::matchAndRewrite(
+//     mlir::torch::Torch::ConstantNoneOp op, OpAdaptor adaptor,
+//     ConversionPatternRewriter &rewriter) const {
+    
+//     Type noneType = rewriter.getNoneType();
+//     auto unitAttr = rewriter.getUnitAttr();
+//     TypedAttr typedAttr = mlir::cast<TypedAttr>(unitAttr);
+//     Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, noneType, unitAttr);
+//     return mlir::success();
+
+// }
 
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrite(
@@ -230,6 +244,36 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>::matchAndRewrite(
     }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSoftmaxIntOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    MLIRContext *context = op.getContext();
+
+
+    //Erasing dtype operand
+    Value dtype = op.getOperand(2);
+    auto dtypeOp = dtype.getDefiningOp();
+    rewriter.eraseOp(cast<Operation*>(dtypeOp));
+
+
+    Value input = op.getOperand(0);
+    Type inputType = convertTorchvTypeTovLLMvType(input.getType(), context);
+
+    Value result = op.getResult();
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+
+    input.setType(inputType);
+
+    Value dim = op.getOperand(1);
+    dim.setType(rewriter.getIntegerType(32));
+    rewriter.replaceOpWithNewOp<vllm_graph::SoftmaxOp>(op, resultType, input, dim);
+
+    return success();
+}
+
+
+template <>
 LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     mlir::vllm_graph::CastOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -278,6 +322,8 @@ public:
         target.addIllegalDialect<mlir::torch::Torch::TorchDialect>();
 
         RewritePatternSet patterns(context);
+        target.addLegalOp<mlir::torch::Torch::ConstantNoneOp>();
+
         target.addIllegalOp<mlir::torch::Torch::AtenReluOp>();                                               
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenReluOp>>(typeConverter,        
                                                          context);
@@ -302,10 +348,19 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>>(typeConverter,        
                                                          context);
 
+        // target.addIllegalOp<mlir::torch::Torch::ConstantNoneOp>();
+        // patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantNoneOp>>(typeConverter,        
+        //                                                  context);
+        
+
         target.addIllegalOp<mlir::vllm_graph::CastOp>();
         patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        
                                                          context);
         
+        target.addIllegalOp<mlir::torch::Torch::AtenSoftmaxIntOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>>(typeConverter,        
+                                                         context);
+
         if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))
             return signalPassFailure();

@@ -103,3 +103,29 @@ def vllm_MatmulOp : vLLMGraph_Op<"vllm.matmul", [
     }
     }];
 }
+
+def vllm_SoftmaxOp : vLLMGraph_Op<"vllm.softmax", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+
+    let summary = "Generated op for `vllm:softmax : (Tensor, int) -> Tensor";
+    let arguments = (ins
+        AnyTorchTensorType:$input,
+        I32:$dim
+        );
+
+    let results = (outs
+        AnyTorchTensorType:$result);
+
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+    ParseResult SoftmaxOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void SoftmaxOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+    }];
+    }

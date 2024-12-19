@@ -13,6 +13,8 @@ namespace vllm_graph {
 
 std::unique_ptr<OperationPass<ModuleOp>> createConvertGlobalFunctionPass();
 
+std::unique_ptr<OperationPass<func::FuncOp>> createRecomposeSimpleOpsToComplexOps();
+
 void createTorchTovLLMGraphPipeline(PassManager &pm);
 
 void registervLLMGraphPasses();

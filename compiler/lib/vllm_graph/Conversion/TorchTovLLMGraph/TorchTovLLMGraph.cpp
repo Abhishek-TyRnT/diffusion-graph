@@ -97,19 +97,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>::matchAndRewrite(
 
 }
 
-// template <>
-// LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantNoneOp>::matchAndRewrite(
-//     mlir::torch::Torch::ConstantNoneOp op, OpAdaptor adaptor,
-//     ConversionPatternRewriter &rewriter) const {
-    
-//     Type noneType = rewriter.getNoneType();
-//     auto unitAttr = rewriter.getUnitAttr();
-//     TypedAttr typedAttr = mlir::cast<TypedAttr>(unitAttr);
-//     Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, noneType, unitAttr);
-//     return mlir::success();
-
-// }
-
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrite(
     mlir::torch::Torch::AtenAddTensorOp op, OpAdaptor adaptor,
@@ -347,10 +334,6 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenMatmulOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>>(typeConverter,        
                                                          context);
-
-        // target.addIllegalOp<mlir::torch::Torch::ConstantNoneOp>();
-        // patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantNoneOp>>(typeConverter,        
-        //                                                  context);
         
 
         target.addIllegalOp<mlir::vllm_graph::CastOp>();

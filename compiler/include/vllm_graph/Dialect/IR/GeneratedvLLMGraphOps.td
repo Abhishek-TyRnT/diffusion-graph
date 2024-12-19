@@ -128,4 +128,34 @@ def vllm_SoftmaxOp : vLLMGraph_Op<"vllm.softmax", [
         printDefaultvLLMGraphOp(printer, *this, 1, 1);
     }
     }];
-    }
+}
+
+def vllm_AddmmOp : vLLMGraph_Op<"vllm.addmm", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for for `vllm:addmm : (Tensor, Tensor, Tensor, scalar, scalar,) -> Tensor";
+    let arguments = (ins
+        TorchTypeOrTensorType:$bias,
+        AnyTorchTensorType:$input,
+        TorchTypeOrTensorType:$weight,
+        ScalarType:$alpha,
+        ScalarType:$beta
+        );
+    
+    let results = (outs
+        AnyTorchTensorType:$result
+        );
+    
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult AddmmOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void AddmmOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}

@@ -10,4 +10,18 @@ def ConvertGlobalFunctionPass : Pass<"convert-global-function-pass", "ModuleOp">
     
 }
 
+def RecomposeSimpleOpsToComplexPass : Pass<"recompose-simple-ops-to-complex", "func::FuncOp"> {
+   let summary = "This ops recomposes simple torch-ops to complex vllm-graph operations. ";
+   let description = [{
+       Torch-MLIR breaks down all layers into its simpler constituent ops. This might not always be 
+       optimal as well optimized hardware accelarator kernels often have optimised complex operations.
+       Hence a pass is needed to recompose operations into complex operations.
+
+       This pass is important for selecting appropriate kernels during runtime
+   }];
+
+   let constructor = "mlir::vllm_graph::createRecomposeSimpleOpsToComplexOps()";
+
+}
+
 #endif //VLLM_GRAPH_TRANSFORM_PASSES_H_

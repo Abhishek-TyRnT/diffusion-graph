@@ -2,7 +2,8 @@ import torch
 
 TYPE_MAP = {
     "f32": torch.float32,
-    "i32" : torch.int32, 
+    "i32" : torch.int32,
+    "i64" : torch.int64 
 }
 
 OP_MAP = {

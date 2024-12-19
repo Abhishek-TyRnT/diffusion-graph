@@ -8,19 +8,31 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
 #include <iostream>
 
-
+using namespace mlir;
 
 template<> 
 void GraphWriter::storeWeights<mlir::DenseElementsAttr>(mlir::DenseElementsAttr val, std::string ssa_id){
-    std::vector<float> denseVal(val.getValues<float>().begin(), val.getValues<float>().end());
-    hsize_t dims[1] = {denseVal.size()};
-    H5::DataSpace dataspace(1, dims);
-    // Create the dataset
-    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
-    dataset.write(denseVal.data(), H5::PredType::NATIVE_FLOAT);
-    dataspace.close();
-    dataset.close();
-    
+    Type type = val.getElementType();
+    if(isa<IntegerType>(type))
+    {    
+        std::vector<int64_t> denseVal(val.getValues<int64_t>().begin(), val.getValues<int64_t>().end());
+        hsize_t dims[1] = {denseVal.size()};
+        H5::DataSpace dataspace(1, dims);
+        // Create the dataset
+        H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_INT, dataspace);
+        dataset.write(denseVal.data(), H5::PredType::NATIVE_FLOAT);
+        dataspace.close();
+        dataset.close();
+    } else {    
+        std::vector<float> denseVal(val.getValues<float>().begin(), val.getValues<float>().end());
+        hsize_t dims[1] = {denseVal.size()};
+        H5::DataSpace dataspace(1, dims);
+        // Create the dataset
+        H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
+        dataset.write(denseVal.data(), H5::PredType::NATIVE_FLOAT);
+        dataspace.close();
+        dataset.close();
+    }
 }
 
 template<>

@@ -36,10 +36,10 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         if(!mlir::isa<vllm_graph::AddOp>(*user_op))
             return rewriter.notifyMatchFailure(op, "successor op is not an addOp");
 
-        //auto addOp = mlir::dyn_cast<vllm_graph::AddOp>(user_op);
 
         Value bias = user_op->getOperand(1);
         Value beta = user_op->getOperand(2);
+        Value addRes = user_op->getResult(0);
         Location loc = op.getLoc();
 
         Type intType = rewriter.getIntegerType(32);
@@ -49,14 +49,15 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         Value input = op.getOperand(0);
         Value weight = op.getOperand(1);
 
-        Type resultType = input.getType();
+        Type resultType = addRes.getType();
         vllm_graph::AddmmOp addmmOp = rewriter.create<vllm_graph::AddmmOp>(loc, resultType, bias, input, weight, alpha, beta);
 
         Value new_res = addmmOp.getResult();
-        res.replaceAllUsesWith(new_res);
+        addRes.replaceAllUsesWith(new_res);
 
-        rewriter.eraseOp(op);
         rewriter.eraseOp(user_op);
+        rewriter.eraseOp(op);
+        
     }
 
     return success();
@@ -88,6 +89,7 @@ public:
 
         if (failed(applyPatternsAndFoldGreedily(getOperation(), std::move(patterns),
                                             config))) {
+            //llvm::outs() << *getOperation() << "\n";
             return signalPassFailure();
         }
     }

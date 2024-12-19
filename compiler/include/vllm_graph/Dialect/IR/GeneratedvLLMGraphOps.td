@@ -159,3 +159,26 @@ def vllm_AddmmOp : vLLMGraph_Op<"vllm.addmm", [
         }
     }];
 }
+
+def vllm_ViewOp : vLLMGraph_Op<"vllm.view", [
+    vLLMAllowsTypeRefinement,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::view : (Tensor, Tensor) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    I64Tensor:$size
+  );
+  let results = (outs
+    AnyTorchOptionalTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult ViewOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+    }
+    void ViewOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 2, 1);
+    }
+  }];
+}

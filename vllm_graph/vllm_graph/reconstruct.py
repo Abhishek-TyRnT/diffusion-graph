@@ -124,6 +124,21 @@ class vLLMGraph:
                         input_args.append(graph_nodes[inp])
                 
                 graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
+
+            elif node_type == "vllm_graph.vllm.addmm":
+                add_func = OP_MAP.get(node_type, None)
+                input_args = []
+                input_kwargs = {}
+                for inp in self.graph_dict[node]['input_nodes']:
+                    if self.graph_dict[inp]["vllm_graph_type"] == "scalar" and input_kwargs.get("alpha", None) is None:
+                        input_kwargs["alpha"] = graph_nodes[inp]
+                    
+                    elif self.graph_dict[inp]["vllm_graph_type"] == "scalar":
+                        input_kwargs["beta"] = graph_nodes[inp]
+                    else:
+                        input_args.append(graph_nodes[inp])
+                
+                graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
                 
             else:
                 op_func = OP_MAP.get(node_type, None)

@@ -428,7 +428,7 @@ class ListOf<list<Type> allowedTypes, string descr> :
             descr, "::mlir::torch::Torch::ListType">;
 
 def AnyTorchListOfTorchBoolType : ListOf<[Torch_BoolType], "Bool list type (bool[])">;
-def AnyTorchListOfTorchIntType : ListOf<[Torch_IntType], "Int list type (int[])">;
+def AnyTorchListOfTorchIntType : ListOf<[I32], "Int list type (int[])">;
 def AnyTorchListOfTorchFloatType : ListOf<[Torch_FloatType], "Float list type (float[])">;
 def AnyTorchListOfTorchStringType : ListOf<[Torch_StringType], "Str list type (str[])">;
 def AnyTorchListOfTensorType:

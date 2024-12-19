@@ -12,7 +12,7 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
 #include "vllm_graph/Dialect/Transform/Passes.hpp"
 #include "PassDetail.hpp"
-
+#include <iostream>
 using namespace mlir;
 using namespace mlir::vllm_graph;
 
@@ -29,6 +29,7 @@ template<>
 LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_graph::MatmulOp op, PatternRewriter &rewriter) const{
 
     Value res = op.getResult();
+    MLIRContext *context = op.getContext();
     if(!res.hasOneUse())
         return rewriter.notifyMatchFailure(op, "Resulting op has many users, can't be fused");
 
@@ -49,10 +50,47 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         Value input = op.getOperand(0);
         Value weight = op.getOperand(1);
 
-        Type resultType = addRes.getType();
-        vllm_graph::AddmmOp addmmOp = rewriter.create<vllm_graph::AddmmOp>(loc, resultType, bias, input, weight, alpha, beta);
+        vllm_graph::ValueTensorType inputType = mlir::cast<vllm_graph::ValueTensorType>(input.getType());
 
+        Type resultType = addRes.getType();
+        if(!inputType.hasSizes())
+            assert("Only static shapes are currently supported");
+
+        ArrayRef<int64_t> input_shape = inputType.getSizes();
+        ArrayRef<int64_t> result_shape =  mlir::cast<vllm_graph::ValueTensorType>(resultType).getSizes();
+        if(input_shape.size() == 3){
+            // c Array is Added for casting purposes
+            int64_t new_input_size_c[] = {-1, input_shape[2]};
+            ArrayRef<int64_t> viewInput_size(new_input_size_c, 2);
+            RankedTensorType vewInputType = RankedTensorType::get({2}, rewriter.getIntegerType(64));
+            auto denseAttr = DenseElementsAttr::get(vewInputType, viewInput_size);
+            auto viewInputsizeOp = rewriter.create<arith::ConstantOp>(loc, vewInputType, denseAttr);
+            
+            int64_t new_result_view_size_c[] = {input_shape[0] * input_shape[1], input_shape[2]};
+            ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
+            auto viewResultType = vllm_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
+
+            input = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, input, viewInputsizeOp);
+
+            int64_t new_result_size_c[] = {result_shape[0]*result_shape[1], result_shape[2]};
+            ArrayRef<int64_t> ResultSize(new_result_size_c, 2);
+            resultType = vllm_graph::ValueTensorType::get(context, ResultSize, inputType.getDtype());
+        }
+        
+        vllm_graph::AddmmOp addmmOp = rewriter.create<vllm_graph::AddmmOp>(loc, resultType, bias, input, weight, alpha, beta);
         Value new_res = addmmOp.getResult();
+        if(input_shape.size() == 3){
+            ArrayRef<int64_t> viewInput_size = result_shape;
+            RankedTensorType vewInputType = RankedTensorType::get({3}, rewriter.getIntegerType(64));
+            auto denseAttr = DenseElementsAttr::get(vewInputType, viewInput_size);
+
+            auto viewInputsizeOp = rewriter.create<arith::ConstantOp>(loc, vewInputType, denseAttr);
+
+            auto viewResultType = vllm_graph::ValueTensorType::get(context, viewInput_size, inputType.getDtype());
+            new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputsizeOp);
+            
+        }
+
         addRes.replaceAllUsesWith(new_res);
 
         rewriter.eraseOp(user_op);

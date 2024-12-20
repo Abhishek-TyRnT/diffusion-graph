@@ -17,7 +17,13 @@ class vLLMGraphModel(torch.nn.Module):
             data_name = f"weight_datasets{constant}"
             data = self.weights[data_name]
             dtype = self.graph_dict[constant]['dtype']
-            
+
+            if(self.graph_dict[constant]["vllm_graph_type"] == "tuple"):
+                ssa_id = constant.split(".")[0]
+                var_name = f"weight_{ssa_id}"
+                setattr(self, var_name, tuple(data))
+                continue
+
             if(self.graph_dict[constant].get("output_shape", None) is None):
                 ssa_id = constant.split(".")[0]
                 var_name = f"weight_{ssa_id}"
@@ -60,7 +66,7 @@ class vLLMGraph:
         """Stores the graph dict for debugging purposes"""
     
         assert len(self.graph_dict) != 0, "Model not compiled"
-        with open(f"{self.temp_directory}/model.json") as f:
+        with open(f"{self.temp_directory}/model.json",'w') as f:
             f.write(json.dumps(self.graph_dict, indent = 2))
         
         print(f"model.json stored in {self.temp_directory}")
@@ -107,10 +113,9 @@ class vLLMGraph:
             if node_type == "input_arg":
                 graph_nodes[node] = graph.placeholder(node)
             
-            elif node_type == "arith.constant":
+            elif node_type == "arith.constant" or node_type == "vllm_graph.vllm.const_tuple":
                 ssa_id = node.split(".")[0]
                 graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
-            
 
             elif node_type == "vllm_graph.vllm.add":
                 add_func = OP_MAP.get(node_type, None)

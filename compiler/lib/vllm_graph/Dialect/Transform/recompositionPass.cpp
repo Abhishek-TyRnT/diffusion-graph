@@ -3,6 +3,7 @@
 #include "mlir/IR/Builders.h"       // For pattern rewriter utility
 #include "mlir/IR/MLIRContext.h"    // MLIRContext
 #include "mlir/IR/Operation.h"      // Operation
+#include "mlir/IR/Location.h"
 #include "mlir/Transforms/DialectConversion.h" // For RewritePatternSet
 #include "mlir/Support/LogicalResult.h" // LogicalResult, success(), failure()
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -42,7 +43,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         Value beta = user_op->getOperand(2);
         Value addRes = user_op->getResult(0);
         Location loc = op.getLoc();
-
+        UnknownLoc unknownLoc = UnknownLoc::get(context);
         Type intType = rewriter.getIntegerType(32);
         //Seting alpha as one
         Value alpha = rewriter.create<arith::ConstantIntOp>(loc, 1, intType);
@@ -58,19 +59,21 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
 
         ArrayRef<int64_t> input_shape = inputType.getSizes();
         ArrayRef<int64_t> result_shape =  mlir::cast<vllm_graph::ValueTensorType>(resultType).getSizes();
+        // Need to reshape incase the input has batch size.
         if(input_shape.size() == 3){
             // c Array is Added for casting purposes
             int64_t new_input_size_c[] = {-1, input_shape[2]};
             ArrayRef<int64_t> viewInput_size(new_input_size_c, 2);
-            RankedTensorType vewInputType = RankedTensorType::get({2}, rewriter.getIntegerType(64));
-            auto denseAttr = DenseElementsAttr::get(vewInputType, viewInput_size);
-            auto viewInputsizeOp = rewriter.create<arith::ConstantOp>(loc, vewInputType, denseAttr);
+            auto vewInputType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
+            auto DenseInputType = RankedTensorType::get({2}, rewriter.getIntegerType(64));
+            auto denseAttr = DenseElementsAttr::get(DenseInputType, viewInput_size);
+            auto viewInputTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
             
             int64_t new_result_view_size_c[] = {input_shape[0] * input_shape[1], input_shape[2]};
             ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
             auto viewResultType = vllm_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
 
-            input = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, input, viewInputsizeOp);
+            input = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, input, viewInputTupleOp);
 
             int64_t new_result_size_c[] = {result_shape[0]*result_shape[1], result_shape[2]};
             ArrayRef<int64_t> ResultSize(new_result_size_c, 2);
@@ -81,13 +84,14 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         Value new_res = addmmOp.getResult();
         if(input_shape.size() == 3){
             ArrayRef<int64_t> viewInput_size = result_shape;
-            RankedTensorType vewInputType = RankedTensorType::get({3}, rewriter.getIntegerType(64));
-            auto denseAttr = DenseElementsAttr::get(vewInputType, viewInput_size);
+            RankedTensorType DenseInputType = RankedTensorType::get({3}, rewriter.getIntegerType(64));
+            auto denseAttr = DenseElementsAttr::get(DenseInputType, viewInput_size);
 
-            auto viewInputsizeOp = rewriter.create<arith::ConstantOp>(loc, vewInputType, denseAttr);
+            auto vewInputType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
+            auto viewInputTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
 
             auto viewResultType = vllm_graph::ValueTensorType::get(context, viewInput_size, inputType.getDtype());
-            new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputsizeOp);
+            new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputTupleOp);
             
         }
 

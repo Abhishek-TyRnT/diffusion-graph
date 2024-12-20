@@ -223,7 +223,7 @@ def Torch_ListType : vllm_TypeWithContainedType<"List", "list"> {
 }
 
 def Torch_TupleType : vllm_Type<"Tuple", "tuple"> {
-  let summary = "!torch.tuple<T1, T2, T3>";
+  let summary = "!vllm_graph.tuple<T1, T2, T3>";
   let description = [{
     Tuple type with 0-N ordered contained types.
   }];

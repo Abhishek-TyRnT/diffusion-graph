@@ -128,4 +128,86 @@ def vllm_SoftmaxOp : vLLMGraph_Op<"vllm.softmax", [
         printDefaultvLLMGraphOp(printer, *this, 1, 1);
     }
     }];
+}
+
+def vllm_AddmmOp : vLLMGraph_Op<"vllm.addmm", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for for `vllm:addmm : (Tensor, Tensor, Tensor, scalar, scalar,) -> Tensor";
+    let arguments = (ins
+        TorchTypeOrTensorType:$bias,
+        AnyTorchTensorType:$input,
+        TorchTypeOrTensorType:$weight,
+        ScalarType:$alpha,
+        ScalarType:$beta
+        );
+    
+    let results = (outs
+        AnyTorchTensorType:$result
+        );
+    
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult AddmmOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void AddmmOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}
+
+def vllm_ViewOp : vLLMGraph_Op<"vllm.view", [
+    vLLMAllowsTypeRefinement,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::view : (Tensor, Tensor) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    Torch_TupleType:$size
+  );
+  let results = (outs
+    AnyTorchOptionalTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult ViewOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 2, 1);
     }
+    void ViewOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 2, 1);
+    }
+  }];
+}
+
+def vllm_ConstTupleOp : vLLMGraph_Op<"vllm.const_tuple",[
+    vLLMAllowsTypeRefinement,
+    vLLMReadOnly
+  ]> {
+
+    let summary = "Generated Op for `vllm:const_tuple : () -> TorchTuple";
+    let arguments = (ins
+        ElementsAttr:$value    // A required attribute to hold the constant value.
+    );
+    let results = (outs
+        Torch_TupleType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let builders = [
+        // Build a constant with a given constant tensor value.
+        OpBuilder<(ins "DenseElementsAttr":$value), [{
+        build($_builder, $_state, value.getType(), value);
+        }]>
+    ];
+    let extraClassDefinition = [{
+        ParseResult ConstTupleOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+        }
+        void ConstTupleOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 2, 1);
+        }
+  }];
+}

@@ -223,7 +223,7 @@ def Torch_ListType : vllm_TypeWithContainedType<"List", "list"> {
 }
 
 def Torch_TupleType : vllm_Type<"Tuple", "tuple"> {
-  let summary = "!torch.tuple<T1, T2, T3>";
+  let summary = "!vllm_graph.tuple<T1, T2, T3>";
   let description = [{
     Tuple type with 0-N ordered contained types.
   }];
@@ -428,7 +428,7 @@ class ListOf<list<Type> allowedTypes, string descr> :
             descr, "::mlir::torch::Torch::ListType">;
 
 def AnyTorchListOfTorchBoolType : ListOf<[Torch_BoolType], "Bool list type (bool[])">;
-def AnyTorchListOfTorchIntType : ListOf<[Torch_IntType], "Int list type (int[])">;
+def AnyTorchListOfTorchIntType : ListOf<[I32], "Int list type (int[])">;
 def AnyTorchListOfTorchFloatType : ListOf<[Torch_FloatType], "Float list type (float[])">;
 def AnyTorchListOfTorchStringType : ListOf<[Torch_StringType], "Str list type (str[])">;
 def AnyTorchListOfTensorType:
@@ -492,5 +492,10 @@ def TorchTypeOrTensorType : AnyTypeOf<[
    I32Tensor,
    F32Tensor
 ], "Any Torch Value tensor Type or ranked Tensor Type">;
+
+def ScalarType : AnyTypeOf<[
+  I32,
+  F32
+], "Any scalar type be it float or int">;
 
 #endif // VLLMM_GRAPH_TYPES

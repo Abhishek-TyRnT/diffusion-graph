@@ -6,21 +6,33 @@
 #include "mlir/IR/Value.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
-#include <iostream>
+#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 
-
+using namespace mlir;
 
 template<> 
 void GraphWriter::storeWeights<mlir::DenseElementsAttr>(mlir::DenseElementsAttr val, std::string ssa_id){
-    std::vector<float> denseVal(val.getValues<float>().begin(), val.getValues<float>().end());
-    hsize_t dims[1] = {denseVal.size()};
-    H5::DataSpace dataspace(1, dims);
-    // Create the dataset
-    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
-    dataset.write(denseVal.data(), H5::PredType::NATIVE_FLOAT);
-    dataspace.close();
-    dataset.close();
-    
+    Type type = val.getElementType();
+    if(isa<IntegerType>(type))
+    {    
+        std::vector<int64_t> denseVal(val.getValues<int64_t>().begin(), val.getValues<int64_t>().end());
+        hsize_t dims[1] = {denseVal.size()};
+        H5::DataSpace dataspace(1, dims);
+        // Create the dataset
+        H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_INT64, dataspace);
+        dataset.write(denseVal.data(), H5::PredType::NATIVE_INT64);
+        dataspace.close();
+        dataset.close();
+    } else {    
+        std::vector<float> denseVal(val.getValues<float>().begin(), val.getValues<float>().end());
+        hsize_t dims[1] = {denseVal.size()};
+        H5::DataSpace dataspace(1, dims);
+        // Create the dataset
+        H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
+        dataset.write(denseVal.data(), H5::PredType::NATIVE_FLOAT);
+        dataspace.close();
+        dataset.close();
+    }
 }
 
 template<>
@@ -100,6 +112,12 @@ void GraphWriter::addOp(mlir::Operation *op){
                 storeWeights<mlir::FloatAttr>(floatAttr, ssa_id.str());
             }
             std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
+        } else if(mlir::isa<vllm_graph::ConstTupleOp>(*op)) {
+            auto TupleOp = mlir::cast<vllm_graph::ConstTupleOp>(*op);
+            auto attr = TupleOp.getValue();
+            auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr);
+            storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
+            std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
         }
         
         if(mlir::isa<mlir::vllm_graph::ValueTensorType>(resType)){
@@ -130,6 +148,15 @@ void GraphWriter::addOp(mlir::Operation *op){
             map["vllm_graph_type"] = "tensor";
             map["dtype"] = elementTypeName;
             map["output_shape"] = shapeVec;
+            map["op_name"] = op->getName().getStringRef().str();
+        }
+        else if(mlir::isa<vllm_graph::TupleType>(resType)){
+            auto tupleType = mlir::cast<vllm_graph::TupleType>(resType);
+            std::string elementTypeName;
+            llvm::raw_string_ostream os(elementTypeName);
+            tupleType.getContainedTypes()[0].print(os);
+            map["vllm_graph_type"] = "tuple";
+            map["dtype"] = elementTypeName;
             map["op_name"] = op->getName().getStringRef().str();
         }
         // Only for non tensor scalar type

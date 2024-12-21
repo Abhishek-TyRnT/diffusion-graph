@@ -1,4 +1,4 @@
-
+#include "llvm/Support/ErrorHandling.h"
 #include "mlir/IR/PatternMatch.h"   // For OpRewritePattern and PatternRewriter
 #include "mlir/IR/Builders.h"       // For pattern rewriter utility
 #include "mlir/IR/MLIRContext.h"    // MLIRContext
@@ -16,6 +16,17 @@
 #include <iostream>
 using namespace mlir;
 using namespace mlir::vllm_graph;
+
+//TODO: push these functions in utils file
+bool hasStaticShape(ArrayRef<int64_t> shape){
+    for(int64_t i : shape)
+    {   
+        if(i == DYNAMIC_SIZE)
+            return false;
+    }
+    return true;
+}
+
 
 namespace{
 template<typename RootOp>
@@ -54,8 +65,10 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         vllm_graph::ValueTensorType inputType = mlir::cast<vllm_graph::ValueTensorType>(input.getType());
 
         Type resultType = addRes.getType();
-        if(!inputType.hasSizes())
-            assert("Only static shapes are currently supported");
+        if(!hasStaticShape(inputType.getSizes())){
+            llvm::report_fatal_error("Only static shapes are currently supported\n");
+        }
+        
 
         ArrayRef<int64_t> input_shape = inputType.getSizes();
         ArrayRef<int64_t> result_shape =  mlir::cast<vllm_graph::ValueTensorType>(resultType).getSizes();

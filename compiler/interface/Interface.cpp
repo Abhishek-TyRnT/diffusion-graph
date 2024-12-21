@@ -7,6 +7,7 @@
 #include "mlir/Parser/Parser.h"
 #include "mlir-c/IR.h"
 #include "mlir-c/Support.h"
+#include <cstdlib>
 
 using namespace mlir;
 using namespace mlir::vllm_graph;
@@ -75,10 +76,13 @@ void vLLMGraphBase::convert(OwningOpRef<ModuleOp> &module){
 
     if (!module) {
         llvm::errs() << "Error parsing MLIR file\n";
+        std::exit(-1);
     }
     
-    if(failed(passmanager->run(*module)))
+    if(failed(passmanager->run(*module))){   
         llvm::errs() << "The Pass failed to run"<< "\n";
+        std::exit(-1);
+    }
 }
 
 

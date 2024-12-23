@@ -21,12 +21,13 @@ RUN useradd -u ${UID} ${username} && \
 
 ENV TORCH_MLIR_PATH="/home/${username}/vllm-project/build/external/torch-mlir/python_packages/torch_mlir"
 ENV VLLM_COMPILER="/home/${username}/vllm-project/build/python"
+ENV VLLM_SDK="/home/${username}/vllm-project/vllm_graph"
 RUN mkdir /llvm-build && \
     chown ${username} /llvm-build && \
     mkdir /home/${username} && \
     chown ${username} /home/${username} && \
     echo "#!/bin/bash \nsource /home/${username}/vllm-project/scripts/build" >> /home/${username}/.bashrc && \
-    echo "export PYTHONPATH=${TORCH_MLIR_PATH}:${VLLM_COMPILER}" >> /home/${username}/.bashrc && \
+    echo "export PYTHONPATH=${TORCH_MLIR_PATH}:${VLLM_COMPILER}:${VLLM_SDK}" >> /home/${username}/.bashrc && \
     echo "export PATH=$PATH:/home/${username}/vllm-project/build/bin" >> /home/${username}/.bashrc && \
     chown ${username} /home/${username}/.bashrc && \
     chmod +x /home/${username}/.bashrc

@@ -4,6 +4,7 @@
 
 #include "mlir/IR/BuiltinTypes.h"
 
+#define DYNAMIC_SIZE -1
 namespace mlir {
 namespace vllm_graph {
 

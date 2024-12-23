@@ -20,10 +20,9 @@ using namespace mlir::vllm_graph;
 //TODO: push these functions in utils file
 bool hasStaticShape(ArrayRef<int64_t> shape){
     for(int64_t i : shape)
-    {   
         if(i == DYNAMIC_SIZE)
             return false;
-    }
+    
     return true;
 }
 

@@ -70,7 +70,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
         f.write(str(torchIR))
     
     passes = ",".join(pass_list)
-    print(passes)
+    
     cmd = f'vllm-graph-opt --pass-pipeline="builtin.module({passes})" --mlir-elide-elementsattrs-if-larger=20 {filename}'
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     exit_code = process.returncode
@@ -81,3 +81,35 @@ def test_vllm_graph_compiler_passes_from_models(model,
     stderr = process.stderr.decode("utf-8")
     assert exit_code == 0, f"The test failed with response \n{stderr}"
 
+
+@pytest.mark.parametrize("model, model_args, inputs",
+    ([Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+     [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
+     [ReluModule, (), (torch.randn(1, 10, 5))],
+     [Softmax, (1,), (torch.randn(1, 10, 5))],
+     [Transpose, (1, 0), (torch.randn(25, 10),)]
+     ))
+def test_vllm_graph_compiler_from_models(model,
+                                        model_args,
+                                        inputs):
+    backend_legal_ops = ["aten.softmax.int"]
+    if len(model_args) == 0:
+        torch_model = model()
+    else:
+        torch_model = model(*model_args)
+    
+    torch_model.eval()
+    torchIR = torchscript.compile(torch_model, inputs, output_type="torch", backend_legal_ops=backend_legal_ops)
+
+    filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
+    with open(filename , "w") as f:
+        f.write(str(torchIR))
+    cmd = ["vllm-graph" ,filename]
+    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    exit_code = process.returncode
+
+
+    stdout = process.stdout.decode("utf-8")
+    print(stdout)
+    stderr = process.stderr.decode("utf-8")
+    assert exit_code == 0, f"The test failed with response \n{stderr}"

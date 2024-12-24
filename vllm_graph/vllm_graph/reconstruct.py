@@ -71,6 +71,10 @@ class vLLMGraph:
         
         print(f"model.json stored in {self.temp_directory}")
     
+    def get_graph_dict(self):
+        assert len(self.graph_dict) != 0, "Model not compiled"
+
+        return self.graph_dict
 
     def topological_sort(self, graph_dict: dict, Nodes: list)->list:
         # Vector to store indegree of each vertex

@@ -12,6 +12,7 @@
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Matchers.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include <iostream>
 #include <numeric>
@@ -96,6 +97,58 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>::matchAndRewrite(
     return mlir::success();
 
 }
+
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantFloatOp>::matchAndRewrite(
+    mlir::torch::Torch::ConstantFloatOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    llvm::APFloat constant = op.getValue();
+    const llvm::fltSemantics &semantics = constant.getSemantics();
+    bool losesInfo = true;
+    if (&semantics == &llvm::APFloat::IEEEdouble()) {
+        auto status = constant.convert(
+            llvm::APFloat::IEEEsingle(), // Target type: single-precision
+            llvm::APFloat::rmNearestTiesToEven, // Rounding mode
+            &losesInfo
+        );
+
+        // Check if the conversion was successful
+        if (status != llvm::APFloat::opOK) 
+            llvm::errs() << "Warning: Precision loss or rounding occurred during conversion.\n";
+    
+    }
+    
+    mlir::FloatType floatType = rewriter.getF32Type();
+    Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantFloatOp>(op, constant, floatType);
+    return mlir::success();
+
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenDivScalarOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = op.getOperand(0);
+    Value scalar = op.getOperand(1);
+    Value result = op.getResult();
+    MLIRContext *context = getContext();
+
+    auto torchResultType = mlir::cast<torch::Torch::ValueTensorType>(op.getType());
+    Type resultType = vllm_graph::ValueTensorType::get(context, torchResultType.getSizes(), torchResultType.getDtype());
+
+    Type inputType = convertTorchvTypeTovLLMvType(input.getType(), context);
+    input.setType(inputType);
+    scalar.setType(rewriter.getF32Type());
+    rewriter.replaceOpWithNewOp<vllm_graph::DivScalarOp>(op, resultType, input, scalar);
+
+
+    return mlir::success();
+
+}
+
 
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrite(
@@ -231,6 +284,29 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>::matchAndRewrite(
     }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBmmOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenBmmOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = op.getOperand(0);
+    Value weight = op.getOperand(1);
+
+    Value result = op.getResult();
+    MLIRContext *context = op.getContext();
+    //TODO : Add dimension check
+
+    Type inputType = convertTorchvTypeTovLLMvType(input.getType(), context);
+    Type weightType = convertTorchvTypeTovLLMvType(weight.getType(), context);
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+    input.setType(inputType);
+    weight.setType(weightType);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::BMMOp>(op, resultType, input, weight);
+    return mlir::success();
+
+    }
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>::matchAndRewrite(
     mlir::torch::Torch::AtenSoftmaxIntOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -318,6 +394,10 @@ public:
         target.addIllegalOp<mlir::torch::Torch::ConstantIntOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>>(typeConverter,        
                                                          context);
+                            
+        target.addIllegalOp<mlir::torch::Torch::ConstantFloatOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantFloatOp>>(typeConverter,        
+                                                         context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>>(typeConverter,        
@@ -330,12 +410,19 @@ public:
         target.addIllegalOp<mlir::torch::Torch::ValueTensorLiteralOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>>(typeConverter,        
                                                          context);
-                                            
+
+        target.addIllegalOp<mlir::torch::Torch::AtenDivScalarOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>>(typeConverter,        
+                                                         context);
+
         target.addIllegalOp<mlir::torch::Torch::AtenMatmulOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>>(typeConverter,        
                                                          context);
         
-
+        target.addIllegalOp<mlir::torch::Torch::AtenBmmOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenBmmOp>>(typeConverter,        
+                                                         context);
+        
         target.addIllegalOp<mlir::vllm_graph::CastOp>();
         patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        
                                                          context);

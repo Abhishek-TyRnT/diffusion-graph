@@ -144,8 +144,6 @@ public:
         ModuleOp op = getOperation();
         if (failed(convertFuncOp(op)))
             return signalPassFailure();
-
-        llvm::errs() << op << "\n";
     }
 };
 } // namespace

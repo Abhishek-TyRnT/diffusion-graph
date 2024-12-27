@@ -18,7 +18,8 @@ from test_models import *
      [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
      [ReluModule, (), (torch.randn(1, 10, 5))],
      [Softmax, (1,), (torch.randn(1, 10, 5))],
-     [Transpose, (1, 0), (torch.randn(25, 10),)]
+     [Transpose, (1, 0), (torch.randn(25, 10),)],
+     [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))]
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,

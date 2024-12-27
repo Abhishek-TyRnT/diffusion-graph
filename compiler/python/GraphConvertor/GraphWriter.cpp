@@ -49,7 +49,8 @@ void GraphWriter::storeWeights<mlir::IntegerAttr>(mlir::IntegerAttr val, std::st
 
 template<>
 void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string ssa_id){
-    double value = val.getValueAsDouble();
+    llvm::APFloat AP_value = val.getValue();
+    float value = AP_value.convertToFloat();
     hsize_t dims[1] = {1};
     H5::DataSpace dataspace(1, dims);
     // Create the dataset
@@ -89,6 +90,15 @@ void GraphWriter::addOp(mlir::Operation *op){
             }
 
             graph[argName.str()] = map;
+        }
+
+        else if(mlir::isa<func::ReturnOp>(*op)){
+            std::vector<std::string> results;
+            for(auto operand : op->getOperands())
+                results.push_back(opMap[operand]);
+
+            graph["results"] = results;
+            
         }
     }
 

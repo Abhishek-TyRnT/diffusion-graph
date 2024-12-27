@@ -96,17 +96,22 @@ void replaceFuncDtypes(func::FuncOp &op)
 
 
     //Same logic for return types.
+    
     for(mlir::Operation &currOp : entryBlock)
     {
         if(mlir::isa<func::ReturnOp>(currOp))
         {
             auto returnOp = mlir::cast<func::ReturnOp>(currOp);
             mlir::Operation *returnOperation = returnOp.getOperation();
-            mlir::Value returnValue = returnOperation->getOperand(0);
-            builder.setInsertionPoint(returnOp);
-            mlir::Location returnloc = returnOp.getLoc();
-            auto returnCastOp = builder.create<vllm_graph::CastOp>(returnloc, newResultTypes[0], returnValue);
-            returnOperation->setOperand(0, returnCastOp);
+            for(int i =0 ; i < returnOperation->getNumOperands(); i++)
+            {
+                mlir::Value returnValue = returnOperation->getOperand(i);
+                builder.setInsertionPoint(returnOp);
+                mlir::Location returnloc = returnOp.getLoc();
+                auto returnCastOp = builder.create<vllm_graph::CastOp>(returnloc, newResultTypes[i], returnValue);
+                returnOperation->setOperand(i, returnCastOp);
+            }
+            
         }
     }
 }

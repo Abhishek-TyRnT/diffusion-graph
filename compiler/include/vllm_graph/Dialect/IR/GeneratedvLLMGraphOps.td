@@ -104,6 +104,31 @@ def vllm_MatmulOp : vLLMGraph_Op<"vllm.matmul", [
     }];
 }
 
+def vllm_BMMOp : vLLMGraph_Op<"vllm.bmm", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm:matmul : (Tensor, Tensor) -> (Tensor)`:";
+    let arguments = (ins
+        AnyTorchTensorType:$input,
+        TorchTypeOrTensorType:$weight);
+    
+    let results = (outs
+        AnyTorchTensorType:$result);
+    
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+    ParseResult BMMOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void BMMOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+    }];
+}
+
 def vllm_SoftmaxOp : vLLMGraph_Op<"vllm.softmax", [
         vLLMAllowsTypeRefinement,
         vLLMHasValueSemantics,
@@ -210,4 +235,32 @@ def vllm_ConstTupleOp : vLLMGraph_Op<"vllm.const_tuple",[
         printDefaultvLLMGraphOp(printer, *this, 2, 1);
         }
   }];
+}
+
+
+
+def vllm_DivScalarOp : vLLMGraph_Op<"vllm.div.scalar", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+
+    let summary = "Generated op for `vllm:div.scalar : (Tensor, int) -> Tensor";
+    let arguments = (ins
+        TorchTypeOrTensorType:$input,
+        F32:$scalar
+        );
+
+    let results = (outs
+        AnyTorchTensorType:$result);
+
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+    ParseResult DivScalarOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void DivScalarOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+    }];
 }

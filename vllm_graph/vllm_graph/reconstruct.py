@@ -105,7 +105,7 @@ class vLLMGraph:
         
         return result
 
-    def construct_graph(self, nodes: list[str]) -> torch.fx.Graph:
+    def construct_graph(self, nodes: list[str], results: list[str]) -> torch.fx.Graph:
         """Reconstructs torch.fx.Graph from grapg dict."""
         graph_nodes = {}
         graph = torch.fx.Graph()
@@ -159,8 +159,10 @@ class vLLMGraph:
                 
                 graph_nodes[node] = graph.call_function(op_func, args=tuple(input_args))
         
-        last_node = node
-        graph.output(graph_nodes[last_node])
+        result_nodes = []
+        for result_ssa_id in results:
+            result_nodes.append(graph_nodes[result_ssa_id])
+        graph.output(result_nodes)
         return graph
                 
 
@@ -172,14 +174,25 @@ class vLLMGraph:
         model = vLLMGraphModel(self.graph_dict, self.weights_directory)
         Nodes = []
         for node in self.graph_dict:
-            if node in ['entrypoint', 'constants']:
+            if node in ['entrypoint', 'constants', 'results']:
                 continue
             Nodes.append(node)
         
         #Topologically sorted nodes will ensure we don't have node as input which was
         #not declared before.
         topologically_sorted_nodes = self.topological_sort(self.graph_dict, Nodes)
-        module_graph = self.construct_graph(topologically_sorted_nodes)
+        
+        #Topological sort changes of the order of the arguments, which can lead to
+        #unpredictable output
+        argless_topologically_sorted_nodes = []
+        for node in topologically_sorted_nodes:
+            if "arg" in node:
+                continue
+            argless_topologically_sorted_nodes.append(node)
+        
+        topologically_sorted_nodes = self.graph_dict["entrypoint"] + argless_topologically_sorted_nodes
+        
+        module_graph = self.construct_graph(topologically_sorted_nodes, self.graph_dict["results"])
         return torch.fx.GraphModule(model, module_graph)
 
 

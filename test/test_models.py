@@ -45,6 +45,13 @@ class Transpose(Module):
     def forward(self, input):
         return torch.transpose(input, self.dims0, self.dims1)
 
+class BatchMatmul(Module):
+    def __init__(self,):
+        super().__init__()
+    
+    def forward(self, input, mat1):
+        return torch.bmm(input, mat1)
+
 
 class AttentionHead(nn.Module):
     def __init__(self, d_model, d_k, d_v):

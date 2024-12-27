@@ -90,6 +90,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [ReluModule, (), (torch.randn(1, 10, 5))],
      [Softmax, (1,), (torch.randn(1, 10, 5))],
      [Transpose, (1, 0), (torch.randn(25, 10),)],
+     [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
      [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
      ))
 def test_vllm_graph_compiler_from_models(model,

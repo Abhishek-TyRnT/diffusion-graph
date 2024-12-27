@@ -13,5 +13,7 @@ OP_MAP = {
     "vllm_graph.vllm.matmul": torch.matmul,
     "vllm_graph.vllm.softmax": torch.nn.functional.softmax,
     "vllm_graph.vllm.addmm": torch.addmm,
-    "vllm_graph.vllm.view": torch.reshape
+    "vllm_graph.vllm.view": torch.reshape,
+    "vllm_graph.vllm.bmm" : torch.bmm,
+    "vllm_graph.vllm.div.scalar": torch.div
 }

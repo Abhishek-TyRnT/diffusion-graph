@@ -17,8 +17,6 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphTrait.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
-#include "torch-mlir/Dialect/Torch/IR/TorchTraits.h"
-
 
 #define GET_OP_CLASSES
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.h.inc"

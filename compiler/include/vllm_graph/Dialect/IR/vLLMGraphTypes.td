@@ -217,7 +217,7 @@ def Torch_OptionalType : vllm_TypeWithContainedType<"Optional", "optional"> {
 }
 
 def Torch_ListType : vllm_TypeWithContainedType<"List", "list"> {
-  let summary = "!torch.list<T>";
+  let summary = "!vllm_graph.list<T>";
   let description = [{
   }];
 }
@@ -446,12 +446,6 @@ def AnyTorchListOfOptionalIntType :
              "List of optional ints type (int?[])">;
 def AnyTorchOptionalListOfTorchIntType : OptionalOf<AnyTorchListOfTorchIntType, "Optional torch int list type (int[]?)">;
 def AnyTorchOptionalListOfTorchFloatType : OptionalOf<AnyTorchListOfTorchFloatType, "Optional torch float list type (float[]?)">;
-// Note: TorchScript does not consider !torch.bool to be a Scalar.
-def AnyTorchScalarType :
-    Type<CPred<"isValidSubtype($_self, ::mlir::torch::Torch::NumberType::get($_self.getContext()))">,
-         "Any Python numeric type compatible with being the scalar type of a tensor">;
-def AnyTorchOptionalScalarType:
-      OptionalOf<AnyTorchScalarType, "Optional torch scalar type">;
 
 // See function `DictTypePtr create(TypePtr key, TypePtr value)`
 // in aten/src/ATen/core/jit_type.h.
@@ -464,9 +458,13 @@ def AnyTorchDictKeyType : AnyTypeOf<[
   AnyTorchTensorType,
 ], "Allowed dict key types">;
 
+def ScalarType : AnyTypeOf<[
+  I32,
+  F32
+], "Any scalar type be it float or int">;
+
 // In alphabetic order.
 def AnyTorchType : AnyTypeOf<[
-  AnyTorchScalarType,
   AnyTorchTensorType,
   Torch_AnyType,
   Torch_BoolType,
@@ -482,6 +480,10 @@ def AnyTorchType : AnyTypeOf<[
   Torch_StringType,
   Torch_TupleType,
   Torch_UnionType,
+  ScalarType,
+  I32Tensor,
+  F32Tensor
+
 ], "Any type that is legal to pass to a Torch kernel">;
 
 def AnyTorchListType : ListOf<[AnyType], "Any Torch list Type">;
@@ -493,9 +495,6 @@ def TorchTypeOrTensorType : AnyTypeOf<[
    F32Tensor
 ], "Any Torch Value tensor Type or ranked Tensor Type">;
 
-def ScalarType : AnyTypeOf<[
-  I32,
-  F32
-], "Any scalar type be it float or int">;
+
 
 #endif // VLLMM_GRAPH_TYPES

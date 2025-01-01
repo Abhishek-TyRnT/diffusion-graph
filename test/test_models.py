@@ -100,3 +100,12 @@ class AttentionHead(nn.Module):
 
         return output, attention_weights
     
+
+class LayerNorm(Module):
+    def __init__(self, normalised_shapes, bias=True, element_wise_affine=True):
+        super().__init__()
+        self.layer = nn.LayerNorm(normalised_shapes, bias=bias, elementwise_affine=element_wise_affine)
+    
+    def forward(self, input):
+        return self.layer(input)
+

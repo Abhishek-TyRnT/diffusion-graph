@@ -4,7 +4,7 @@ from torch.nn import Module
 from torch_mlir import torchscript
 
 
-BACKEND_END_LEGAL_OPS = ["aten.softmax.int"]
+BACKEND_END_LEGAL_OPS = ["aten.softmax.int", "aten.layer_norm"]
 class GraphCompiler:
     def __init__(self, weight_path: str, debug: bool = False):
         self.compiler = vLLMGraph(weight_path)

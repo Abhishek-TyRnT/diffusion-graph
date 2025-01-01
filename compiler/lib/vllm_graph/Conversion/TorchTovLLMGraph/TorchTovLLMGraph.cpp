@@ -53,6 +53,27 @@ RankedTensorType convertTorchvTypeToTensorType(Type type){
     return tensor;
 }
 
+Type convertvLLMContainedType(Type type, 
+                        ConversionPatternRewriter &rewriter, 
+                        MLIRContext *context){
+    auto TorchList = cast<torch::Torch::ListType>(type);
+
+    Type containedResultType;
+    if(isa<torch::Torch::IntType>(TorchList.getContainedType()))
+        containedResultType = rewriter.getIntegerType(32);
+    else if(isa<torch::Torch::FloatType>(TorchList.getContainedType()))
+        containedResultType = rewriter.getF32Type();
+    else if(isa<torch::Torch::BoolType>(TorchList.getContainedType()))
+        containedResultType = rewriter.getI1Type();
+    else if(isa<torch::Torch::ValueTensorType>(TorchList.getContainedType())){
+        containedResultType = convertTorchvTypeTovLLMvType(TorchList.getContainedType(), context);
+    }
+    else
+        assert(false && "Type for the list not added");
+
+    return containedResultType;
+}
+
 namespace {
 
 template <typename AtenOpT>
@@ -384,8 +405,8 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
         operand.setType(updatedType);
     }
 
-    auto TorchList = cast<torch::Torch::ListType>(op.getResult().getType());
-    Type resultType = vllm_graph::ListType::get(context, TorchList.getContainedType());
+    auto containedResultType = convertvLLMContainedType(op.getResult().getType(), rewriter, context);
+    auto resultType = vllm_graph::ListType::get(context, containedResultType);
 
     ValueRange newValueRange(operandRange);
     rewriter.replaceOpWithNewOp<vllm_graph::ListOp>(op, resultType, newValueRange);
@@ -413,10 +434,10 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>::matchAndRewrit
     bias.setType(convertTorchvTypeToTensorType(bias.getType()));
     epsilon.setType(rewriter.getF32Type());
     elementwiseAffine.setType(rewriter.getI1Type());
-    auto normalisedList = cast<torch::Torch::ListType>(normalisedShape.getType());
-    Type newNormalisedList = vllm_graph::ListType::get(context, normalisedList.getContainedType());
+    auto containedType = convertvLLMContainedType(normalisedShape.getType(), rewriter, context);
+    Type newNormalisedList = vllm_graph::ListType::get(context, containedType);
     normalisedShape.setType(newNormalisedList);
-
+    
     Type resultType = convertTorchvTypeTovLLMvType(op.getResult().getType(), context);
     rewriter.replaceOpWithNewOp<vllm_graph::LayerNormOp>(op, resultType, inputArg, normalisedShape, weight, bias, epsilon, elementwiseAffine);
     return success();

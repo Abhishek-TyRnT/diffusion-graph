@@ -48,6 +48,18 @@ void GraphWriter::storeWeights<mlir::IntegerAttr>(mlir::IntegerAttr val, std::st
 }
 
 template<>
+void GraphWriter::storeWeights<mlir::BoolAttr>(mlir::BoolAttr val, std::string ssa_id){
+    bool value = val.getValue();
+    hsize_t dims[1] = {1};
+    H5::DataSpace dataspace(1, dims);
+    // Create the dataset
+    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_HBOOL, dataspace);
+    dataset.write(&value, H5::PredType::NATIVE_HBOOL);
+    dataspace.close();
+    dataset.close();
+}
+
+template<>
 void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string ssa_id){
     llvm::APFloat AP_value = val.getValue();
     float value = AP_value.convertToFloat();
@@ -117,9 +129,10 @@ void GraphWriter::addOp(mlir::Operation *op){
                 storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
             } else if(auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(attr)){
                 storeWeights<mlir::IntegerAttr>(intAttr, ssa_id.str());
-            }
-            else if(auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(attr)){
+            } else if(auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(attr)){
                 storeWeights<mlir::FloatAttr>(floatAttr, ssa_id.str());
+            } else if(auto boolAttr = mlir::dyn_cast<mlir::BoolAttr>(attr)){
+                storeWeights<mlir::BoolAttr>(boolAttr, ssa_id.str());
             }
             std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
         } else if(mlir::isa<vllm_graph::ConstTupleOp>(*op)) {
@@ -166,6 +179,15 @@ void GraphWriter::addOp(mlir::Operation *op){
             llvm::raw_string_ostream os(elementTypeName);
             tupleType.getContainedTypes()[0].print(os);
             map["vllm_graph_type"] = "tuple";
+            map["dtype"] = elementTypeName;
+            map["op_name"] = op->getName().getStringRef().str();
+        }
+        else if(mlir::isa<vllm_graph::ListType>(resType)){
+            auto listType = mlir::cast<vllm_graph::ListType>(resType);
+            std::string elementTypeName;
+            llvm::raw_string_ostream os(elementTypeName);
+            listType.getContainedType().print(os);
+            map["vllm_graph_type"] = "list";
             map["dtype"] = elementTypeName;
             map["op_name"] = op->getName().getStringRef().str();
         }

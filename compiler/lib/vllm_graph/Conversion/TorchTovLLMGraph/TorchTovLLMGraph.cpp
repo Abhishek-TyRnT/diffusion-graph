@@ -41,6 +41,39 @@ Type convertTorchvTypeTovLLMvType(Type type, MLIRContext *context){
         return type;
 }
 
+
+RankedTensorType convertTorchvTypeToTensorType(Type type){
+    
+    auto TorchTensor = cast<mlir::torch::Torch::ValueTensorType>(type);
+    //assert(TorchTensor && "Only Value tensor supported as of now");
+    Type elemType = TorchTensor.getOptionalDtype();
+    SmallVector<int64_t> shape = cast<SmallVector<int64_t>>(TorchTensor.getOptionalSizes());
+    
+    RankedTensorType tensor = RankedTensorType::get(shape, elemType);
+    return tensor;
+}
+
+Type convertvLLMContainedType(Type type, 
+                        ConversionPatternRewriter &rewriter, 
+                        MLIRContext *context){
+    auto TorchList = cast<torch::Torch::ListType>(type);
+
+    Type containedResultType;
+    if(isa<torch::Torch::IntType>(TorchList.getContainedType()))
+        containedResultType = rewriter.getIntegerType(32);
+    else if(isa<torch::Torch::FloatType>(TorchList.getContainedType()))
+        containedResultType = rewriter.getF32Type();
+    else if(isa<torch::Torch::BoolType>(TorchList.getContainedType()))
+        containedResultType = rewriter.getI1Type();
+    else if(isa<torch::Torch::ValueTensorType>(TorchList.getContainedType())){
+        containedResultType = convertTorchvTypeTovLLMvType(TorchList.getContainedType(), context);
+    }
+    else
+        assert(false && "Type for the list not added");
+
+    return containedResultType;
+}
+
 namespace {
 
 template <typename AtenOpT>
@@ -98,6 +131,17 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>::matchAndRewrite(
 
 }
 
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantBoolOp>::matchAndRewrite(
+    mlir::torch::Torch::ConstantBoolOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    bool constant = op.getValue();
+    Type boolType = rewriter.getI1Type();
+    Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, boolType, rewriter.getBoolAttr(constant));
+    return mlir::success();
+
+}
 
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantFloatOp>::matchAndRewrite(
@@ -337,6 +381,72 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>::matchAndRewri
 
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRewrite(
+    mlir::torch::Torch::PrimListConstructOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    OperandRange operandRange = op.getOperands();
+    MLIRContext *context = getContext();
+    for(Value operand : operandRange){
+        Type operandType = operand.getType();
+        Type updatedType;
+        if(isa<torch::Torch::IntType>(operandType))
+            updatedType = rewriter.getIntegerType(32);
+        else if(isa<torch::Torch::FloatType>(operandType))
+            updatedType = rewriter.getF32Type();
+        else if(isa<torch::Torch::BoolType>(operandType))
+            updatedType = rewriter.getI1Type();
+        else if(isa<torch::Torch::ValueTensorType>(operandType)){
+            updatedType = convertTorchvTypeTovLLMvType(operandType, context);
+        }
+        else
+            assert(false && "Type for the list not added");
+
+        operand.setType(updatedType);
+    }
+
+    auto containedResultType = convertvLLMContainedType(op.getResult().getType(), rewriter, context);
+    auto resultType = vllm_graph::ListType::get(context, containedResultType);
+
+    ValueRange newValueRange(operandRange);
+    rewriter.replaceOpWithNewOp<vllm_graph::ListOp>(op, resultType, newValueRange);
+
+    return success();
+
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenLayerNormOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value inputArg = op.getOperand(0);
+    Value normalisedShape = op.getOperand(1);
+    Value weight = op.getOperand(2);
+    Value bias = op.getOperand(3);
+    Value epsilon = op.getOperand(4);
+
+    MLIRContext *context = getContext();
+
+    if(mlir::isa<torch::Torch::ConstantNoneOp>(*weight.getDefiningOp()) 
+        || mlir::isa<torch::Torch::ConstantNoneOp>(*bias.getDefiningOp())
+    )
+        llvm::report_fatal_error("elementwise affine must be true\n");
+    
+    inputArg.setType(convertTorchvTypeTovLLMvType(inputArg.getType(), context));
+    weight.setType(convertTorchvTypeToTensorType(weight.getType()));
+    bias.setType(convertTorchvTypeToTensorType(bias.getType()));
+    epsilon.setType(rewriter.getF32Type());
+    auto containedType = convertvLLMContainedType(normalisedShape.getType(), rewriter, context);
+    Type newNormalisedList = vllm_graph::ListType::get(context, containedType);
+    normalisedShape.setType(newNormalisedList);
+    
+    Type resultType = convertTorchvTypeTovLLMvType(op.getResult().getType(), context);
+    rewriter.replaceOpWithNewOp<vllm_graph::LayerNormOp>(op, resultType, inputArg, normalisedShape, weight, bias, epsilon);
+    return success();
+}
+
+template <>
 LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     mlir::vllm_graph::CastOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -399,6 +509,10 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantFloatOp>>(typeConverter,        
                                                          context);
 
+        target.addIllegalOp<mlir::torch::Torch::ConstantBoolOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantBoolOp>>(typeConverter,        
+                                                         context);
+
         target.addIllegalOp<mlir::torch::Torch::AtenAddTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>>(typeConverter,        
                                                          context);
@@ -429,6 +543,14 @@ public:
         
         target.addIllegalOp<mlir::torch::Torch::AtenSoftmaxIntOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::PrimListConstructOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenLayerNormOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>>(typeConverter,        
                                                          context);
 
         if (failed(applyPartialConversion(getOperation(), target,

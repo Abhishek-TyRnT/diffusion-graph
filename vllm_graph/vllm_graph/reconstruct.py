@@ -120,6 +120,11 @@ class vLLMGraph:
             elif node_type == "arith.constant" or node_type == "vllm_graph.vllm.const_tuple":
                 ssa_id = node.split(".")[0]
                 graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
+            
+            elif node_type == "vllm_graph.vllm.list_op":
+                ssa_id = node.split(".")[0]
+                list_nodes = [graph_nodes[inp] for inp in self.graph_dict[node]['input_nodes']]
+                graph_nodes[node] = list_nodes
 
             elif node_type == "vllm_graph.vllm.add":
                 add_func = OP_MAP.get(node_type, None)

@@ -117,7 +117,7 @@ void OptionalType::print(AsmPrinter &printer) const {
 void ListType::print(AsmPrinter &printer) const {
   printer << "<";
   // Print the contained type without the `!torch.` prefix.
-  printvLLMGraphDialectType(getImpl()->containedType, printer);
+  printer.printType(getImpl()->containedType);
   printer << ">";
 }
 

@@ -264,3 +264,32 @@ def vllm_DivScalarOp : vLLMGraph_Op<"vllm.div.scalar", [
     }
     }];
 }
+
+def vllm_LayerNormOp : vLLMGraph_Op<"vllm.layer_norm", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated Op for `vllm:layer_norm : (Tensor, list, Tensor, Tensor, float, bool) -> Tensor";
+
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      Torch_ListType:$normliazed_shape,
+      TorchTypeOrTensorType:$weight,
+      TorchTypeOrTensorType:$bias,
+      F32:$epsilon
+    );
+    let results = (outs
+        AnyTorchTensorType:$result);
+
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+    ParseResult LayerNormOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void LayerNormOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+    }];
+}

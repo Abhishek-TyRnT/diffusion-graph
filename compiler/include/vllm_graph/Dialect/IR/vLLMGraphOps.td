@@ -58,4 +58,24 @@ def vllm_CastOp : vLLMGraph_Op<"vllm.cast_op",[Pure]> {
     }];
 }
 
+
+def vllm_ListOp: vLLMGraph_Op<"vllm.list_op", [
+    Pure,
+    vLLMAllowsTypeRefinement
+  ]> {
+  let summary = "vllm representation of a list";
+
+  let arguments = (ins
+    Variadic<AnyTorchType>:$elements
+  );
+  let results = (outs
+    Torch_ListType:$result
+  );
+
+  let assemblyFormat = [{
+    $elements attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+
 #endif // VLLMGRAPH_OPS

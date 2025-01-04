@@ -278,8 +278,7 @@ def vllm_LayerNormOp : vLLMGraph_Op<"vllm.layer_norm", [
       Torch_ListType:$normliazed_shape,
       TorchTypeOrTensorType:$weight,
       TorchTypeOrTensorType:$bias,
-      F32:$epsilon,
-      I1:$use_elementwise
+      F32:$epsilon
     );
     let results = (outs
         AnyTorchTensorType:$result);

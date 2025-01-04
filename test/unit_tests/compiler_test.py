@@ -92,7 +92,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
     #  [Transpose, (1, 0), (torch.randn(25, 10),)],
     #  [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
     #  [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-     [LayerNorm, (5, True, False), (torch.randn(3, 256, 5))],
+     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5))],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

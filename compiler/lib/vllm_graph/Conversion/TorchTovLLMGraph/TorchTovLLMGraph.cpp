@@ -425,21 +425,24 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>::matchAndRewrit
     Value weight = op.getOperand(2);
     Value bias = op.getOperand(3);
     Value epsilon = op.getOperand(4);
-    Value elementwiseAffine = op.getOperand(5);
 
     MLIRContext *context = getContext();
 
+    if(mlir::isa<torch::Torch::ConstantNoneOp>(*weight.getDefiningOp()) 
+        || mlir::isa<torch::Torch::ConstantNoneOp>(*bias.getDefiningOp())
+    )
+        llvm::report_fatal_error("elementwise affine must be true\n");
+    
     inputArg.setType(convertTorchvTypeTovLLMvType(inputArg.getType(), context));
     weight.setType(convertTorchvTypeToTensorType(weight.getType()));
     bias.setType(convertTorchvTypeToTensorType(bias.getType()));
     epsilon.setType(rewriter.getF32Type());
-    elementwiseAffine.setType(rewriter.getI1Type());
     auto containedType = convertvLLMContainedType(normalisedShape.getType(), rewriter, context);
     Type newNormalisedList = vllm_graph::ListType::get(context, containedType);
     normalisedShape.setType(newNormalisedList);
     
     Type resultType = convertTorchvTypeTovLLMvType(op.getResult().getType(), context);
-    rewriter.replaceOpWithNewOp<vllm_graph::LayerNormOp>(op, resultType, inputArg, normalisedShape, weight, bias, epsilon, elementwiseAffine);
+    rewriter.replaceOpWithNewOp<vllm_graph::LayerNormOp>(op, resultType, inputArg, normalisedShape, weight, bias, epsilon);
     return success();
 }
 

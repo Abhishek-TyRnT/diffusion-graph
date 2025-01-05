@@ -215,6 +215,35 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrit
 
 }
 
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPowTensorScalarOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenPowTensorScalarOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = op.getOperand(0);
+    Value exponent = op.getOperand(1);
+    Value result = op.getResult();
+    MLIRContext *context = getContext();
+    
+    if(isa<mlir::torch::Torch::IntType>(exponent.getType()))
+        exponent.setType(rewriter.getIntegerType(32));
+    
+    else if(isa<mlir::torch::Torch::FloatType>(exponent.getType()))
+        exponent.setType(rewriter.getF32Type());
+    else
+        assert(false && "exponent must be integer or float");
+
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+    Type inputType = convertTorchvTypeTovLLMvType(input.getType(), context);
+    input.setType(inputType);
+    
+    rewriter.replaceOpWithNewOp<vllm_graph::PowOp>(op, resultType, input, exponent);
+
+
+    return mlir::success();
+
+}
+
 
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrite(
@@ -259,6 +288,114 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrit
     Tensor2.setType(Input2Type);
 
     rewriter.replaceOpWithNewOp<vllm_graph::AddOp>(op, resultType, Tensor1, Tensor2, Alpha);
+    return mlir::success();
+    
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddScalarOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenAddScalarOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value Operand1 = op.getOperand(0);
+    Value Operand2 = op.getOperand(1);
+    Value Alpha = op.getOperand(2);
+
+    //converting from torch.int or torch.float to simply int32, float32 
+    if(isa<mlir::torch::Torch::IntType>(Alpha.getType()))
+        Alpha.setType(rewriter.getIntegerType(32));
+    
+    else if(isa<mlir::torch::Torch::FloatType>(Alpha.getType()))
+        Alpha.setType(rewriter.getF32Type());
+    else
+        assert(false && "Alpha must be integer or float");
+
+    Value result = op.getResult();
+
+    MLIRContext *context = op.getContext();
+
+    Type Input1Type = convertTorchvTypeTovLLMvType(Operand1.getType(), context);
+    //Type Input2Type = convertTorchvTypeTovLLMvType(Operand2.getType(), context);
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+
+    if(isa<mlir::torch::Torch::IntType>(Operand2.getType()))
+        Operand2.setType(rewriter.getIntegerType(32));
+    
+    else if(isa<mlir::torch::Torch::FloatType>(Operand2.getType()))
+        Operand2.setType(rewriter.getF32Type());
+    else
+        assert(false && "Scalar must be integer or float");
+
+    Operand1.setType(Input1Type);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::AddOp>(op, resultType, Operand1, Operand2, Alpha);
+    return mlir::success();
+    
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulScalarOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenMulScalarOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value Operand1 = op.getOperand(0);
+    Value Operand2 = op.getOperand(1);
+
+    Value result = op.getResult();
+
+    MLIRContext *context = op.getContext();
+
+    Type Input1Type = convertTorchvTypeTovLLMvType(Operand1.getType(), context);
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+
+    if(isa<mlir::torch::Torch::IntType>(Operand2.getType()))
+        Operand2.setType(rewriter.getIntegerType(32));
+    
+    else if(isa<mlir::torch::Torch::FloatType>(Operand2.getType()))
+        Operand2.setType(rewriter.getF32Type());
+    else
+        assert(false && "Scalar must be integer or float");
+
+    Operand1.setType(Input1Type);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::MulOp>(op, resultType, Operand1, Operand2);
+    return mlir::success();
+    
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulTensorOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenMulTensorOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value Tensor1 = op.getOperand(0);
+    Value Tensor2 = op.getOperand(1);
+
+    Value result = op.getResult();
+
+    MLIRContext *context = op.getContext();
+    assert(Tensor1.getType() == Tensor2.getType() && "The dtypes of the tensors1 must match");
+
+    Type Input1Type = convertTorchvTypeTovLLMvType(Tensor1.getType(), context);
+    Type Input2Type = convertTorchvTypeTovLLMvType(Tensor2.getType(), context);
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+
+    // A special case where the input os coming from a literal tensor, meaning 
+    // it is stored as constant, In vLLM Dialect the constants are stored as builtin MLIR types
+    // Hence if it a constant then the input is RankedTensorType rather than vllm.vtensor. 
+    if (auto *defOp = Tensor2.getDefiningOp()){
+        if(defOp->getName() == mlir::OperationName("torch.vtensor.literal", op.getContext())){            
+            mlir::torch::Torch::ValueTensorType valueTensor = cast<mlir::torch::Torch::ValueTensorType>(Input2Type);
+            SmallVector<int64_t> sizes = cast<SmallVector<int64_t>>(valueTensor.getOptionalSizes());
+            Type dtype = valueTensor.getOptionalDtype();
+            RankedTensorType RankedInput = RankedTensorType::get(sizes, dtype);
+            Input2Type = cast<Type>(RankedInput);
+        }
+    }
+    Tensor1.setType(Input1Type);
+    Tensor2.setType(Input2Type);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::MulOp>(op, resultType, Tensor1, Tensor2);
     return mlir::success();
     
 }
@@ -538,7 +675,19 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenAddTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>>(typeConverter,        
                                                          context);
-        
+
+        target.addIllegalOp<mlir::torch::Torch::AtenAddScalarOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddScalarOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenMulTensorOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMulTensorOp>>(typeConverter,        
+                                                         context);                                                    
+
+        target.addIllegalOp<mlir::torch::Torch::AtenMulScalarOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMulScalarOp>>(typeConverter,        
+                                                         context);   
+
         target.addIllegalOp<mlir::torch::Torch::AtenTransposeIntOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>>(typeConverter,        
                                                          context);
@@ -576,6 +725,10 @@ public:
                                                          context);
         target.addIllegalOp<mlir::torch::Torch::AtenTanhOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenPowTensorScalarOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenPowTensorScalarOp>>(typeConverter,        
                                                          context);
 
         if (failed(applyPartialConversion(getOperation(), target,

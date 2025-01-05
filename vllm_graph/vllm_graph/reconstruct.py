@@ -130,12 +130,13 @@ class vLLMGraph:
                 add_func = OP_MAP.get(node_type, None)
                 input_args = []
                 input_kwargs = {}
-                for inp in self.graph_dict[node]['input_nodes']:
-                    if self.graph_dict[inp]["vllm_graph_type"] == "scalar":
-                        input_kwargs["alpha"] = graph_nodes[inp]
-                        
-                    else:
-                        input_args.append(graph_nodes[inp])
+
+                #TODO: Find a better way deal with kwargs
+                for inp in self.graph_dict[node]['input_nodes'][:-1]:
+                    input_args.append(graph_nodes[inp])
+                
+                inp_alpha = self.graph_dict[node]['input_nodes'][-1]
+                input_kwargs["alpha"] = graph_nodes[inp_alpha]
                 
                 graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
 

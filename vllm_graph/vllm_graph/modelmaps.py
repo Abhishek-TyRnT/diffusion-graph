@@ -17,5 +17,8 @@ OP_MAP = {
     "vllm_graph.vllm.bmm" : torch.bmm,
     "vllm_graph.vllm.div.scalar": torch.div,
     "vllm_graph.vllm.layer_norm": torch.nn.functional.layer_norm,
-    "vllm_graph.vllm.tanh": torch.tanh
+    "vllm_graph.vllm.tanh": torch.tanh,
+    "vllm_graph.vllm.mul": torch.mul,
+    "vllm_graph.vllm.pow": torch.pow,
+
 }

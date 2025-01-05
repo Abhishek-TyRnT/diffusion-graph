@@ -34,7 +34,7 @@ def vllm_AddOp : vLLMGraph_Op<"vllm.add", [
     let summary = "Generated op for `vllm::Add : (Tensor, Tensor , scalar) -> (Tensor)`";
     let arguments = (ins 
         AnyTorchTensorType:$input1, 
-        TorchTypeOrTensorType:$input2,  
+        TensorOrScalarType:$input2,  
         I32:$alpha);
     
     let results = (outs
@@ -50,6 +50,31 @@ def vllm_AddOp : vLLMGraph_Op<"vllm.add", [
     }];
 
 
+}
+
+def vllm_MulOp : vLLMGraph_Op<"vllm.mul", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm::mul : (Tensor, Tensor) -> (Tensor)`";
+    let arguments = (ins 
+        TensorOrScalarType:$input1, 
+        TensorOrScalarType:$input2  
+    );
+    
+    let results = (outs
+                TensorOrScalarType:$result);
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult MulOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void MulOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
 }
 
 def vllm_TransposeOp : vLLMGraph_Op<"vllm.transpose", [
@@ -318,3 +343,27 @@ def vllm_TanhOp : vLLMGraph_Op<"vllm.tanh", [
     }];
 }
 
+def vllm_PowOp : vLLMGraph_Op<"vllm.pow", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm::pow : (Tensor, scalar) -> (Tensor)`";
+    let arguments = (ins 
+        AnyTorchTensorType:$input,
+        ScalarType: $exponent
+    );
+    let results = (outs
+        AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult PowOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void PowOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}

@@ -81,16 +81,9 @@ void replaceFuncDtypes(func::FuncOp &op)
         mlir::Location loc = mlir::UnknownLoc::get(context);
 
         auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[0], arg);
+        mlir::Operation *genCastOp = castOp.getOperation();
         mlir::Value castOpResult = castOp.getResult();
-        for (mlir::Operation *user : opList) {
-            for(int j = 0; j < user->getNumOperands(); j++)
-            {
-                // CHecking whether an arg and ops operand are same thing.
-                if(user->getOperand(j) == arg)
-                    user->setOperand(j, castOpResult);
-            }
-        }
-
+        arg.replaceAllUsesExcept(castOpResult, genCastOp);
         arg.setType(newArgTypes[i]);
     }
 

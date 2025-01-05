@@ -496,6 +496,10 @@ def TorchTypeOrTensorType : AnyTypeOf<[
    F32Tensor
 ], "Any Torch Value tensor Type or ranked Tensor Type">;
 
+def TensorOrScalarType : AnyTypeOf<[
+   TorchTypeOrTensorType,
+   ScalarType
+], "Any Torch Value tensor Type or ranked Tensor Type">;
 
 
 #endif // VLLMM_GRAPH_TYPES

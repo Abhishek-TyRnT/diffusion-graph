@@ -75,8 +75,9 @@ void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string
 
 void GraphWriter::addOp(mlir::Operation *op){
 
+
     for(mlir::Value operand : op->getOperands()){
-        if(mlir::isa<mlir::BlockArgument>(operand)){
+        if(mlir::isa<mlir::BlockArgument>(operand) && !opMap.count(operand)){
             std::stringstream argName;
             argName << "arg" << argCount++;
             opMap[operand] = argName.str();
@@ -103,15 +104,15 @@ void GraphWriter::addOp(mlir::Operation *op){
 
             graph[argName.str()] = map;
         }
+    }
 
-        else if(mlir::isa<func::ReturnOp>(*op)){
-            std::vector<std::string> results;
-            for(auto operand : op->getOperands())
-                results.push_back(opMap[operand]);
 
-            graph["results"] = results;
-            
-        }
+    if(mlir::isa<func::ReturnOp>(*op)){
+        std::vector<std::string> results;
+        for(auto operand : op->getOperands())
+            results.push_back(opMap[operand]);
+
+        graph["results"] = results;        
     }
 
     uint resCount = 0;

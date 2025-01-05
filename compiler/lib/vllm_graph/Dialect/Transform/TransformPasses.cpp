@@ -81,8 +81,9 @@ void replaceFuncDtypes(func::FuncOp &op)
         mlir::Location loc = mlir::UnknownLoc::get(context);
 
         auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[0], arg);
+        mlir::Operation *genCastOp = castOp.getOperation();
         mlir::Value castOpResult = castOp.getResult();
-        arg.replaceAllUsesExcept(castOpResult, &castOp);
+        arg.replaceAllUsesExcept(castOpResult, genCastOp);
         arg.setType(newArgTypes[i]);
     }
 

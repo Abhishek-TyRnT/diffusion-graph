@@ -39,7 +39,8 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
     [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5))],
-    [Tanh, (), (torch.randn(3, 256, 1024),)]
+    [Tanh, (), (torch.randn(3, 256, 1024),)],
+    [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -66,7 +67,8 @@ def test_graph_compiler_python_to_dict(model,
      [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
      [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
      [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
-     [Tanh, (), (torch.randn(3, 256, 1024),)]
+     [Tanh, (), (torch.randn(3, 256, 1024),)],
+     [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,

@@ -109,3 +109,10 @@ class LayerNorm(Module):
     def forward(self, input):
         return self.layer(input)
 
+class Tanh(Module):
+    def __init__(self,):
+        super().__init__()
+        self.layer = torch.nn.Tanh()
+    
+    def forward(self, inputs):
+        return self.layer(inputs)

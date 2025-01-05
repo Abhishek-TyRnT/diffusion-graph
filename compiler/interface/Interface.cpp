@@ -19,7 +19,6 @@ vLLMGraphBase::vLLMGraphBase(){
     registerAllPasses();
     context = new MLIRContext(registry);
     passmanager = std::make_unique<PassManager>(OperationName("builtin.module", context));
-    // OpPassManager &Opm = passmanager->nest<mlir::ModuleOp>();
     createTorchTovLLMGraphPipeline(*passmanager);
 }
 
@@ -28,13 +27,6 @@ vLLMGraphBase::~vLLMGraphBase(){
 }
 
 OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parse(std::string IR){
-    // llvm::SourceMgr sourceMgr;
-    // // auto fileOrErr = llvm::MemoryBuffer::getFile(IRFile);
-    // // if (!fileOrErr) {
-    // //     llvm::errs() << "Could not open input file\n";
-    // //     return nullptr;
-    // // }
-    // sourceMgr.AddNewSourceBuffer(IR, llvm::SMLoc());
 
     // Parse the file into an MLIR module.
     mlir::ParserConfig parserConfig(context);

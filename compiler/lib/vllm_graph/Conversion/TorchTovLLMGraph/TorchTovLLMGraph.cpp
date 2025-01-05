@@ -120,6 +120,28 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenReluOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenTanhOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value self = adaptor.getSelf();
+    MLIRContext *context = op.getContext();
+    auto selfTy = cast<TensorType>(self.getType());
+    if (!selfTy) {
+        return rewriter.notifyMatchFailure(op,
+                                       "Only Tensor types supported in vllm_graph");
+    }
+
+    Type opType = convertTorchvTypeTovLLMvType(selfTy, context);
+
+    self.setType(opType);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::TanhOp>(op, opType, self);
+    return success();
+
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>::matchAndRewrite(
     mlir::torch::Torch::ConstantIntOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -551,6 +573,9 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenLayerNormOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>>(typeConverter,        
+                                                         context);
+        target.addIllegalOp<mlir::torch::Torch::AtenTanhOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>>(typeConverter,        
                                                          context);
 
         if (failed(applyPartialConversion(getOperation(), target,

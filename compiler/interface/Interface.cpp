@@ -71,8 +71,7 @@ void vLLMGraphBase::convert(OwningOpRef<ModuleOp> &module){
         std::exit(-1);
     }
     
-    if(failed(passmanager->run(*module))){
-        llvm::errs() << *module << "\n";   
+    if(failed(passmanager->run(*module))){   
         llvm::errs() << "The Pass failed to run"<< "\n";
         std::exit(-1);
     }

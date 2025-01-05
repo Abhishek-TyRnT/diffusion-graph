@@ -26,7 +26,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     
     else:
         #print(vllm_graph_output[0].shape, regular_output.shape)
-        return torch.allclose(vllm_graph_output[0], regular_output, atol = 1e-2)
+        return torch.allclose(vllm_graph_output[0], regular_output, atol = 1e-3)
 
     
 

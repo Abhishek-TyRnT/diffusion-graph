@@ -22,7 +22,8 @@ from test_models import *
      "Relu_dynamic_shapes.mlir",
      "softmax.mlir",
      "transpose_dynamic_shapes.mlir",
-     "transpose_static_shapes.mlir"
+     "transpose_static_shapes.mlir",
+     "NewGELUActivation.mlir"
      ])
 def test_vllm_graph_compiler_from_mlir(filename):
     #TODO: Add lit test for verification
@@ -53,6 +54,7 @@ def test_vllm_graph_compiler_from_mlir(filename):
         (1, 0), (torch.randn(25, 10),)],
     [AttentionHead,  ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
         (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+    [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024))]
      ))
 def test_vllm_graph_compiler_passes_from_models(model,
                                                 pass_list,
@@ -85,15 +87,15 @@ def test_vllm_graph_compiler_passes_from_models(model,
 
 
 @pytest.mark.parametrize("model, model_args, inputs",(
-    #  [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
-    #  [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
-    #  [ReluModule, (), (torch.randn(1, 10, 5))],
-    #  [Softmax, (1,), (torch.randn(1, 10, 5))],
-    #  [Transpose, (1, 0), (torch.randn(25, 10),)],
-    #  [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
-    #  [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-    #  [LayerNorm, (5, True, True), (torch.randn(3, 256, 5))],
-    #  [Tanh, (), (torch.randn(3, 256, 1024),)]
+     [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+     [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
+     [ReluModule, (), (torch.randn(1, 10, 5))],
+     [Softmax, (1,), (torch.randn(1, 10, 5))],
+     [Transpose, (1, 0), (torch.randn(25, 10),)],
+     [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
+     [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5))],
+     [Tanh, (), (torch.randn(3, 256, 1024),)],
      [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
      ))
 def test_vllm_graph_compiler_from_models(model,

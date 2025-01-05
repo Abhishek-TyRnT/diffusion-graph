@@ -6,7 +6,7 @@ def vllm_ReluOp : vLLMGraph_Op<"vllm.Relu", [
         vLLMReadOnly
     ]> {
     
-    let summary = "Generated op for `vllm::Relu : (Tensor, Scalar, Scalar) -> (Tensor)`";
+    let summary = "Generated op for `vllm::Relu : (Tensor) -> (Tensor)`";
     let arguments = (ins
         AnyTorchTensorType:$self
     );
@@ -293,3 +293,28 @@ def vllm_LayerNormOp : vLLMGraph_Op<"vllm.layer_norm", [
     }
     }];
 }
+
+def vllm_TanhOp : vLLMGraph_Op<"vllm.tanh", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm::tanh : (Tensor,) -> (Tensor)`";
+    let arguments = (ins
+        AnyTorchTensorType:$self
+    );
+    let results = (outs
+        AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult TanhOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void TanhOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}
+

@@ -367,3 +367,29 @@ def vllm_PowOp : vLLMGraph_Op<"vllm.pow", [
         }
     }];
 }
+
+def vllm_EmbeddingOp : vLLMGraph_Op<"vllm.embedding", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm::embedding : (Tensor, Tensor) -> Tensor`";
+    let arguments = (ins
+        AnyTorchTensorType:$input,
+        F32Tensor:$weight
+        );
+
+    let results = (outs
+        AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult EmbeddingOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void EmbeddingOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}

@@ -119,7 +119,7 @@ class Tanh(Module):
         return self.layer(inputs)
 
 
-class NewGELUActivation(nn.Module):
+class NewGELUActivation(Module):
     """
     Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT). Also see
     the Gaussian Error Linear Units paper: https://arxiv.org/abs/1606.08415
@@ -127,3 +127,12 @@ class NewGELUActivation(nn.Module):
 
     def forward(self, input) :
         return 0.5 * input * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (input + 0.044715 * torch.pow(input, 3.0))))
+    
+
+class Embedding(Module):
+    def __init__(self, num_embeddings, embedding_dim):
+        super().__init__()
+        self.layer = nn.Embedding(num_embeddings, embedding_dim)
+    
+    def forward(self, inputs):
+        return self.layer(inputs)

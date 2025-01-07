@@ -574,6 +574,37 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
 
 }
 
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenEmbeddingOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenEmbeddingOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value weight = op.getOperand(0);
+    Value input = op.getOperand(1);
+    MLIRContext *context = getContext();
+    Type inputType = input.getType();
+    if(!isa<torch::Torch::ValueTensorType>(inputType))
+        assert(false && "Must be value Tensor");
+
+    auto vTensor = cast<torch::Torch::ValueTensorType>(inputType);
+    Type elemType = vTensor.getDtype();
+    if(!isa<torch::Torch::IntType>(elemType))
+         assert(false && "Tensor must be IntType");
+    
+    inputType = convertTorchvTypeTovLLMvType(inputType, context);
+    input.setType(inputType);
+
+    Value result = op.getResult();
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+    Type weightType = convertTorchvTypeToTensorType(weight.getType());
+    weight.setType(weightType);
+    
+    rewriter.replaceOpWithNewOp<vllm_graph::EmbeddingOp>(op, resultType, input, weight);
+    return success();
+
+}
+
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>::matchAndRewrite(
     mlir::torch::Torch::AtenLayerNormOp op, OpAdaptor adaptor,
@@ -730,7 +761,10 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenPowTensorScalarOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenPowTensorScalarOp>>(typeConverter,        
                                                          context);
-
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenEmbeddingOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenEmbeddingOp>>(typeConverter,        
+                                                         context);
         if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))
             return signalPassFailure();

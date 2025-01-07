@@ -41,6 +41,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5))],
     [Tanh, (), (torch.randn(3, 256, 1024),)],
     [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+    [Embedding, (2, 3), (torch.tensor([0, 1]), )],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -69,6 +70,7 @@ def test_graph_compiler_python_to_dict(model,
      [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
      [Tanh, (), (torch.randn(3, 256, 1024),)],
      [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+     [Embedding, (2, 3), (torch.tensor([0, 1]), )],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,

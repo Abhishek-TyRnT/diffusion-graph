@@ -20,5 +20,6 @@ OP_MAP = {
     "vllm_graph.vllm.tanh": torch.tanh,
     "vllm_graph.vllm.mul": torch.mul,
     "vllm_graph.vllm.pow": torch.pow,
+    "vllm_graph.vllm.embedding": torch.nn.functional.embedding
 
 }

@@ -97,6 +97,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [LayerNorm, (5, True, True), (torch.randn(3, 256, 5))],
      [Tanh, (), (torch.randn(3, 256, 1024),)],
      [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+     [Embedding, (2, 3), (torch.tensor([0, 1]), )],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COMMIT_ID="${COMMIT_ID:-d418a03e01e6a31b51b0c9dd42ba46da6c47f89d}"
+COMMIT_ID="${COMMIT_ID:-813f7c3820d00349fe23bfc6ba26159764541540}"
 
 build_llvm(){
     cd /llvm-build/llvm-project

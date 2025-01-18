@@ -459,7 +459,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndR
     SmallVector<int64_t> shape = cast<SmallVector<int64_t>>(LiteralType.getOptionalSizes());
     
     RankedTensorType LiteralTensorType = RankedTensorType::get(shape, elemType);
-    rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, LiteralTensorType, op.getValue());
+    rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, LiteralTensorType, adaptor.getValue());
     return success();
 }
 
@@ -606,8 +606,8 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenEmbeddingOp>::matchAndRewrit
 }
 
 template <>
-LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>::matchAndRewrite(
-    mlir::torch::Torch::AtenLayerNormOp op, OpAdaptor adaptor,
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenNativeLayerNormOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
     Value inputArg = op.getOperand(0);
@@ -616,6 +616,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>::matchAndRewrit
     Value bias = op.getOperand(3);
     Value epsilon = op.getOperand(4);
 
+    Location loc = op.getLoc();
     MLIRContext *context = getContext();
 
     if(mlir::isa<torch::Torch::ConstantNoneOp>(*weight.getDefiningOp()) 
@@ -631,8 +632,11 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>::matchAndRewrit
     Type newNormalisedList = vllm_graph::ListType::get(context, containedType);
     normalisedShape.setType(newNormalisedList);
     
-    Type resultType = convertTorchvTypeTovLLMvType(op.getResult().getType(), context);
-    rewriter.replaceOpWithNewOp<vllm_graph::LayerNormOp>(op, resultType, inputArg, normalisedShape, weight, bias, epsilon);
+    Value OldResult = op.getResult(0);
+    Type resultType = convertTorchvTypeTovLLMvType(OldResult.getType(), context);
+    vllm_graph::LayerNormOp layerNormOp = rewriter.create<vllm_graph::LayerNormOp>(loc, resultType, inputArg, normalisedShape, weight, bias, epsilon);
+    OldResult.replaceAllUsesWith(layerNormOp.getResult());
+    rewriter.eraseOp(cast<Operation*>(op));
     return success();
 }
 
@@ -751,8 +755,8 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>>(typeConverter,        
                                                          context);
 
-        target.addIllegalOp<mlir::torch::Torch::AtenLayerNormOp>();
-        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenLayerNormOp>>(typeConverter,        
+        target.addIllegalOp<mlir::torch::Torch::AtenNativeLayerNormOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>>(typeConverter,        
                                                          context);
         target.addIllegalOp<mlir::torch::Torch::AtenTanhOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>>(typeConverter,        

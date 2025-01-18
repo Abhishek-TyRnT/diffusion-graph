@@ -2,7 +2,7 @@ import pytest
 import subprocess
 import os
 import sys
-from torch_mlir import torchscript
+from torch_mlir.fx import export_and_import
 from vllm_graph import BACKEND_END_LEGAL_OPS
 def getmodel_path():
     model_path = os.path.dirname(__file__)
@@ -54,20 +54,20 @@ def test_vllm_graph_compiler_from_mlir(filename):
         (1, 0), (torch.randn(25, 10),)],
     [AttentionHead,  ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
         (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-    [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024))]
+    [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)]
      ))
 def test_vllm_graph_compiler_passes_from_models(model,
                                                 pass_list,
                                                 model_args,
                                                 inputs):
-    backend_legal_ops = ["aten.softmax.int"]
+    backend_legal_ops = BACKEND_END_LEGAL_OPS
     if len(model_args) == 0:
         torch_model = model()
     else:
         torch_model = model(*model_args)
     
     torch_model.eval()
-    torchIR = torchscript.compile(torch_model, inputs, output_type="torch", backend_legal_ops=backend_legal_ops)
+    torchIR = export_and_import(torch_model, *inputs, output_type="torch", backend_legal_ops=backend_legal_ops, decomposition_table = [])
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
@@ -94,7 +94,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [Transpose, (1, 0), (torch.randn(25, 10),)],
      [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
      [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5))],
+     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
      [Tanh, (), (torch.randn(3, 256, 1024),)],
      [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
      [Embedding, (2, 3), (torch.tensor([0, 1]), )],
@@ -103,14 +103,13 @@ def test_vllm_graph_compiler_from_models(model,
                                         model_args,
                                         inputs):
     backend_legal_ops = BACKEND_END_LEGAL_OPS
-    print(backend_legal_ops)
     if len(model_args) == 0:
         torch_model = model()
     else:
         torch_model = model(*model_args)
     
     torch_model.eval()
-    torchIR = torchscript.compile(torch_model, inputs, output_type="torch", backend_legal_ops=backend_legal_ops)
+    torchIR = export_and_import(torch_model, *inputs, output_type="torch", backend_legal_ops=backend_legal_ops, decomposition_table = [])
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:

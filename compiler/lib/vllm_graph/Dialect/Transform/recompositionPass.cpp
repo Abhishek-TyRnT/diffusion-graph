@@ -143,7 +143,6 @@ public:
 
         if (failed(applyPatternsAndFoldGreedily(getOperation(), std::move(patterns),
                                             config))) {
-            //llvm::outs() << *getOperation() << "\n";
             return signalPassFailure();
         }
     }

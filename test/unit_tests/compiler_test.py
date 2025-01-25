@@ -52,7 +52,7 @@ def test_vllm_graph_compiler_from_mlir(filename):
         (1,), (torch.randn(1, 10, 5))],
      [Transpose, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
         (1, 0), (torch.randn(25, 10),)],
-    [AttentionHead,  ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
+    [AttentionHead,  ["convert-global-function-pass","inline-dialect-resource-dict-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
         (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
     [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)]
      ))

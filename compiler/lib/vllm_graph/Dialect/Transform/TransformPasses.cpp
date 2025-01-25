@@ -113,7 +113,7 @@ LogicalResult convertFuncOp(ModuleOp &moduleOp){
         if(auto funcOp = dyn_cast<func::FuncOp>(op))
         {
             replaceFuncDtypes(funcOp);
-            //moduleOp.push_back(newFunc);
+            
             return mlir::success();
         }
     }

@@ -40,7 +40,7 @@ class vLLMGraphModel(torch.nn.Module):
 
 
 class vLLMGraph:
-    def __init__(self, model_name: str, temp_directory: str | None = None):
+    def __init__(self, model_name: str, temp_directory: str | None = None, debug: bool = False):
         if temp_directory is None:
             root_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             self.temp_directory = f"{root_folder}/temp_files/{model_name}"
@@ -51,7 +51,7 @@ class vLLMGraph:
         
         if not os.path.exists(self.temp_directory):
             os.makedirs(self.temp_directory)
-        self.graph_compiler = GraphCompiler(self.weights_directory)
+        self.graph_compiler = GraphCompiler(self.weights_directory, debug = debug)
         self.graph_dict : dict = {}
     
     def compile(self, model: torch.nn.Module, inputs: torch.Tensor):

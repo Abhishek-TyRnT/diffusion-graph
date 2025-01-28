@@ -4,6 +4,9 @@ import sys
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph
+from transformers.models.albert.modeling_albert import AlbertEmbeddings
+from transformers import AlbertConfig
+
 def getmodel_path():
     model_path = os.path.dirname(__file__)
     model_path = os.path.dirname(model_path)
@@ -94,4 +97,22 @@ def test_graph_compiler_to_model(model,
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
     
 
-    
+@pytest.mark.parametrize("Model, inputs", (
+    [AlbertEmbeddings, (torch.randint(0, 512, (8, 512)),)],
+        
+))
+def test_hf_model_layer(Model,
+                        inputs):
+    config = AlbertConfig()
+    model = Model(config)
+
+    tmp_folder = f"./temp_files"
+
+    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder, debug = True)
+    vllmgraph.compile(model, inputs)
+
+    reconstructed_model = vllmgraph.reconstruct()
+    vllm_graph_output = reconstructed_model(*inputs)
+    normal_output = model(*inputs)
+
+    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

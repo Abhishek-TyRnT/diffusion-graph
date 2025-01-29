@@ -671,7 +671,7 @@ LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     
     Value operand = op.getOperand();
     Value result = op.getResult();
-    mlir::torch::Torch::ValueTensorType operandType = mlir::cast<mlir::torch::Torch::ValueTensorType>(operand.getType());
+    auto operandType = mlir::cast<mlir::torch::Torch::ValueTensorType>(operand.getType());
 
     /*If the op is last op before return Op its operand type must be changed else might change 
     type of the func return */
@@ -689,6 +689,23 @@ LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     rewriter.eraseOp(cast<Operation*>(op));
     return success();
 
+    }
+
+
+template <>
+LogicalResult EraseOp<mlir::torch::Torch::AtenDropoutOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenDropoutOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+        MLIRContext *context = getContext();
+        Value operand = op.getOperand(0);
+        
+        Value result = op.getResult();
+        operand.setType(convertTorchvTypeTovLLMvType(operand.getType(), context));
+
+        result.replaceAllUsesWith(operand);
+        rewriter.eraseOp(cast<Operation*>(op));
+        return success();
     }
 } //namespace 
 
@@ -766,11 +783,7 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenBmmOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenBmmOp>>(typeConverter,        
                                                          context);
-        
-        target.addIllegalOp<mlir::vllm_graph::CastOp>();
-        patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        
-                                                         context);
-        
+
         target.addIllegalOp<mlir::torch::Torch::AtenSoftmaxIntOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>>(typeConverter,        
                                                          context);
@@ -797,6 +810,17 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenBroadcastToOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenBroadcastToOp>>(typeConverter,        
                                                          context);
+
+        //Erased operations
+        target.addIllegalOp<mlir::vllm_graph::CastOp>();
+        patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        
+                                                         context);
+        
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenDropoutOp>();
+        patterns.add<EraseOp<mlir::torch::Torch::AtenDropoutOp>>(typeConverter,        
+                                                         context);
+        
 
         if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))

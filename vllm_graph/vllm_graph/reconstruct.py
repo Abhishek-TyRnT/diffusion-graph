@@ -1,4 +1,5 @@
 from torch.fx import Graph
+from torch.export.graph_signature import InputKind
 from compiler import GraphCompiler
 from vllm_graph.modelmaps import TYPE_MAP, OP_MAP
 import torch
@@ -59,8 +60,43 @@ class vLLMGraph:
         Compiles the model and returns a topologically unsorted
         graph in dictionary format and stores it in graph_dict object of the class 
         """
-        self.graph_dict = self.graph_compiler.compile(model, inputs)
+        
+        dynamo_model = torch.export.export(model, inputs, {}, dynamic_shapes = None)
+        graph_signature = dynamo_model.graph_signature
+        input_specs = graph_signature.input_specs
+        index = 0
+        self.arg_dict = {}
+        for spec in input_specs:
+            kind = spec.kind
+            #Buffers
+            if kind == InputKind.BUFFER:
+                self.arg_dict[index] = {"target" : spec.target, "kind": "buffer"}
+                index +=1
+            
+            #user_inputs
+            elif kind == InputKind.USER_INPUT:
+                self.arg_dict[index] =  {"target" : spec.target, "kind": "user_input"}
+                index += 1
 
+        self.graph_dict = self.graph_compiler.compile(dynamo_model, inputs)
+
+        input_args = self.graph_dict["entrypoint"]
+        new_args = []
+        for arg in input_args:
+            arg_index = int(arg.split("g")[-1])
+            if self.arg_dict[arg_index]["kind"] == "buffer":
+                next_nodes = self.graph_dict[arg]["next_nodes"]
+                for node in next_nodes:
+                    input_nodes = self.graph_dict[node]["input_nodes"]
+                    index = input_nodes.index(arg)
+                    self.graph_dict[node]["input_nodes"][index] = self.arg_dict[arg_index]["target"]
+                
+                del self.graph_dict[arg]
+        
+            else:
+                new_args.append(arg)
+
+        self.graph_dict["entrypoint"] = new_args
     
     def store_graph_dict(self):
         """Stores the graph dict for debugging purposes"""

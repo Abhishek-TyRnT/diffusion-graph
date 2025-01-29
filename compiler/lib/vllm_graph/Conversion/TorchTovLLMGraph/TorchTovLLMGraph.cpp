@@ -641,6 +641,30 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>::matchAnd
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBroadcastToOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenBroadcastToOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+        Value input = op.getOperand(0);
+        Value shape = op.getOperand(1);
+
+        MLIRContext *context = getContext();
+        Value result = op.getResult();
+        input.setType(convertTorchvTypeTovLLMvType(input.getType(), context));
+
+        auto containedType = convertvLLMContainedType(shape.getType(), rewriter, context);
+        Type newShapeType = vllm_graph::ListType::get(context, containedType);
+        shape.setType(newShapeType);
+
+        auto newResultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+        rewriter.replaceOpWithNewOp<vllm_graph::BroadCastOp>(op, newResultType, input, shape);
+
+        return success();
+        
+
+}
+
+template <>
 LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     mlir::vllm_graph::CastOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -769,6 +793,11 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenEmbeddingOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenEmbeddingOp>>(typeConverter,        
                                                          context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenBroadcastToOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenBroadcastToOp>>(typeConverter,        
+                                                         context);
+
         if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))
             return signalPassFailure();

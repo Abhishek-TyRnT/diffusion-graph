@@ -136,3 +136,10 @@ class Embedding(Module):
     
     def forward(self, inputs):
         return self.layer(inputs)
+
+class Broadcast(Module):
+    def __init__(self, shape):
+        super().__init__()
+        self.shape = shape
+    def forward(self, inputs):
+        return torch.broadcast_to(inputs, self.shape)

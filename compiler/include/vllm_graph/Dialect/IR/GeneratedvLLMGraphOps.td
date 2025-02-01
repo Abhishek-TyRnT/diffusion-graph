@@ -393,3 +393,28 @@ def vllm_EmbeddingOp : vLLMGraph_Op<"vllm.embedding", [
         }
     }];
 }
+
+def vllm_BroadCastOp : vLLMGraph_Op<"vllm.broadcast_to", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly]> {
+
+    let summary = "Generated op for `vllm::BroadCastOp : (Tensor, List) -> Tensor`";
+    let arguments = (ins
+        AnyTorchTensorType:$input,
+        Torch_ListType:$shape
+        );
+    let results = (outs
+        AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult BroadCastOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void BroadCastOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+
+    }

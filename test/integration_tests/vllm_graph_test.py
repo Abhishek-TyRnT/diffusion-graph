@@ -4,6 +4,10 @@ import sys
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph
+from transformers.models.albert.modeling_albert import AlbertEmbeddings
+from transformers import AlbertConfig
+from typing import Dict, List, Optional, Tuple, Union
+
 def getmodel_path():
     model_path = os.path.dirname(__file__)
     model_path = os.path.dirname(model_path)
@@ -12,7 +16,6 @@ def getmodel_path():
 sys.path.append(getmodel_path())
 
 from test_models import *
-
 
 def validate_outputs(vllm_graph_output, regular_output) -> bool:
     if(isinstance(regular_output, tuple)):
@@ -33,8 +36,8 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
 @pytest.mark.parametrize("model, model_args, inputs",(
     [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
      [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
-     [ReluModule, (), (torch.randn(1, 10, 5))],
-     [Softmax, (1,), (torch.randn(1, 10, 5))],
+     [ReluModule, (), (torch.randn(1, 10, 5),)],
+     [Softmax, (1,), (torch.randn(1, 10, 5),)],
      [Transpose, (1, 0), (torch.randn(25, 10),)],
     [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
     [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
@@ -86,7 +89,7 @@ def test_graph_compiler_to_model(model,
 
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs)
-
+    
     reconstructed_model = vllmgraph.reconstruct()
     vllm_graph_output = reconstructed_model(*inputs)
     normal_output = torch_model(*inputs)
@@ -94,4 +97,22 @@ def test_graph_compiler_to_model(model,
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
     
 
+@pytest.mark.parametrize("Model, inputs", (
+    [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),)],
+        
+))
+def test_hf_model_layer(Model,
+                        inputs):
+    config = AlbertConfig()
+    model = Model(config)
+    tmp_folder = f"/tmp"
+
+    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder, debug = True)
+    vllmgraph.compile(model, inputs)
+
+    reconstructed_model = vllmgraph.reconstruct()
+    normal_output = model(*inputs)
+    vllm_graph_output = reconstructed_model(*inputs)
     
+
+    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

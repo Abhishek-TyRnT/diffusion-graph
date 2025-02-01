@@ -75,38 +75,6 @@ void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string
 
 void GraphWriter::addOp(mlir::Operation *op){
 
-
-    for(mlir::Value operand : op->getOperands()){
-        if(mlir::isa<mlir::BlockArgument>(operand) && !opMap.count(operand)){
-            std::stringstream argName;
-            argName << "arg" << argCount++;
-            opMap[operand] = argName.str();
-            std::get<std::vector<std::string>>(graph["entrypoint"]).push_back(argName.str());
-            mlir::Type argType = operand.getType();
-            mlir::vllm_graph::ValueTensorType RankedArg = 
-                        mlir::cast<mlir::vllm_graph::ValueTensorType>(argType);
-            std::unordered_map<std::string, NestedValueType> map;
-            if(RankedArg){
-                llvm::ArrayRef<int64_t> shape = RankedArg.getSizes();
-                std::vector<int64_t> shapeVec(shape.begin(), shape.end());
-                mlir::Type elementType = RankedArg.getDtype();
-                std::string elementTypeName;
-                llvm::raw_string_ostream os(elementTypeName);
-                elementType.print(os); // Prints the element type
-
-                map["vllm_graph_type"] = "vllm_graph.vtensor";
-                map["dtype"] = elementTypeName;
-                map["shape"] = shapeVec;
-                std::vector<std::string> input_nodes = {};
-                map["input_nodes"] = input_nodes;
-                map["op_name"] = "input_arg";
-            }
-
-            graph[argName.str()] = map;
-        }
-    }
-
-
     if(mlir::isa<func::ReturnOp>(*op)){
         std::vector<std::string> results;
         for(auto operand : op->getOperands())
@@ -246,6 +214,36 @@ GraphWriter::GraphWriter(std::string weightsPath){
 }
 
 void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
+
+    for(func::FuncOp funcOp : module->getOps<func::FuncOp>()){
+        for(mlir::Value operand : funcOp.getArguments()){
+            std::stringstream argName;
+            argName << "arg" << argCount++;
+            opMap[operand] = argName.str();
+            std::get<std::vector<std::string>>(graph["entrypoint"]).push_back(argName.str());
+            mlir::Type argType = operand.getType();
+            mlir::vllm_graph::ValueTensorType RankedArg = 
+                        mlir::cast<mlir::vllm_graph::ValueTensorType>(argType);
+            std::unordered_map<std::string, NestedValueType> map;
+            if(RankedArg){
+                llvm::ArrayRef<int64_t> shape = RankedArg.getSizes();
+                std::vector<int64_t> shapeVec(shape.begin(), shape.end());
+                mlir::Type elementType = RankedArg.getDtype();
+                std::string elementTypeName;
+                llvm::raw_string_ostream os(elementTypeName);
+                elementType.print(os); // Prints the element type
+
+                map["vllm_graph_type"] = "vllm_graph.vtensor";
+                map["dtype"] = elementTypeName;
+                map["shape"] = shapeVec;
+                std::vector<std::string> input_nodes = {};
+                map["input_nodes"] = input_nodes;
+                map["op_name"] = "input_arg";
+            }
+
+            graph[argName.str()] = map;
+        }
+    }
     module->walk([this](mlir::Operation *op) {
         // Print the operation name
         this->addOp(op);

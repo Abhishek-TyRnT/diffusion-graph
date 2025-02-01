@@ -10,10 +10,14 @@ from collections import deque
 
 
 class vLLMGraphModel(torch.nn.Module):
-    def __init__(self, graph_dict: dict, weight_path: str):
+    def __init__(self, graph_dict: dict, weight_path: str, arg_dict: dict):
         super().__init__()
         self.weights = h5py.File(weight_path, 'r')
         self.graph_dict = graph_dict
+        for buffer in arg_dict:
+            if arg_dict[buffer]["kind"] == "buffer":
+                self.register_buffer(arg_dict[buffer]["target"], arg_dict[buffer]["value"], persistent = True)
+
         for constant in self.graph_dict["constants"]:
             data_name = f"weight_datasets{constant}"
             data = self.weights[data_name]
@@ -70,7 +74,10 @@ class vLLMGraph:
             kind = spec.kind
             #Buffers
             if kind == InputKind.BUFFER:
-                self.arg_dict[index] = {"target" : spec.target, "kind": "buffer"}
+                self.arg_dict[index] = {"target" : spec.target,
+                                         "kind": "buffer",
+                                         "value": getattr(model, spec.target)
+                                        }
                 index +=1
             
             #user_inputs
@@ -95,7 +102,6 @@ class vLLMGraph:
         
             else:
                 new_args.append(arg)
-
         self.graph_dict["entrypoint"] = new_args
     
     def store_graph_dict(self):
@@ -145,6 +151,12 @@ class vLLMGraph:
         """Reconstructs torch.fx.Graph from grapg dict."""
         graph_nodes = {}
         graph = torch.fx.Graph()
+        for buffer_args in self.arg_dict:
+            if self.arg_dict[buffer_args]['kind'] == "buffer":
+                target = self.arg_dict[buffer_args]['target']
+                graph_nodes[target] = graph.get_attr(target)
+        
+        
         for node in nodes:
             node_type = self.graph_dict[node].get("op_name", None)
             if(node_type is None):
@@ -209,11 +221,10 @@ class vLLMGraph:
                 
 
 
-
     def reconstruct(self) -> torch.fx.GraphModule:
 
         assert len(self.graph_dict) != 0, "Model not compiled"
-        model = vLLMGraphModel(self.graph_dict, self.weights_directory)
+        model = vLLMGraphModel(self.graph_dict, self.weights_directory, self.arg_dict)
         Nodes = []
         for node in self.graph_dict:
             if node in ['entrypoint', 'constants', 'results']:

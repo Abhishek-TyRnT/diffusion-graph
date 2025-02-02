@@ -774,6 +774,31 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPermuteOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenPermuteOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+        Value input = op.getOperand(0);
+        Value shape = op.getOperand(1);
+
+        MLIRContext *context = getContext();
+        Value result = op.getResult();
+        input.setType(convertTorchvTypeTovLLMvType(input.getType(), context));
+
+        auto containedType = convertvLLMContainedType(shape.getType(), rewriter, context);
+        Type newShapeType = vllm_graph::ListType::get(context, containedType);
+        shape.setType(newShapeType);
+
+        auto newResultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+        rewriter.replaceOpWithNewOp<vllm_graph::PermuteOp>(op, newResultType, input, shape);
+
+        return success();
+        
+
+}
+
+
+template <>
 LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     mlir::vllm_graph::CastOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -934,6 +959,8 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddmmOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>>(typeConverter,        
+        target.addIllegalOp<mlir::torch::Torch::AtenPermuteOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenPermuteOp>>(typeConverter,        
                                                          context);
 
         //Erased operations

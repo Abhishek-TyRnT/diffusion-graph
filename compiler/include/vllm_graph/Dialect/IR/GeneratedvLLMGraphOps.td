@@ -417,4 +417,29 @@ def vllm_BroadCastOp : vLLMGraph_Op<"vllm.broadcast_to", [
         }
     }];
 
-    }
+}
+
+def vllm_PermuteOp : vLLMGraph_Op<"vllm.permute", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+]> {
+
+    let summary = "Generated op for `vllm::permute : (Tensor, list) -> Tensor`";
+    let arguments = (ins 
+        AnyTorchTensorType:$input,
+        Torch_ListType:$shape
+    );
+    let results = (outs
+        AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult PermuteOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void PermuteOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];    
+}

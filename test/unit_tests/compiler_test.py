@@ -101,6 +101,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
      [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
      [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
+     [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

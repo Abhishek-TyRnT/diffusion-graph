@@ -8,7 +8,6 @@ import os
 
 BACKEND_END_LEGAL_OPS = ["aten.softmax.int", "aten.native_layer_norm", "aten._softmax", "aten.dropout", "aten.addmm"]
 DECOMPOSITION_OPS = [torch.ops.aten._scaled_dot_product_flash_attention_for_cpu]
-
 class GraphCompiler:
     def __init__(self, weight_path: str, debug: bool = False):
         self.compiler = vLLMGraph(weight_path)
@@ -16,8 +15,6 @@ class GraphCompiler:
         self.weight_path = os.path.dirname(weight_path)
         self.backend_legal_ops = BACKEND_END_LEGAL_OPS
         self.decomposition_table = get_decompositions(DECOMPOSITION_OPS)
-
-
 
     def compile(self, model: Module, inputs: list[torch.Tensor]) -> dict:
         torchIR = export_and_import(model, *inputs, output_type="torch", 

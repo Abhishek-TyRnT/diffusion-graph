@@ -538,7 +538,30 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>::matchAndRewri
     return success();
 }
 
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenViewOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
 
+        Value input = op.getOperand(0);
+        Value shape = op.getOperand(1);
+
+        MLIRContext *context = op.getContext();
+
+        Type inputType = convertTorchvTypeTovLLMvType(input.getType(), context);
+        input.setType(inputType);
+
+        auto containedShapeType = convertvLLMContainedType(shape.getType(), rewriter, context);
+        auto shapeType = vllm_graph::ListType::get(context, containedShapeType);
+        shape.setType(shapeType);
+
+        auto resultType = convertTorchvTypeTovLLMvType(op.getResult().getType(), context);
+
+        rewriter.replaceOpWithNewOp<vllm_graph::ViewOp>(op, resultType, input, shape);
+        return success();
+
+        
+}
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRewrite(
     mlir::torch::Torch::PrimListConstructOp op, OpAdaptor adaptor,
@@ -658,6 +681,51 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBroadcastToOp>::matchAndRewr
 
         auto newResultType = convertTorchvTypeTovLLMvType(result.getType(), context);
         rewriter.replaceOpWithNewOp<vllm_graph::BroadCastOp>(op, newResultType, input, shape);
+
+        return success();
+        
+
+}
+
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenAddmmOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+        Value bias = op.getOperand(0);
+        Value input = op.getOperand(1);
+        Value weight = op.getOperand(2);
+        Value Alpha = op.getOperand(3);
+        Value beta = op.getOperand(4);
+
+        MLIRContext *context = getContext();
+        Value result = op.getResult();
+        input.setType(convertTorchvTypeTovLLMvType(input.getType(), context));
+
+          
+        bias.setType(convertTorchvTypeToTensorType(bias.getType()));
+        weight.setType(convertTorchvTypeTovLLMvType(weight.getType(), context));
+
+        if(isa<mlir::torch::Torch::IntType>(Alpha.getType()))
+            Alpha.setType(rewriter.getIntegerType(32));
+    
+        else if(isa<mlir::torch::Torch::FloatType>(Alpha.getType()))
+            Alpha.setType(rewriter.getF32Type());
+        else
+            assert(false && "Alpha must be integer or float");
+
+        if(isa<mlir::torch::Torch::IntType>(beta.getType()))
+            beta.setType(rewriter.getIntegerType(32));
+    
+        else if(isa<mlir::torch::Torch::FloatType>(beta.getType()))
+            beta.setType(rewriter.getF32Type());
+        else
+            assert(false && "beta must be integer or float");
+        
+        auto newResultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+
+        rewriter.replaceOpWithNewOp<vllm_graph::AddmmOp>(op, newResultType, bias, input, weight, Alpha, beta);
 
         return success();
         
@@ -809,6 +877,14 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenBroadcastToOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenBroadcastToOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenViewOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenViewOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenAddmmOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>>(typeConverter,        
                                                          context);
 
         //Erased operations

@@ -186,7 +186,7 @@ def vllm_AddmmOp : vLLMGraph_Op<"vllm.addmm", [
         vLLMReadOnly
     ]> {
     
-    let summary = "Generated op for for `vllm:addmm : (Tensor, Tensor, Tensor, scalar, scalar,) -> Tensor";
+    let summary = "Generated op for for `vllm:addmm : (Tensor, Tensor, Tensor, scalar, scalar,) -> Tensor`";
     let arguments = (ins
         TorchTypeOrTensorType:$bias,
         AnyTorchTensorType:$input,
@@ -217,7 +217,7 @@ def vllm_ViewOp : vLLMGraph_Op<"vllm.view", [
   let summary = "Generated op for `vllm::view : (Tensor, Tensor) -> (Tensor)`";
   let arguments = (ins
     AnyTorchTensorType:$self,
-    Torch_TupleType:$size
+    AnyTorchArrayType:$size
   );
   let results = (outs
     AnyTorchOptionalTensorType:$result

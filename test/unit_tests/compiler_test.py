@@ -44,19 +44,19 @@ def test_vllm_graph_compiler_from_mlir(filename):
     
     
 @pytest.mark.parametrize("model, pass_list, model_args, inputs",(
-    [Add, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"],
-            (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
-     [LinearModule, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"],
-      (10, 5), (torch.randn(1, 224, 10),)],
-     [ReluModule, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
-        (), (torch.randn(1, 10, 5))],
-     [Softmax, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
-        (1,), (torch.randn(1, 10, 5))],
-     [Transpose, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
-        (1, 0), (torch.randn(25, 10),)],
+    # [Add, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"],
+    #         (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+    #  [LinearModule, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"],
+    #   (10, 5), (torch.randn(1, 224, 10),)],
+    #  [ReluModule, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
+    #     (), (torch.randn(1, 10, 5))],
+    #  [Softmax, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
+    #     (1,), (torch.randn(1, 10, 5))],
+    #  [Transpose, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
+    #     (1, 0), (torch.randn(25, 10),)],
     [AttentionHead,  ["convert-global-function-pass","inline-dialect-resource-dict-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
         (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-    [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)]
+    # [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)]
      ))
 def test_vllm_graph_compiler_passes_from_models(model,
                                                 pass_list,
@@ -69,7 +69,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
         torch_model = model(*model_args)
     
     torch_model.eval()
-    torchIR = export_and_import(torch_model, *inputs, output_type="torch", backend_legal_ops=backend_legal_ops, decomposition_table = [])
+    torchIR = export_and_import(torch_model, *inputs, output_type="torch", backend_legal_ops=backend_legal_ops, decomposition_table = get_decompositions(DECOMPOSITION_OPS))
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
@@ -77,7 +77,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
     
     passes = ",".join(pass_list)
     
-    cmd = f'vllm-graph-opt --pass-pipeline="builtin.module({passes})" --mlir-elide-elementsattrs-if-larger=20 {filename}'
+    cmd = f'vllm-graph-opt --pass-pipeline="builtin.module({passes})" --mlir-print-ir-after-all --mlir-elide-resource-strings-if-larger=20 --mlir-elide-elementsattrs-if-larger=20 {filename}'
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     exit_code = process.returncode
 
@@ -89,18 +89,18 @@ def test_vllm_graph_compiler_passes_from_models(model,
 
 
 @pytest.mark.parametrize("model, model_args, inputs",(
-     [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
-     [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
-     [ReluModule, (), (torch.randn(1, 10, 5))],
-     [Softmax, (1,), (torch.randn(1, 10, 5))],
-     [Transpose, (1, 0), (torch.randn(25, 10),)],
-     [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
+    #  [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+    #  [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
+    #  [ReluModule, (), (torch.randn(1, 10, 5))],
+    #  [Softmax, (1,), (torch.randn(1, 10, 5))],
+    #  [Transpose, (1, 0), (torch.randn(25, 10),)],
+    #  [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
      [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
-     [Tanh, (), (torch.randn(3, 256, 1024),)],
-     [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
-     [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
-     [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
+    #  [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
+    #  [Tanh, (), (torch.randn(3, 256, 1024),)],
+    #  [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+    #  [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
+    #  [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

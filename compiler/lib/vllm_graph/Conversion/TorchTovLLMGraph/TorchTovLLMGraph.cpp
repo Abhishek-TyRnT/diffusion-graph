@@ -539,6 +539,29 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>::matchAndRewri
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::Aten_SoftmaxOp>::matchAndRewrite(
+    mlir::torch::Torch::Aten_SoftmaxOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    MLIRContext *context = op.getContext();
+
+    Value input = op.getOperand(0);
+    Type inputType = convertTorchvTypeTovLLMvType(input.getType(), context);
+
+    Value result = op.getResult();
+    Type resultType = convertTorchvTypeTovLLMvType(result.getType(), context);
+
+    input.setType(inputType);
+
+    Value dim = op.getOperand(1);
+    dim.setType(rewriter.getIntegerType(32));
+    rewriter.replaceOpWithNewOp<vllm_graph::SoftmaxOp>(op, resultType, input, dim);
+
+    return success();
+}
+
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
     mlir::torch::Torch::AtenViewOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -855,6 +878,11 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenSoftmaxIntOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>>(typeConverter,        
                                                          context);
+
+        target.addIllegalOp<mlir::torch::Torch::Aten_SoftmaxOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::Aten_SoftmaxOp>>(typeConverter,        
+                                                         context);
+
 
         target.addIllegalOp<mlir::torch::Torch::PrimListConstructOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>>(typeConverter,        

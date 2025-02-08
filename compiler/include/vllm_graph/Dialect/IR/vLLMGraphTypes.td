@@ -501,5 +501,9 @@ def TensorOrScalarType : AnyTypeOf<[
    ScalarType
 ], "Any Torch Value tensor Type or ranked Tensor Type">;
 
+def AnyTorchArrayType : AnyTypeOf<[
+  Torch_ListType,
+  Torch_TupleType
+], "Any Torch array type">; 
 
 #endif // VLLMM_GRAPH_TYPES

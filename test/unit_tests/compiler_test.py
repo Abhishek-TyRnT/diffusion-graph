@@ -3,7 +3,9 @@ import subprocess
 import os
 import sys
 from torch_mlir.fx import export_and_import
-from vllm_graph import BACKEND_END_LEGAL_OPS
+from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS
+from torch._decomp import get_decompositions
+
 def getmodel_path():
     model_path = os.path.dirname(__file__)
     model_path = os.path.dirname(model_path)
@@ -67,7 +69,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
         torch_model = model(*model_args)
     
     torch_model.eval()
-    torchIR = export_and_import(torch_model, *inputs, output_type="torch", backend_legal_ops=backend_legal_ops, decomposition_table = [])
+    torchIR = export_and_import(torch_model, *inputs, output_type="torch", backend_legal_ops=backend_legal_ops, decomposition_table = get_decompositions(DECOMPOSITION_OPS))
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
@@ -75,7 +77,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
     
     passes = ",".join(pass_list)
     
-    cmd = f'vllm-graph-opt --pass-pipeline="builtin.module({passes})" --mlir-elide-elementsattrs-if-larger=20 {filename}'
+    cmd = f'vllm-graph-opt --pass-pipeline="builtin.module({passes})" --mlir-elide-resource-strings-if-larger=20 --mlir-elide-elementsattrs-if-larger=20 {filename}'
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     exit_code = process.returncode
 
@@ -110,7 +112,11 @@ def test_vllm_graph_compiler_from_models(model,
         torch_model = model(*model_args)
     
     torch_model.eval()
-    torchIR = export_and_import(torch_model, *inputs, output_type="torch", backend_legal_ops=backend_legal_ops, decomposition_table = [])
+    torchIR = export_and_import(torch_model, 
+                                *inputs, 
+                                output_type="torch", 
+                                backend_legal_ops=backend_legal_ops, 
+                                decomposition_table = get_decompositions(DECOMPOSITION_OPS))
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:

@@ -146,9 +146,11 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>::matchAndRewrite(
     mlir::torch::Torch::ConstantIntOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
+    
     int64_t constant = op.getValue();
     Type intType = rewriter.getIntegerType(32);
     Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantIntOp>(op, constant, intType);
+    
     return mlir::success();
 
 }
@@ -197,6 +199,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrit
     mlir::torch::Torch::AtenDivScalarOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
+            
     Value input = op.getOperand(0);
     Value scalar = op.getOperand(1);
     Value result = op.getResult();
@@ -244,7 +247,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPowTensorScalarOp>::matchAnd
 
 }
 
-
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrite(
     mlir::torch::Torch::AtenAddTensorOp op, OpAdaptor adaptor,
@@ -291,7 +293,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrit
     return mlir::success();
     
 }
-
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddScalarOp>::matchAndRewrite(
     mlir::torch::Torch::AtenAddScalarOp op, OpAdaptor adaptor,
@@ -338,6 +339,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulScalarOp>::matchAndRewrit
     mlir::torch::Torch::AtenMulScalarOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
     
+    
     Value Operand1 = op.getOperand(0);
     Value Operand2 = op.getOperand(1);
 
@@ -367,6 +369,8 @@ template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulTensorOp>::matchAndRewrite(
     mlir::torch::Torch::AtenMulTensorOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
+
+    
     
     Value Tensor1 = op.getOperand(0);
     Value Tensor2 = op.getOperand(1);
@@ -404,6 +408,7 @@ template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>::matchAndRewrite(
     mlir::torch::Torch::AtenTransposeIntOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
+    
     
     Value Input = op.getOperand(0);
     Value dim0 = op.getOperand(1);
@@ -443,6 +448,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>::matchAndRew
     Input.setType(InputType);
 
     rewriter.replaceOpWithNewOp<vllm_graph::TransposeOp>(op, resultType, Input, dim0, dim1);
+    
     return mlir::success();
     
 }
@@ -452,6 +458,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndR
     mlir::torch::Torch::ValueTensorLiteralOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
+    
     Value Literalvalue = op.getResult();
     auto LiteralType = cast<mlir::torch::Torch::ValueTensorType>(Literalvalue.getType());
     assert(LiteralType && "Only Value tensor supported as of now");
@@ -460,6 +467,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndR
     
     RankedTensorType LiteralTensorType = RankedTensorType::get(shape, elemType);
     rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, LiteralTensorType, adaptor.getValue());
+    
     return success();
 }
 
@@ -468,6 +476,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>::matchAndRewrite(
     mlir::torch::Torch::AtenMatmulOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
+    
     Value input = op.getOperand(0);
     Value weight = op.getOperand(1);
 
@@ -543,6 +552,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::Aten_SoftmaxOp>::matchAndRewrite
     mlir::torch::Torch::Aten_SoftmaxOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
     
+
     MLIRContext *context = op.getContext();
 
     Value input = op.getOperand(0);
@@ -556,7 +566,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::Aten_SoftmaxOp>::matchAndRewrite
     Value dim = op.getOperand(1);
     dim.setType(rewriter.getIntegerType(32));
     rewriter.replaceOpWithNewOp<vllm_graph::SoftmaxOp>(op, resultType, input, dim);
-
     return success();
 }
 
@@ -565,6 +574,7 @@ template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
     mlir::torch::Torch::AtenViewOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
+
 
         Value input = op.getOperand(0);
         Value shape = op.getOperand(1);
@@ -581,6 +591,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
         auto resultType = convertTorchvTypeTovLLMvType(op.getResult().getType(), context);
 
         rewriter.replaceOpWithNewOp<vllm_graph::ViewOp>(op, resultType, input, shape);
+        
         return success();
 
         
@@ -590,6 +601,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
     mlir::torch::Torch::PrimListConstructOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
+    
     OperandRange operandRange = op.getOperands();
     MLIRContext *context = getContext();
     for(Value operand : operandRange){
@@ -597,6 +609,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
         Type updatedType;
         if(isa<torch::Torch::IntType>(operandType))
             updatedType = rewriter.getIntegerType(32);
+            
         else if(isa<torch::Torch::FloatType>(operandType))
             updatedType = rewriter.getF32Type();
         else if(isa<torch::Torch::BoolType>(operandType))
@@ -604,9 +617,14 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
         else if(isa<torch::Torch::ValueTensorType>(operandType)){
             updatedType = convertTorchvTypeTovLLMvType(operandType, context);
         }
+        else if(isa<mlir::IntegerType>(operandType) || 
+                isa<mlir::FloatType>(operandType) || 
+                isa<vllm_graph::ValueTensorType>(operandType))
+            continue;
         else
-            assert(false && "Type for the list not added");
-
+        {
+            llvm::report_fatal_error("Type for the list not added\n");
+        }
         operand.setType(updatedType);
     }
 
@@ -615,7 +633,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
 
     ValueRange newValueRange(operandRange);
     rewriter.replaceOpWithNewOp<vllm_graph::ListOp>(op, resultType, newValueRange);
-
     return success();
 
 }
@@ -716,6 +733,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>::matchAndRewrite(
     mlir::torch::Torch::AtenAddmmOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
+        
         Value bias = op.getOperand(0);
         Value input = op.getOperand(1);
         Value weight = op.getOperand(2);
@@ -749,7 +767,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>::matchAndRewrite(
         auto newResultType = convertTorchvTypeTovLLMvType(result.getType(), context);
 
         rewriter.replaceOpWithNewOp<vllm_graph::AddmmOp>(op, newResultType, bias, input, weight, Alpha, beta);
-
+        
         return success();
         
 
@@ -759,6 +777,7 @@ template <>
 LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     mlir::vllm_graph::CastOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
+    
     
     Value operand = op.getOperand();
     Value result = op.getResult();
@@ -778,6 +797,7 @@ LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
 
     result.replaceAllUsesWith(operand);
     rewriter.eraseOp(cast<Operation*>(op));
+    
     return success();
 
     }
@@ -788,6 +808,7 @@ LogicalResult EraseOp<mlir::torch::Torch::AtenDropoutOp>::matchAndRewrite(
     mlir::torch::Torch::AtenDropoutOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
+    
         MLIRContext *context = getContext();
         Value operand = op.getOperand(0);
         

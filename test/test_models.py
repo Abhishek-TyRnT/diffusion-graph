@@ -143,3 +143,10 @@ class Broadcast(Module):
         self.shape = shape
     def forward(self, inputs):
         return torch.broadcast_to(inputs, self.shape)
+
+class Permute(Module):
+    def __init__(self, shape):
+        super().__init__()
+        self.shape = shape
+    def forward(self, inputs):
+        return torch.permute(inputs, self.shape)

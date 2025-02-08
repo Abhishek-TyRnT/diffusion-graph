@@ -958,7 +958,9 @@ public:
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddmmOp>();
-        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>>(typeConverter,        
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>>(typeConverter, 
+                                                         context);
+                                                                
         target.addIllegalOp<mlir::torch::Torch::AtenPermuteOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenPermuteOp>>(typeConverter,        
                                                          context);

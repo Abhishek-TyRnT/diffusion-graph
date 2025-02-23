@@ -4,7 +4,7 @@ import sys
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph
-from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention
+from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
 from transformers import AlbertConfig
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -102,6 +102,8 @@ def test_graph_compiler_to_model(model,
 @pytest.mark.parametrize("Model, inputs", (
     [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),)],
     [AlbertSdpaAttention, (torch.randn(8, 512, 4096),)],
+    [AlbertLayer, (torch.randn(8, 512, 4096),)],
+    # [AlbertTransformer, (torch.randn(8, 512, 128),),],
         
 ))
 def test_hf_model_layer(Model,

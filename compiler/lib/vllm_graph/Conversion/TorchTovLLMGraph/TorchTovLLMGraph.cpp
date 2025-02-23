@@ -4,6 +4,7 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
+#include "vllm_graph/Utils/Utils.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchOps.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
@@ -22,57 +23,6 @@ using namespace mlir;
 using namespace mlir::vllm_graph;
 using namespace mlir::torch::Torch;
 
-
-Type convertTorchvTypeTovLLMvType(Type type, MLIRContext *context){
-
-    auto torchvTensor = cast<mlir::torch::Torch::ValueTensorType>(type);
-    if(torchvTensor){
-        Type opType;
-        vllm_graph::ValueTensorType vLLMvTensor;
-        vLLMvTensor = vLLMvTensor.get(context, 
-                        torchvTensor.getOptionalSizes(), 
-                        torchvTensor.getOptionalDtype(), 
-                        torchvTensor.getOptionalSparsity());
-        opType = cast<Type>(vLLMvTensor);
-        return opType;
-    }
-
-    else
-        return type;
-}
-
-
-RankedTensorType convertTorchvTypeToTensorType(Type type){
-    
-    auto TorchTensor = cast<mlir::torch::Torch::ValueTensorType>(type);
-    //assert(TorchTensor && "Only Value tensor supported as of now");
-    Type elemType = TorchTensor.getOptionalDtype();
-    SmallVector<int64_t> shape = cast<SmallVector<int64_t>>(TorchTensor.getOptionalSizes());
-    
-    RankedTensorType tensor = RankedTensorType::get(shape, elemType);
-    return tensor;
-}
-
-Type convertvLLMContainedType(Type type, 
-                        ConversionPatternRewriter &rewriter, 
-                        MLIRContext *context){
-    auto TorchList = cast<torch::Torch::ListType>(type);
-
-    Type containedResultType;
-    if(isa<torch::Torch::IntType>(TorchList.getContainedType()))
-        containedResultType = rewriter.getIntegerType(32);
-    else if(isa<torch::Torch::FloatType>(TorchList.getContainedType()))
-        containedResultType = rewriter.getF32Type();
-    else if(isa<torch::Torch::BoolType>(TorchList.getContainedType()))
-        containedResultType = rewriter.getI1Type();
-    else if(isa<torch::Torch::ValueTensorType>(TorchList.getContainedType())){
-        containedResultType = convertTorchvTypeTovLLMvType(TorchList.getContainedType(), context);
-    }
-    else
-        assert(false && "Type for the list not added");
-
-    return containedResultType;
-}
 
 namespace {
 
@@ -110,11 +60,10 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenReluOp>::matchAndRewrite(
                                        "Only Tensor types supported in vllm_graph");
     }
 
-    Type opType = convertTorchvTypeTovLLMvType(selfTy, context);
+    const TypeConverter *convertor = getTypeConverter();
+    Type resultType = convertor->convertType(op.getResult().getType());
 
-    self.setType(opType);
-
-    rewriter.replaceOpWithNewOp<vllm_graph::ReluOp>(op, opType, self);
+    rewriter.replaceOpWithNewOp<vllm_graph::ReluOp>(op, resultType, self);
     return success();
 
 }
@@ -409,7 +358,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>::matchAndRew
     mlir::torch::Torch::AtenTransposeIntOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
     
-    
+    llvm::outs() << op << "\n";
     Value Input = op.getOperand(0);
     Value dim0 = op.getOperand(1);
     Value dim1 = op.getOperand(2);
@@ -812,12 +761,8 @@ LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
     type of the func return */
     if(operandType){
         MLIRContext *context = op.getContext();
-        vllm_graph::ValueTensorType vLLMvTensor;
-        vLLMvTensor = vLLMvTensor.get(context, 
-                        operandType.getOptionalSizes(), 
-                        operandType.getOptionalDtype(), 
-                        operandType.getOptionalSparsity());
-        operand.setType(cast<Type>(vLLMvTensor));
+        Type vLLMType = convertTorchvTypeTovLLMvType(operand.getType(), context);
+        operand.setType(vLLMType);
     }
 
     result.replaceAllUsesWith(operand);
@@ -849,6 +794,46 @@ LogicalResult EraseOp<mlir::torch::Torch::AtenDropoutOp>::matchAndRewrite(
 
 
 namespace {
+
+class vLLMGraphConversion : public TypeConverter {
+private:
+    bool tensor_flag = false;
+
+public:
+    vLLMGraphConversion(MLIRContext *context) {
+        // Add conversions for primitive types
+        
+        addConversion([](Type type) -> std::optional<Type> {
+            // Pass-through unchanged types
+            return type;
+        });
+
+        // Convert f32 to f64
+        addConversion([this, context](torch::Torch::ValueTensorType type) -> std::optional<Type> {
+            if(!this->tensor_flag){
+                return convertTorchvTypeTovLLMvType(type, context);  
+            } else {
+                return convertTorchvTypeToTensorType(type);
+            }        
+        });
+
+        // Convert custom types
+        // addConversion([](MyCustomType type) -> Optional<Type> {
+        //     return convertCustomType(type);
+        // });
+    }
+
+    void setTensorFlag(){
+        tensor_flag = true;
+    }
+
+    void unsetTensorFlag(){
+        tensor_flag = false;
+    }
+
+};
+
+
 class ConvertTorchTovLLMGraph : public ConvertTorchTovLLMGraphBase<ConvertTorchTovLLMGraph> {
 public:
     void getDependentDialects(DialectRegistry &registry) const override {
@@ -861,8 +846,8 @@ public:
         ConversionTarget target(*context);
         target.addLegalDialect<vllm_graph::vLLMGraphIRDialect, arith::ArithDialect, func::FuncDialect>();
 
-        TypeConverter typeConverter;
-        typeConverter.addConversion([](Type type) { return type; });
+        vLLMGraphConversion typeConverter(context);
+        // typeConverter.addConversion([](Type type) { return type; });
 
         target.addIllegalDialect<mlir::torch::Torch::TorchDialect>();
 

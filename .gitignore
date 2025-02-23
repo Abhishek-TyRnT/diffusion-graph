@@ -3,7 +3,6 @@ test.py
 .bash_history
 temp_script.sh
 test.cpp
-CMakeLists.txt
 weight.h5
 temp_files
 build

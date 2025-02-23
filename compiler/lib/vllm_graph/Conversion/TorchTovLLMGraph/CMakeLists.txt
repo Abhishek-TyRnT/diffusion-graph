@@ -15,4 +15,5 @@ add_mlir_conversion_library(vLLMGraphTorchTovLLMGraph
   vLLMGraphIRDialect
   TorchMLIRTorchDialect
   MLIRArithDialect
+  vLLMGraphUtils
 )

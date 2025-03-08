@@ -4,8 +4,9 @@ import sys
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph
-from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention
+from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
 from transformers import AlbertConfig
+from transformers.modeling_outputs import BaseModelOutput
 from typing import Dict, List, Optional, Tuple, Union
 
 def getmodel_path():
@@ -26,6 +27,8 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
                 return False
         
         return True
+    if(isinstance(regular_output, BaseModelOutput)):
+        return torch.allclose(vllm_graph_output[0], regular_output.last_hidden_state, atol = 1e-3)
     
     else:
         #print(vllm_graph_output[0].shape, regular_output.shape)
@@ -102,20 +105,22 @@ def test_graph_compiler_to_model(model,
 @pytest.mark.parametrize("Model, inputs", (
     [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),)],
     [AlbertSdpaAttention, (torch.randn(8, 512, 4096),)],
+    [AlbertLayer, (torch.randn(8, 512, 4096),)],
+    [AlbertTransformer, (torch.randn(1, 8, 128),),],
         
 ))
 def test_hf_model_layer(Model,
                         inputs):
     config = AlbertConfig()
     model = Model(config)
-    tmp_folder = f"/tmp"
+    model = model
+    tmp_folder = f"./temp_files"
 
-    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder, debug = True)
+    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder)
     vllmgraph.compile(model, inputs)
 
     reconstructed_model = vllmgraph.reconstruct()
     normal_output = model(*inputs)
     vllm_graph_output = reconstructed_model(*inputs)
-    
 
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

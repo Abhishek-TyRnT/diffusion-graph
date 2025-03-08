@@ -34,13 +34,15 @@ class vLLMGraphModel(torch.nn.Module):
                 var_name = f"weight_{ssa_id}"
                 setattr(self, var_name, list(data)[0])
                 continue
-
+            
+            
             tensor = torch.tensor(data, dtype = TYPE_MAP[dtype])
             tensor = torch.reshape(tensor, self.graph_dict[constant]["output_shape"])
             
             ssa_id = constant.split(".")[0]
             var_name = f"weight_{ssa_id}"
             weight = torch.nn.Parameter(tensor, requires_grad=False)
+            del data
             setattr(self, var_name, weight)
 
 

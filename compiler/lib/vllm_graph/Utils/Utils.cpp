@@ -32,17 +32,16 @@ RankedTensorType mlir::vllm_graph::convertTorchvTypeToTensorType(Type type){
 }
 
 Type mlir::vllm_graph::convertvLLMContainedType(Type type, 
-                        ConversionPatternRewriter &rewriter, 
                         MLIRContext *context){
     auto TorchList = cast<torch::Torch::ListType>(type);
 
     Type containedResultType;
     if(isa<torch::Torch::IntType>(TorchList.getContainedType()))
-        containedResultType = rewriter.getIntegerType(32);
+        containedResultType = IntegerType::get(context, 32);
     else if(isa<torch::Torch::FloatType>(TorchList.getContainedType()))
-        containedResultType = rewriter.getF32Type();
+        containedResultType = Float32Type::get(context);
     else if(isa<torch::Torch::BoolType>(TorchList.getContainedType()))
-        containedResultType = rewriter.getI1Type();
+        containedResultType = IntegerType::get(context, 1);
     else if(isa<torch::Torch::ValueTensorType>(TorchList.getContainedType())){
         containedResultType = vllm_graph::convertTorchvTypeTovLLMvType(TorchList.getContainedType(), context);
     }

@@ -20,7 +20,6 @@ Type convertTorchvTypeTovLLMvType(Type type, MLIRContext *context);
 RankedTensorType convertTorchvTypeToTensorType(Type type);
 
 Type convertvLLMContainedType(Type type, 
-                        ConversionPatternRewriter &rewriter, 
                         MLIRContext *context);
 
 }// namespace vllm_graph

@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package DenseWeights;
+
+// Define a message for storing a vector of integers
+message DenseIntElements {
+  string name = 1;
+  repeated int64 values = 2;
+}
+
+// Define a message for storing a vector of floating point numbers
+message DenseFloatElements {
+  string name = 1;
+  repeated float values = 2;
+}
+
+message FloatScalars {
+    string name = 1;
+    float values = 2;
+}
+
+message IntScalars {
+    string name = 1;
+    int64 values = 2;
+}
+
+message BoolScalars {
+    string namr = 1;
+    bool values = 2;
+}
+// Define a container that can hold weights
+message WeightsData {
+  repeated DenseIntElements IntegerWeights = 1;
+  repeated DenseFloatElements FloatWeights = 2;
+  repeated FloatScalars FloatConstants = 3;
+  repeated IntScalars IntConstants = 4;
+  repeated BoolScalars boolConstants = 5;
+}

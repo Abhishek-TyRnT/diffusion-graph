@@ -1,7 +1,8 @@
 torch==2.4.0
 vllm>=0.6
-h5py==3.12.1
+h5py==3.12.1 #remove this
 numpy
 pybind11
 ninja
 pytest
+protobuf

@@ -51,10 +51,10 @@ class vLLMGraph:
         if temp_directory is None:
             root_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             self.temp_directory = f"{root_folder}/temp_files/{model_name}"
-            self.weights_directory = f"{root_folder}/temp_files/{model_name}/weights.h5"
+            self.weights_directory = f"{root_folder}/temp_files/{model_name}/weights.pb"
         else:
             self.temp_directory = f"{temp_directory}/{model_name}"
-            self.weights_directory = f"{temp_directory}/{model_name}/weights.h5"
+            self.weights_directory = f"{temp_directory}/{model_name}/weights.pb"
         
         if not os.path.exists(self.temp_directory):
             os.makedirs(self.temp_directory)

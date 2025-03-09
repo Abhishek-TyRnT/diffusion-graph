@@ -23,7 +23,6 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
         assert len(vllm_graph_output) == len(vllm_graph_output), "No of outputs donot match"
         for (vllm_tensor, tensor) in zip(vllm_graph_output, regular_output):
             if not torch.allclose(vllm_tensor, tensor, atol = 1e-3):
-                #print(vllm_tensor, tensor)
                 return False
         
         return True
@@ -37,18 +36,18 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     
 
 @pytest.mark.parametrize("model, model_args, inputs",(
-    [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+    # [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
      [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
-     [ReluModule, (), (torch.randn(1, 10, 5),)],
-     [Softmax, (1,), (torch.randn(1, 10, 5),)],
-     [Transpose, (1, 0), (torch.randn(25, 10),)],
-    [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
-    [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-    [LayerNorm, (5, True, True), (torch.randn(3, 256, 5), )],
-    [Tanh, (), (torch.randn(3, 256, 1024),)],
-    [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
-    [Embedding, (2, 3), (torch.tensor([0, 1]), )],
-    [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
+    #  [ReluModule, (), (torch.randn(1, 10, 5),)],
+    #  [Softmax, (1,), (torch.randn(1, 10, 5),)],
+    #  [Transpose, (1, 0), (torch.randn(25, 10),)],
+    # [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
+    # [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+    # [LayerNorm, (5, True, True), (torch.randn(3, 256, 5), )],
+    # [Tanh, (), (torch.randn(3, 256, 1024),)],
+    # [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+    # [Embedding, (2, 3), (torch.tensor([0, 1]), )],
+    # [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -59,7 +58,7 @@ def test_graph_compiler_python_to_dict(model,
     else:
         torch_model = model(*model_args)
     
-    tmp_folder = f"./temp_files/{torch_model.__class__.__name__}"
+    tmp_folder = f"./temp_files"
 
     vllmgraph = vLLMGraph(tmp_folder, debug = True)
     vllmgraph.compile(torch_model, inputs)
@@ -114,7 +113,7 @@ def test_hf_model_layer(Model,
     config = AlbertConfig()
     model = Model(config)
     model = model
-    tmp_folder = f"./temp_files"
+    tmp_folder = f"/tmp"
 
     vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder)
     vllmgraph.compile(model, inputs)

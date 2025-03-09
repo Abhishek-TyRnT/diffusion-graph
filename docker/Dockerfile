@@ -2,6 +2,7 @@ FROM nvidia/cuda:12.6.1-cudnn-devel-ubuntu22.04
 
 ARG username
 ARG UID
+#TODO: remove h5
 RUN apt update && \
     apt install -y clang \
                     cmake \
@@ -10,7 +11,8 @@ RUN apt update && \
                     sudo \
                     git \
                     ccache \
-                    libhdf5-dev
+                    libhdf5-dev \ 
+                    protobuf-compiler libprotobuf-dev
 
 COPY requirements.txt /opt/requirements.txt
 WORKDIR /opt

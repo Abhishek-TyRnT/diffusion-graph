@@ -2,6 +2,7 @@ from torch.fx import Graph
 from torch.export.graph_signature import InputKind
 from compiler import GraphCompiler
 from vllm_graph.modelmaps import TYPE_MAP, OP_MAP
+from vllm_graph.utils import read_pb
 import torch
 import json
 import h5py
@@ -12,7 +13,7 @@ from collections import deque
 class vLLMGraphModel(torch.nn.Module):
     def __init__(self, graph_dict: dict, weight_path: str, arg_dict: dict):
         super().__init__()
-        self.weights = h5py.File(weight_path, 'r')
+        self.weights = read_pb(weight_path)
         self.graph_dict = graph_dict
         for buffer in arg_dict:
             if arg_dict[buffer]["kind"] == "buffer":

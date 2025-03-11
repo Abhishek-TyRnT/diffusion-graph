@@ -20,7 +20,7 @@ def read_pb(pb_file):
     for float_const in weights.FloatConstants:
         weights_data[float_const.name] = float_const.values
 
-    for bool_const in weights.BoolConstants:
+    for bool_const in weights.boolConstants:
         weights_data[bool_const.name] = bool_const.values
     
     return weights_data

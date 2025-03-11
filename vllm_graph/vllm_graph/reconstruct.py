@@ -33,7 +33,7 @@ class vLLMGraphModel(torch.nn.Module):
             if(self.graph_dict[constant].get("output_shape", None) is None):
                 ssa_id = constant.split(".")[0]
                 var_name = f"weight_{ssa_id}"
-                setattr(self, var_name, list(data)[0])
+                setattr(self, var_name, data)
                 continue
             
             

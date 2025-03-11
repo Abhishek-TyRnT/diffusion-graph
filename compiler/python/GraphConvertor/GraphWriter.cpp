@@ -1,5 +1,6 @@
 
 #include "GraphWriter.hpp"
+#include <fstream>
 #include "mlir/IR/AsmState.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Block.h"
@@ -42,7 +43,7 @@ void GraphWriter::storeWeights<mlir::IntegerAttr>(mlir::IntegerAttr val, std::st
     
     auto *intconst_proto = constData.add_intconstants();
     intconst_proto->set_name("weight_datasets" + ssa_id);
-    intconst_proto->add_value(value);
+    intconst_proto->set_values(value);
     // hsize_t dims[1] = {1};
     // H5::DataSpace dataspace(1, dims);
     // // Create the dataset
@@ -62,18 +63,18 @@ void GraphWriter::storeWeights<mlir::BoolAttr>(mlir::BoolAttr val, std::string s
     // dataset.write(&value, H5::PredType::NATIVE_HBOOL);
     // dataspace.close();
     // dataset.close();
-    auto *boolconst_proto = constData.add_intconstants();
+    auto *boolconst_proto = constData.add_boolconstants();
     boolconst_proto->set_name("weight_datasets" + ssa_id);
-    boolconst_proto->add_value(value);
+    boolconst_proto->set_values(value);
 }
 
 template<>
 void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string ssa_id){
     llvm::APFloat AP_value = val.getValue();
     float value = AP_value.convertToFloat();
-    auto *boolconst_proto = constData.add_intconstants();
+    auto *floatconst_proto = constData.add_floatconstants();
     floatconst_proto->set_name("weight_datasets" + ssa_id);
-    floatconst_proto->add_value(value);
+    floatconst_proto->set_values(value);
 }
 
 

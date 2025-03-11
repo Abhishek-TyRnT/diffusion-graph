@@ -25,7 +25,7 @@ message IntScalars {
 }
 
 message BoolScalars {
-    string namr = 1;
+    string name = 1;
     bool values = 2;
 }
 // Define a container that can hold weights

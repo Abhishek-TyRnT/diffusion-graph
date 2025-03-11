@@ -36,18 +36,18 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     
 
 @pytest.mark.parametrize("model, model_args, inputs",(
-    # [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+    [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
      [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
-    #  [ReluModule, (), (torch.randn(1, 10, 5),)],
-    #  [Softmax, (1,), (torch.randn(1, 10, 5),)],
-    #  [Transpose, (1, 0), (torch.randn(25, 10),)],
-    # [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
-    # [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-    # [LayerNorm, (5, True, True), (torch.randn(3, 256, 5), )],
-    # [Tanh, (), (torch.randn(3, 256, 1024),)],
-    # [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
-    # [Embedding, (2, 3), (torch.tensor([0, 1]), )],
-    # [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
+     [ReluModule, (), (torch.randn(1, 10, 5),)],
+     [Softmax, (1,), (torch.randn(1, 10, 5),)],
+     [Transpose, (1, 0), (torch.randn(25, 10),)],
+    [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
+    [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+    [LayerNorm, (5, True, True), (torch.randn(3, 256, 5), )],
+    [Tanh, (), (torch.randn(3, 256, 1024),)],
+    [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+    [Embedding, (2, 3), (torch.tensor([0, 1]), )],
+    [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -60,7 +60,7 @@ def test_graph_compiler_python_to_dict(model,
     
     tmp_folder = f"./temp_files"
 
-    vllmgraph = vLLMGraph(tmp_folder, debug = True)
+    vllmgraph = vLLMGraph(model.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs)
     IRdict = vllmgraph.get_graph_dict()
     print(json.dumps(IRdict, indent = 2))

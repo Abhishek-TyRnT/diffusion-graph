@@ -8,7 +8,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/DenseMap.h"
-#include "weightBuffer.pb.h"
+#include "weightBuffers.pb.h"
 
 using NestedValueType = std::variant<std::string, 
                             std::vector<int64_t>, 

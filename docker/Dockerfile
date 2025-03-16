@@ -11,8 +11,12 @@ RUN apt update && \
                     sudo \
                     git \
                     ccache \
-                    libhdf5-dev \ 
-                    protobuf-compiler libprotobuf-dev
+                    libhdf5-dev \
+                    curl \
+                    unzip
+                    # protobuf-compiler \
+                    # libprotobuf-dev
+
 
 COPY requirements.txt /opt/requirements.txt
 WORKDIR /opt
@@ -20,6 +24,28 @@ RUN pip3 install -r requirements.txt
 RUN useradd -u ${UID} ${username} && \
     usermod -aG sudo ${username} && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# RUN git clone https://github.com/abseil/abseil-cpp.git && \
+#     cd abseil-cpp && \
+#     mkdir build && cd build && \
+#     cmake -DCMAKE_CXX_STANDARD=17 .. && \
+#     cmake --build . && \
+#     cmake --build . --target install 
+
+RUN git clone -b v3.28.2 https://github.com/protocolbuffers/protobuf.git && \
+    cd protobuf && \
+    git submodule update --init && \
+    cmake . -G "Ninja" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -Dprotobuf_BUILD_EXAMPLES=OFF \
+    -Dprotobuf_BUILD_SHARED_LIBS=ON \
+    -Dprotobuf_BUILD_TESTS=OFF \
+    -Dprotobuf_MSVC_STATIC_RUNTIME=OFF \
+    -Dprotobuf_WITH_ZLIB=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
+    cmake --build . && \
+    cmake --build . --target install
+
 
 ENV TORCH_MLIR_PATH="/home/${username}/vllm-project/build/external/torch-mlir/python_packages/torch_mlir"
 ENV VLLM_COMPILER="/home/${username}/vllm-project/build/python"

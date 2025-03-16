@@ -2,8 +2,7 @@
 set(PROTO_FILE ${CMAKE_CURRENT_SOURCE_DIR}/weightBuffers.proto)
 message(${PROTO_FILE})
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILE})
-message(${PROTO_SRCS})
-message(${PROTO_HDRS})
+
 # Generate Python code from Proto file
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/weightBuffers.py
@@ -18,7 +17,6 @@ add_custom_command(
 
 add_library(GraphWriter GraphWriter.cpp ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(GraphWriter ${Protobuf_LIBRARIES})
-message(${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(GraphWriter PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 add_custom_target(generate_python_proto ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/weightBuffers.py)

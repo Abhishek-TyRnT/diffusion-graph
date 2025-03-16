@@ -44,25 +44,13 @@ void GraphWriter::storeWeights<mlir::IntegerAttr>(mlir::IntegerAttr val, std::st
     auto *intconst_proto = constData.add_intconstants();
     intconst_proto->set_name("weight_datasets" + ssa_id);
     intconst_proto->set_values(value);
-    // hsize_t dims[1] = {1};
-    // H5::DataSpace dataspace(1, dims);
-    // // Create the dataset
-    // H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_INT, dataspace);
-    // dataset.write(&value, H5::PredType::NATIVE_INT);
-    // dataspace.close();
-    // dataset.close();
+
 }
 
 template<>
 void GraphWriter::storeWeights<mlir::BoolAttr>(mlir::BoolAttr val, std::string ssa_id){
     bool value = val.getValue();
-    // hsize_t dims[1] = {1};
-    // H5::DataSpace dataspace(1, dims);
-    // // Create the dataset
-    // H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_HBOOL, dataspace);
-    // dataset.write(&value, H5::PredType::NATIVE_HBOOL);
-    // dataspace.close();
-    // dataset.close();
+
     auto *boolconst_proto = constData.add_boolconstants();
     boolconst_proto->set_name("weight_datasets" + ssa_id);
     boolconst_proto->set_values(value);

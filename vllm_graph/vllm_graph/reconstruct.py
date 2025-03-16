@@ -62,13 +62,13 @@ class vLLMGraph:
         self.graph_compiler = GraphCompiler(self.weights_directory, debug = debug)
         self.graph_dict : dict = {}
     
-    def compile(self, model: torch.nn.Module, inputs: torch.Tensor):
+    def compile(self, model: torch.nn.Module, inputs: torch.Tensor, input_kwargs : dict = {}):
         """
         Compiles the model and returns a topologically unsorted
         graph in dictionary format and stores it in graph_dict object of the class 
         """
         
-        dynamo_model = torch.export.export(model, inputs, {}, dynamic_shapes = None)
+        dynamo_model = torch.export.export(model, inputs, input_kwargs, dynamic_shapes = None)
         graph_signature = dynamo_model.graph_signature
         input_specs = graph_signature.input_specs
         index = 0
@@ -89,7 +89,6 @@ class vLLMGraph:
                 index += 1
 
         self.graph_dict = self.graph_compiler.compile(dynamo_model, inputs)
-
         input_args = self.graph_dict["entrypoint"]
         new_args = []
         for arg in input_args:

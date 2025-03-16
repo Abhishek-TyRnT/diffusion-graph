@@ -1,7 +1,6 @@
 #ifndef VLLM_GRAPH_GRAPH_WRITER_H
 #define VLLM_GRAPH_GRAPH_WRITER_H
 
-#include "H5Cpp.h"  // HDF5 C++ API
 #include <unordered_map>
 #include <variant>
 #include <any>

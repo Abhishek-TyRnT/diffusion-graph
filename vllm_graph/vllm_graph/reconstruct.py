@@ -5,7 +5,6 @@ from vllm_graph.modelmaps import TYPE_MAP, OP_MAP
 from vllm_graph.utils import read_pb
 import torch
 import json
-import h5py
 import os
 from collections import deque
 

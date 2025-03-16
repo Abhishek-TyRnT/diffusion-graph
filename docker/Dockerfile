@@ -11,11 +11,9 @@ RUN apt update && \
                     sudo \
                     git \
                     ccache \
-                    libhdf5-dev \
                     curl \
-                    unzip
-                    # protobuf-compiler \
-                    # libprotobuf-dev
+                    unzip \
+                    valgrind
 
 
 COPY requirements.txt /opt/requirements.txt
@@ -25,14 +23,7 @@ RUN useradd -u ${UID} ${username} && \
     usermod -aG sudo ${username} && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-# RUN git clone https://github.com/abseil/abseil-cpp.git && \
-#     cd abseil-cpp && \
-#     mkdir build && cd build && \
-#     cmake -DCMAKE_CXX_STANDARD=17 .. && \
-#     cmake --build . && \
-#     cmake --build . --target install 
-
-RUN git clone -b v3.28.2 https://github.com/protocolbuffers/protobuf.git && \
+RUN git clone -b v30.1 https://github.com/protocolbuffers/protobuf.git && \
     cd protobuf && \
     git submodule update --init && \
     cmake . -G "Ninja" \

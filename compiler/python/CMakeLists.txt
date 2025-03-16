@@ -5,7 +5,6 @@ install(TARGETS graph_compiler DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)
 target_link_libraries(graph_compiler PRIVATE
     vLLMGraphCompiler
     MLIRCAPIIR
-    ${HDF5_LIBRARIES}
     GraphWriter
   )
 

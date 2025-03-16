@@ -6,8 +6,6 @@ list(APPEND CMAKE_PREFIX_PATH ${PYBIND11_PATH})
 set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 CONFIG REQUIRED)
 
-# Find the HDF5 library
-find_package(HDF5 REQUIRED COMPONENTS CXX)
 #Find the protobuf library
 find_package(Protobuf REQUIRED)
 

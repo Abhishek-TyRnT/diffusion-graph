@@ -2,9 +2,9 @@ from torch.fx import Graph
 from torch.export.graph_signature import InputKind
 from compiler import GraphCompiler
 from vllm_graph.modelmaps import TYPE_MAP, OP_MAP
+from vllm_graph.utils import read_pb
 import torch
 import json
-import h5py
 import os
 from collections import deque
 
@@ -12,7 +12,7 @@ from collections import deque
 class vLLMGraphModel(torch.nn.Module):
     def __init__(self, graph_dict: dict, weight_path: str, arg_dict: dict):
         super().__init__()
-        self.weights = h5py.File(weight_path, 'r')
+        self.weights = read_pb(weight_path)
         self.graph_dict = graph_dict
         for buffer in arg_dict:
             if arg_dict[buffer]["kind"] == "buffer":
@@ -32,7 +32,7 @@ class vLLMGraphModel(torch.nn.Module):
             if(self.graph_dict[constant].get("output_shape", None) is None):
                 ssa_id = constant.split(".")[0]
                 var_name = f"weight_{ssa_id}"
-                setattr(self, var_name, list(data)[0])
+                setattr(self, var_name, data)
                 continue
             
             
@@ -51,23 +51,23 @@ class vLLMGraph:
         if temp_directory is None:
             root_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             self.temp_directory = f"{root_folder}/temp_files/{model_name}"
-            self.weights_directory = f"{root_folder}/temp_files/{model_name}/weights.h5"
+            self.weights_directory = f"{root_folder}/temp_files/{model_name}/weights.pb"
         else:
             self.temp_directory = f"{temp_directory}/{model_name}"
-            self.weights_directory = f"{temp_directory}/{model_name}/weights.h5"
+            self.weights_directory = f"{temp_directory}/{model_name}/weights.pb"
         
         if not os.path.exists(self.temp_directory):
             os.makedirs(self.temp_directory)
         self.graph_compiler = GraphCompiler(self.weights_directory, debug = debug)
         self.graph_dict : dict = {}
     
-    def compile(self, model: torch.nn.Module, inputs: torch.Tensor):
+    def compile(self, model: torch.nn.Module, inputs: torch.Tensor, input_kwargs : dict = {}):
         """
         Compiles the model and returns a topologically unsorted
         graph in dictionary format and stores it in graph_dict object of the class 
         """
         
-        dynamo_model = torch.export.export(model, inputs, {}, dynamic_shapes = None)
+        dynamo_model = torch.export.export(model, inputs, input_kwargs, dynamic_shapes = None)
         graph_signature = dynamo_model.graph_signature
         input_specs = graph_signature.input_specs
         index = 0
@@ -88,7 +88,6 @@ class vLLMGraph:
                 index += 1
 
         self.graph_dict = self.graph_compiler.compile(dynamo_model, inputs)
-
         input_args = self.graph_dict["entrypoint"]
         new_args = []
         for arg in input_args:

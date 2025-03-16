@@ -6,8 +6,8 @@ list(APPEND CMAKE_PREFIX_PATH ${PYBIND11_PATH})
 set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 CONFIG REQUIRED)
 
-# Find the HDF5 library
-find_package(HDF5 REQUIRED COMPONENTS CXX)
+#Find the protobuf library
+find_package(Protobuf REQUIRED)
 
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -32,6 +32,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/interface)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories("/usr/include/python3.10")
 include_directories(${HDF5_INCLUDE_DIRS})
+include_directories(${Protobuf_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 
 list(APPEND CMAKE_MODULE_PATH ${MLIR_MAIN_SRC_DIR}/cmake/modules)

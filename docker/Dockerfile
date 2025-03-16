@@ -2,6 +2,7 @@ FROM nvidia/cuda:12.6.1-cudnn-devel-ubuntu22.04
 
 ARG username
 ARG UID
+#TODO: remove h5
 RUN apt update && \
     apt install -y clang \
                     cmake \
@@ -10,7 +11,10 @@ RUN apt update && \
                     sudo \
                     git \
                     ccache \
-                    libhdf5-dev
+                    curl \
+                    unzip \
+                    valgrind
+
 
 COPY requirements.txt /opt/requirements.txt
 WORKDIR /opt
@@ -18,6 +22,21 @@ RUN pip3 install -r requirements.txt
 RUN useradd -u ${UID} ${username} && \
     usermod -aG sudo ${username} && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+RUN git clone -b v30.1 https://github.com/protocolbuffers/protobuf.git && \
+    cd protobuf && \
+    git submodule update --init && \
+    cmake . -G "Ninja" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -Dprotobuf_BUILD_EXAMPLES=OFF \
+    -Dprotobuf_BUILD_SHARED_LIBS=ON \
+    -Dprotobuf_BUILD_TESTS=OFF \
+    -Dprotobuf_MSVC_STATIC_RUNTIME=OFF \
+    -Dprotobuf_WITH_ZLIB=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
+    cmake --build . && \
+    cmake --build . --target install
+
 
 ENV TORCH_MLIR_PATH="/home/${username}/vllm-project/build/external/torch-mlir/python_packages/torch_mlir"
 ENV VLLM_COMPILER="/home/${username}/vllm-project/build/python"

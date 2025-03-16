@@ -23,7 +23,6 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
         assert len(vllm_graph_output) == len(vllm_graph_output), "No of outputs donot match"
         for (vllm_tensor, tensor) in zip(vllm_graph_output, regular_output):
             if not torch.allclose(vllm_tensor, tensor, atol = 1e-3):
-                #print(vllm_tensor, tensor)
                 return False
         
         return True
@@ -59,15 +58,15 @@ def test_graph_compiler_python_to_dict(model,
     else:
         torch_model = model(*model_args)
     
-    tmp_folder = f"./temp_files/{torch_model.__class__.__name__}"
+    tmp_folder = f"./temp_files"
 
-    vllmgraph = vLLMGraph(tmp_folder, debug = True)
+    vllmgraph = vLLMGraph(model.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs)
     IRdict = vllmgraph.get_graph_dict()
     print(json.dumps(IRdict, indent = 2))
 
 @pytest.mark.parametrize("model, model_args, inputs",(
-     [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+    [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
      [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
      [ReluModule, (), (torch.randn(1, 10, 5),)],
      [Softmax, (1,), (torch.randn(1, 10, 5),)],
@@ -90,7 +89,7 @@ def test_graph_compiler_to_model(model,
     else:
         torch_model = model(*model_args)
     
-    tmp_folder = f"/tmp"
+    tmp_folder = f"./temp_files"
 
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs)
@@ -102,23 +101,22 @@ def test_graph_compiler_to_model(model,
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
     
 
-@pytest.mark.parametrize("Model, inputs", (
-    [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),)],
-    [AlbertSdpaAttention, (torch.randn(8, 512, 4096),)],
-    [AlbertLayer, (torch.randn(8, 512, 4096),)],
-    [AlbertTransformer, (torch.randn(1, 8, 128),),],
-        
+@pytest.mark.parametrize("Model, inputs, input_kwargs", (
+    [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),), {}],
+    [AlbertSdpaAttention, (torch.randn(8, 512, 4096),), {}],
+    [AlbertLayer, (torch.randn(1, 8, 4096),), {}],
+    [AlbertTransformer, (torch.randn(1, 8, 128),), {"return_dict": False}],
 ))
 def test_hf_model_layer(Model,
-                        inputs):
+                        inputs,
+                        input_kwargs):
     config = AlbertConfig()
     model = Model(config)
-    model = model
-    tmp_folder = f"./temp_files"
+    model.eval()
+    tmp_folder = f"/tmp"
 
-    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder)
-    vllmgraph.compile(model, inputs)
-
+    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder, )
+    vllmgraph.compile(model, inputs, input_kwargs)
     reconstructed_model = vllmgraph.reconstruct()
     normal_output = model(*inputs)
     vllm_graph_output = reconstructed_model(*inputs)

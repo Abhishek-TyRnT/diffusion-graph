@@ -8,6 +8,7 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
+#include <vector>
 
 using namespace mlir;
 using namespace mlir::vllm_graph;
@@ -23,6 +24,20 @@ void replaceFuncDtypes(func::FuncOp &op)
     NOTE: Currently only tested for single return types.
     
     */
+
+    //Need to remove args which do not contribute to the
+    //graph 
+    mlir::Block &entryBlock = op.getBody().front();
+    std::vector<uint32_t> removedArgIndices;
+
+    for(unsigned i = 0; i < op.getNumArguments(); ++i){
+        mlir::Value arg = op.getArgument(i);
+        if(arg.use_empty()){
+            arg.replaceAllUsesWith(nullptr);
+            entryBlock.eraseArgument(i);
+         removedArgIndices.push_back(i);
+        }
+    }
     mlir::FunctionType oldFuncType = op.getFunctionType();
     MLIRContext *context = op.getContext();
     mlir::OpBuilder builder(context);
@@ -50,16 +65,25 @@ void replaceFuncDtypes(func::FuncOp &op)
     else
         return opType;
     };
+    uint32_t arg_index = 0;
     for (mlir::Type argType : oldArgTypes) {
-        if(auto newargType = typeConverter_fn(argType))
+        if(std::find(removedArgIndices.begin(), removedArgIndices.end(), arg_index) != removedArgIndices.end()){
+            arg_index++;            
+            continue;
+        }
+        auto newargType = typeConverter_fn(argType);
+
+        if(newargType)
             newArgTypes.push_back(newargType);
         else
             newArgTypes.push_back(argType);
+        arg_index++;
     }
 
     llvm::SmallVector<mlir::Type, 4> newResultTypes;
     for (mlir::Type argType : oldResultTypes) {
-        if(auto newargType = typeConverter_fn(argType))
+        auto newargType = typeConverter_fn(argType);
+        if(newargType)
             newResultTypes.push_back(newargType);
         else
             newResultTypes.push_back(argType);  
@@ -69,7 +93,7 @@ void replaceFuncDtypes(func::FuncOp &op)
     mlir::FunctionType newFuncType = builder.getFunctionType(newArgTypes, newResultTypes);
 
     op.setType(newFuncType);
-    mlir::Block &entryBlock = op.getBody().front();
+    // mlir::Block &entryBlock = op.getBody().front();
     builder.setInsertionPointToStart(&entryBlock);
 
     /*Inserting an CastOp so as to not disturb subsequent Ops. 
@@ -80,7 +104,7 @@ void replaceFuncDtypes(func::FuncOp &op)
         mlir::Value::user_range opList = arg.getUsers();
         mlir::Location loc = mlir::UnknownLoc::get(context);
 
-        auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[0], arg);
+        auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[i], arg);
         mlir::Operation *genCastOp = castOp.getOperation();
         mlir::Value castOpResult = castOp.getResult();
         arg.replaceAllUsesExcept(castOpResult, genCastOp);

@@ -1,5 +1,6 @@
 
 #include "GraphWriter.hpp"
+#include <fstream>
 #include "mlir/IR/AsmState.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Block.h"
@@ -16,60 +17,52 @@ void GraphWriter::storeWeights<mlir::DenseElementsAttr>(mlir::DenseElementsAttr 
     if(isa<IntegerType>(type))
     {    
         std::vector<int64_t> denseVal(val.getValues<int64_t>().begin(), val.getValues<int64_t>().end());
-        hsize_t dims[1] = {denseVal.size()};
-        H5::DataSpace dataspace(1, dims);
-        // Create the dataset
-        H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_INT64, dataspace);
-        dataset.write(denseVal.data(), H5::PredType::NATIVE_INT64);
-        dataspace.close();
-        dataset.close();
-    } else {    
+        auto* int_proto = constData.add_integerweights();
+        int_proto->set_name("weight_datasets" + ssa_id);
+        
+        // Add entire vector at once
+        auto* values_field = int_proto->mutable_values();
+        values_field->Reserve(denseVal.size());
+        values_field->Add(denseVal.begin(), denseVal.end());
+
+    } else { 
         std::vector<float> denseVal(val.getValues<float>().begin(), val.getValues<float>().end());
-        hsize_t dims[1] = {denseVal.size()};
-        H5::DataSpace dataspace(1, dims);
-        // Create the dataset
-        H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
-        dataset.write(denseVal.data(), H5::PredType::NATIVE_FLOAT);
-        dataspace.close();
-        dataset.close();
+        auto* float_proto = constData.add_floatweights();
+        float_proto->set_name("weight_datasets" + ssa_id);
+        
+        // Add entire vector at once
+        auto* values_field = float_proto->mutable_values();
+        values_field->Reserve(denseVal.size());
+        values_field->Add(denseVal.begin(), denseVal.end());
     }
 }
 
 template<>
 void GraphWriter::storeWeights<mlir::IntegerAttr>(mlir::IntegerAttr val, std::string ssa_id){
     int64_t value = val.getInt();
-    hsize_t dims[1] = {1};
-    H5::DataSpace dataspace(1, dims);
-    // Create the dataset
-    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_INT, dataspace);
-    dataset.write(&value, H5::PredType::NATIVE_INT);
-    dataspace.close();
-    dataset.close();
+    
+    auto *intconst_proto = constData.add_intconstants();
+    intconst_proto->set_name("weight_datasets" + ssa_id);
+    intconst_proto->set_values(value);
+
 }
 
 template<>
 void GraphWriter::storeWeights<mlir::BoolAttr>(mlir::BoolAttr val, std::string ssa_id){
     bool value = val.getValue();
-    hsize_t dims[1] = {1};
-    H5::DataSpace dataspace(1, dims);
-    // Create the dataset
-    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_HBOOL, dataspace);
-    dataset.write(&value, H5::PredType::NATIVE_HBOOL);
-    dataspace.close();
-    dataset.close();
+
+    auto *boolconst_proto = constData.add_boolconstants();
+    boolconst_proto->set_name("weight_datasets" + ssa_id);
+    boolconst_proto->set_values(value);
 }
 
 template<>
 void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string ssa_id){
     llvm::APFloat AP_value = val.getValue();
     float value = AP_value.convertToFloat();
-    hsize_t dims[1] = {1};
-    H5::DataSpace dataspace(1, dims);
-    // Create the dataset
-    H5::DataSet dataset = file.createDataSet("weight_datasets" + ssa_id, H5::PredType::NATIVE_FLOAT, dataspace);
-    dataset.write(&value, H5::PredType::NATIVE_FLOAT);
-    dataspace.close();
-    dataset.close();
+    auto *floatconst_proto = constData.add_floatconstants();
+    floatconst_proto->set_name("weight_datasets" + ssa_id);
+    floatconst_proto->set_values(value);
 }
 
 
@@ -205,11 +198,12 @@ void GraphWriter::addOp(mlir::Operation *op){
     opCount++;
 }
 
-GraphWriter::GraphWriter(std::string weightsPath){
+GraphWriter::GraphWriter(std::string weightsPath) : weightsPath(weightsPath) {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
     graph["entrypoint"] = std::vector<std::string>({});
     graph["constants"] = std::vector<std::string>({});
-
-    file = H5::H5File(weightsPath, H5F_ACC_TRUNC);
+    
+    // file = H5::H5File(weightsPath, H5F_ACC_TRUNC);
 
 }
 
@@ -248,4 +242,13 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
         // Print the operation name
         this->addOp(op);
     });
+}
+
+void GraphWriter::closeFile(){
+    std::ofstream output(weightsPath, std::ios::binary);
+    constData.SerializeToOstream(&output);
+    
+    // Clean up protobuf library
+    google::protobuf::ShutdownProtobufLibrary();
+
 }

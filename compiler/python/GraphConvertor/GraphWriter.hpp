@@ -1,13 +1,13 @@
 #ifndef VLLM_GRAPH_GRAPH_WRITER_H
 #define VLLM_GRAPH_GRAPH_WRITER_H
 
-#include "H5Cpp.h"  // HDF5 C++ API
 #include <unordered_map>
 #include <variant>
 #include <any>
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/DenseMap.h"
+#include "weightBuffers.pb.h"
 
 using NestedValueType = std::variant<std::string, 
                             std::vector<int64_t>, 
@@ -22,7 +22,9 @@ class GraphWriter{
 private:
     std::unordered_map<std::string, ValueType> graph;
     llvm::DenseMap<mlir::Value, std::string> opMap;
-    H5::H5File file;
+    // H5::H5File file;
+    DenseWeights::WeightsData constData;
+    std::string weightsPath;
     //Counter to keep number of ops
     uint64_t opCount = 0;
     //Counter to keep number of args
@@ -35,7 +37,7 @@ public:
     
     void build(mlir::OwningOpRef<mlir::ModuleOp> &module);
     GraphWriter(std::string weightsPath);
-    void closeFile() { file.close(); }
+    void closeFile();
     std::unordered_map<std::string, ValueType> getGraph(){ return graph; }
 };
 #endif

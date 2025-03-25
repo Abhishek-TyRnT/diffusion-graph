@@ -76,9 +76,12 @@ class vLLMGraph:
             kind = spec.kind
             #Buffers
             if kind == InputKind.BUFFER:
+                sub_model = model
+                for target in spec.target.split("."):
+                    sub_model = getattr(sub_model, target)
                 self.arg_dict[index] = {"target" : spec.target,
-                                         "kind": "buffer",
-                                         "value": getattr(model, spec.target)
+                                        "kind": "buffer",
+                                        "value": sub_model
                                         }
                 index +=1
             

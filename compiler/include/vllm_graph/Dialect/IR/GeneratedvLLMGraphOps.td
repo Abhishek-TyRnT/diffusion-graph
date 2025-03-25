@@ -443,3 +443,29 @@ def vllm_PermuteOp : vLLMGraph_Op<"vllm.permute", [
         }
     }];    
 }
+
+def vllm_SliceTensorOp : Torch_Op<"vllm.slice", [
+    AllowsTypeRefinement,
+    ReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::slice : (Tensor, int, int?, int?, int) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    Torch_IntType:$dim,
+    AnyTorchOptionalIntType:$start,
+    AnyTorchOptionalIntType:$end,
+    Torch_IntType:$step
+  );
+  let results = (outs
+    AnyTorchOptionalTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult SliceTensorOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 5, 1);
+    }
+    void SliceTensorOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+  }];
+}

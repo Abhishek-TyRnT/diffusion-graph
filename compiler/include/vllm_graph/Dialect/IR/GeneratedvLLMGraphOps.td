@@ -444,27 +444,26 @@ def vllm_PermuteOp : vLLMGraph_Op<"vllm.permute", [
     }];    
 }
 
-def vllm_SliceTensorOp : Torch_Op<"vllm.slice", [
-    AllowsTypeRefinement,
-    ReadOnly
+def vllm_IndexSelectOp : vLLMGraph_Op<"vllm.index_select", [
+    vLLMAllowsTypeRefinement,
+    vLLMReadOnly
   ]> {
-  let summary = "Generated op for `vllm::slice : (Tensor, int, int?, int?, int) -> (Tensor)`";
+  let summary = "Generated op for `vllm::index_select : (Tensor, int, Tesnor) -> (Tensor)`";
   let arguments = (ins
     AnyTorchTensorType:$self,
     Torch_IntType:$dim,
-    AnyTorchOptionalIntType:$start,
-    AnyTorchOptionalIntType:$end,
-    Torch_IntType:$step
+    AnyTorchTensorType:$indices
   );
+  
   let results = (outs
-    AnyTorchOptionalTensorType:$result
+    AnyTorchTensorType:$result
   );
   let hasCustomAssemblyFormat = 1;
   let extraClassDefinition = [{
-    ParseResult SliceTensorOp::parse(OpAsmParser &parser, OperationState &result) {
-      return parseDefaultvLLMGraphOp(parser, result, 5, 1);
+    ParseResult IndexSelectOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 1, 1);
     }
-    void SliceTensorOp::print(OpAsmPrinter &printer) {
+    void IndexSelectOp::print(OpAsmPrinter &printer) {
       printDefaultvLLMGraphOp(printer, *this, 1, 1);
     }
   }];

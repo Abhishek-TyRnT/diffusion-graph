@@ -15,7 +15,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/TypeSwitch.h"
-#include <iostream>
+#include <vector>
 #include <numeric>
 #include <optional>
 
@@ -466,6 +466,50 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenEmbeddingOp>::matchAndRewrit
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSliceTensorOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value self = op.getOperand(0);
+    Value dim = op.getOperand(1);
+    Value start = op.getOperand(2);
+    Value end = op.getOperand(3);
+    Value step = op.getOperand(4);
+
+    Location loc = op.getLoc();
+    llvm::outs() << start << "\n";
+    int64_t start_index = start.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
+    int64_t end_index = end.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
+    int64_t step_size = step.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
+
+    std::vector<int64_t> range;
+    for(int64_t i = start_index; i < end_index; i+=step_size)
+        range.push_back(i);
+    
+    ArrayRef<int32_t> range_array(range.data(), range.size());
+    int64_t x = static_cast<int64_t>(range.size());
+    int64_t shape[] = {x};
+    Type elemType = rewriter.getIntegerType(32);
+
+    RankedTensorType IndicesType = RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
+    auto denseAttr = DenseElementsAttr::get(IndicesType, range_array);
+    Value constRangeValOp = rewriter.create<arith::ConstantOp>(loc, IndicesType, denseAttr);
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    result.setType(resultType);
+
+
+    rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, self, dim, constRangeValOp);
+
+    rewriter.eraseOp(&cast<mlir::Operation>(op));
+
+    return mlir::success();
+    
+
+}
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>::matchAndRewrite(
     mlir::torch::Torch::AtenNativeLayerNormOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -685,6 +729,10 @@ public:
         
         target.addIllegalOp<mlir::torch::Torch::ValueTensorLiteralOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenSliceTensorOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenDivScalarOp>();

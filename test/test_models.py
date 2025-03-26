@@ -150,3 +150,13 @@ class Permute(Module):
         self.shape = shape
     def forward(self, inputs):
         return torch.permute(inputs, self.shape)
+    
+class SliceTensorDim1axis(Module):
+    def __init__(self, start, end, step):
+        super().__init__()
+        self.start = start
+        self.end = end
+        self.step = step
+    
+    def forward(self, inputs):
+        return inputs[:, self.start: self.end: self.step]

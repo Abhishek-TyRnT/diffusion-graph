@@ -22,6 +22,7 @@ OP_MAP = {
     "vllm_graph.vllm.pow": torch.pow,
     "vllm_graph.vllm.embedding": torch.nn.functional.embedding,
     "vllm_graph.vllm.broadcast_to" : torch.broadcast_to,
-    "vllm_graph.vllm.permute" : torch.permute
+    "vllm_graph.vllm.permute" : torch.permute,
+    "vllm_graph.vllm.index_select" : torch.index_select
 
 }

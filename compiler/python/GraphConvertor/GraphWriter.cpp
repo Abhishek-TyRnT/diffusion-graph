@@ -15,15 +15,28 @@ template<>
 void GraphWriter::storeWeights<mlir::DenseElementsAttr>(mlir::DenseElementsAttr val, std::string ssa_id){
     Type type = val.getElementType();
     if(isa<IntegerType>(type))
-    {    
-        std::vector<int64_t> denseVal(val.getValues<int64_t>().begin(), val.getValues<int64_t>().end());
-        auto* int_proto = constData.add_integerweights();
-        int_proto->set_name("weight_datasets" + ssa_id);
-        
-        // Add entire vector at once
-        auto* values_field = int_proto->mutable_values();
-        values_field->Reserve(denseVal.size());
-        values_field->Add(denseVal.begin(), denseVal.end());
+    {   
+        std::cout << __LINE__ << " " << __FILE__ << std::endl;
+        if(type.isInteger(64)){        
+            std::vector<int64_t> denseVal(val.getValues<int64_t>().begin(), val.getValues<int64_t>().end());
+            auto* int_proto = constData.add_integerweights();
+            int_proto->set_name("weight_datasets" + ssa_id);
+            
+            // Add entire vector at once
+            auto* values_field = int_proto->mutable_values();
+            values_field->Reserve(denseVal.size());
+            values_field->Add(denseVal.begin(), denseVal.end());
+        } else {
+            std::vector<int32_t> denseVal(val.getValues<int32_t>().begin(), val.getValues<int32_t>().end());
+            auto* int_proto = constData.add_integerweights();
+            int_proto->set_name("weight_datasets" + ssa_id);
+            
+            // Add entire vector at once
+            auto* values_field = int_proto->mutable_values();
+            values_field->Reserve(denseVal.size());
+            values_field->Add(denseVal.begin(), denseVal.end());
+        }
+        std::cout << __LINE__ << " " << __FILE__ << std::endl;
 
     } else { 
         std::vector<float> denseVal(val.getValues<float>().begin(), val.getValues<float>().end());

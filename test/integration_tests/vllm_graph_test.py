@@ -48,6 +48,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
     [Embedding, (2, 3), (torch.tensor([0, 1]), )],
     [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
+    [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -58,7 +59,7 @@ def test_graph_compiler_python_to_dict(model,
     else:
         torch_model = model(*model_args)
     
-    tmp_folder = f"./temp_files"
+    tmp_folder = f"/tmp"
 
     vllmgraph = vLLMGraph(model.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs)
@@ -78,6 +79,7 @@ def test_graph_compiler_python_to_dict(model,
      [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
      [Embedding, (2, 3), (torch.tensor([0, 1]), )],
      [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
+     [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,
@@ -89,7 +91,7 @@ def test_graph_compiler_to_model(model,
     else:
         torch_model = model(*model_args)
     
-    tmp_folder = f"./temp_files"
+    tmp_folder = f"/tmp"
 
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs)

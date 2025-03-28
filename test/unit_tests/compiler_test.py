@@ -89,19 +89,19 @@ def test_vllm_graph_compiler_passes_from_models(model,
 
 
 @pytest.mark.parametrize("model, model_args, inputs",(
-    #  [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
-    #  [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
-    #  [ReluModule, (), (torch.randn(1, 10, 5))],
-    #  [Softmax, (1,), (torch.randn(1, 10, 5))],
-    #  [Transpose, (1, 0), (torch.randn(25, 10),)],
-    #  [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
-    #  [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-    #  [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
-    #  [Tanh, (), (torch.randn(3, 256, 1024),)],
-    #  [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
-    #  [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
-    #  [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
-    #  [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
+     [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+     [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
+     [ReluModule, (), (torch.randn(1, 10, 5))],
+     [Softmax, (1,), (torch.randn(1, 10, 5))],
+     [Transpose, (1, 0), (torch.randn(25, 10),)],
+     [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
+     [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
+     [Tanh, (), (torch.randn(3, 256, 1024),)],
+     [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+     [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
+     [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
+     [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
     [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
@@ -120,7 +120,7 @@ def test_vllm_graph_compiler_from_models(model,
                                 backend_legal_ops=backend_legal_ops, 
                                 decomposition_table = get_decompositions(DECOMPOSITION_OPS))
 
-    filename = f"./temp_files/{torch_model.__class__.__name__}.mlir"
+    filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
         f.write(str(torchIR))
     cmd = ["vllm-graph" ,filename]

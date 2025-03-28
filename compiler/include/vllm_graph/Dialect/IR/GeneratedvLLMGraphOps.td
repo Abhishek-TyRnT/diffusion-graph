@@ -468,3 +468,26 @@ def vllm_IndexSelectOp : vLLMGraph_Op<"vllm.index_select", [
     }
   }];
 }
+
+def vllm_UnsqueezeOp : vLLMGraph_Op<"vllm.unsqueeze", [
+    vLLMAllowsTypeRefinement,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::unsqueeze : (Tensor, int) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    I32:$dim
+  );
+  let results = (outs
+    AnyTorchTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult UnsqueezeOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void UnsqueezeOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+  }];
+}

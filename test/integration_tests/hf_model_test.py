@@ -4,6 +4,31 @@ import torch
 from vllm_graph.reconstruct import vLLMGraph
 from transformers import AutoTokenizer, AlbertModel
 from test_utils import validate_outputs
+from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
+from transformers import AlbertConfig
+
+@pytest.mark.parametrize("Model, inputs, input_kwargs", (
+    [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),), {}],
+    [AlbertSdpaAttention, (torch.randn(8, 512, 4096),), {}],
+    [AlbertLayer, (torch.randn(1, 8, 4096),), {}],
+    [AlbertTransformer, (torch.randn(1, 8, 128),), {"return_dict": False}],
+))
+def test_hf_model_layer(Model,
+                        inputs,
+                        input_kwargs):
+    config = AlbertConfig()
+    model = Model(config)
+    model.eval()
+    tmp_folder = f"/tmp"
+
+    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder, )
+    vllmgraph.compile(model, inputs, input_kwargs)
+    reconstructed_model = vllmgraph.reconstruct()
+    normal_output = model(*inputs)
+    vllm_graph_output = reconstructed_model(*inputs)
+
+    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+
 
 @pytest.mark.parametrize("model_name, text, model_class",
     (["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel],))

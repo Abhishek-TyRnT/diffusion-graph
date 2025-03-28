@@ -4,8 +4,6 @@ import sys
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph
-from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
-from transformers import AlbertConfig
 from transformers.modeling_outputs import BaseModelOutput
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -49,6 +47,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [Embedding, (2, 3), (torch.tensor([0, 1]), )],
     [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
     [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
+    [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -80,6 +79,7 @@ def test_graph_compiler_python_to_dict(model,
      [Embedding, (2, 3), (torch.tensor([0, 1]), )],
      [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
      [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
+     [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,
@@ -103,24 +103,3 @@ def test_graph_compiler_to_model(model,
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
     
 
-@pytest.mark.parametrize("Model, inputs, input_kwargs", (
-    [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),), {}],
-    [AlbertSdpaAttention, (torch.randn(8, 512, 4096),), {}],
-    [AlbertLayer, (torch.randn(1, 8, 4096),), {}],
-    [AlbertTransformer, (torch.randn(1, 8, 128),), {"return_dict": False}],
-))
-def test_hf_model_layer(Model,
-                        inputs,
-                        input_kwargs):
-    config = AlbertConfig()
-    model = Model(config)
-    model.eval()
-    tmp_folder = f"/tmp"
-
-    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder, )
-    vllmgraph.compile(model, inputs, input_kwargs)
-    reconstructed_model = vllmgraph.reconstruct()
-    normal_output = model(*inputs)
-    vllm_graph_output = reconstructed_model(*inputs)
-
-    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

@@ -451,8 +451,8 @@ def vllm_IndexSelectOp : vLLMGraph_Op<"vllm.index_select", [
   let summary = "Generated op for `vllm::index_select : (Tensor, int, Tesnor) -> (Tensor)`";
   let arguments = (ins
     AnyTorchTensorType:$self,
-    Torch_IntType:$dim,
-    AnyTorchTensorType:$indices
+    I32:$dim,
+    TorchTypeOrTensorType:$indices
   );
   
   let results = (outs

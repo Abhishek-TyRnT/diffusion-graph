@@ -477,13 +477,13 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     Value step = op.getOperand(4);
 
     Location loc = op.getLoc();
-    llvm::outs() << start << "\n";
+
     int64_t start_index = start.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
     int64_t end_index = end.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
     int64_t step_size = step.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
 
-    std::vector<int64_t> range;
-    for(int64_t i = start_index; i < end_index; i+=step_size)
+    std::vector<int32_t> range;
+    for(int32_t i = start_index; i < end_index; i+=step_size)
         range.push_back(i);
     
     ArrayRef<int32_t> range_array(range.data(), range.size());
@@ -492,18 +492,18 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     Type elemType = rewriter.getIntegerType(32);
 
     RankedTensorType IndicesType = RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
+    
     auto denseAttr = DenseElementsAttr::get(IndicesType, range_array);
     Value constRangeValOp = rewriter.create<arith::ConstantOp>(loc, IndicesType, denseAttr);
 
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
-
-
-    rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, self, dim, constRangeValOp);
-
-    rewriter.eraseOp(&cast<mlir::Operation>(op));
+    // result.setType(resultType);
+    
+    Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, self, dim, constRangeValOp);
+    result.replaceAllUsesWith(indexSelectResult);
+    rewriter.eraseOp(cast<Operation*>(op));
 
     return mlir::success();
     

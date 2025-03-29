@@ -25,6 +25,7 @@ OP_MAP = {
     "vllm_graph.vllm.permute" : torch.permute,
     "vllm_graph.vllm.index_select" : torch.index_select,
     "vllm_graph.vllm.unsqueeze": torch.unsqueeze,
-    "vllm_graph.vllm.squeeze": torch.squeeze
+    "vllm_graph.vllm.squeeze": torch.squeeze,
+    "vllm_graph.vllm.sub": torch.sub
 
 }

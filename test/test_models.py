@@ -176,3 +176,11 @@ class SqueezeOp(Module):
     
     def forward(self, input):
         return torch.squeeze(input, self.dim)
+
+class RSub(Module):
+    def __init__(self, x):
+        super().__init__()
+        self.x = x
+    
+    def forward(self, y):
+        return self.x - y

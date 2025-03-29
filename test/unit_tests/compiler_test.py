@@ -90,6 +90,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
 
 @pytest.mark.parametrize("model, model_args, inputs",(
      [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+     [RSub, (2.,), (torch.randn(224, 10, 3),)],
      [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
      [ReluModule, (), (torch.randn(1, 10, 5))],
      [Softmax, (1,), (torch.randn(1, 10, 5))],

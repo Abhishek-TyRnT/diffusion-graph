@@ -178,7 +178,7 @@ class vLLMGraph:
                 list_nodes = [graph_nodes[inp] for inp in self.graph_dict[node]['input_nodes']]
                 graph_nodes[node] = list_nodes
 
-            elif node_type == "vllm_graph.vllm.add":
+            elif node_type in ["vllm_graph.vllm.add", "vllm_graph.vllm.sub"]:
                 add_func = OP_MAP.get(node_type, None)
                 input_args = []
                 input_kwargs = {}

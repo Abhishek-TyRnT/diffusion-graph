@@ -48,8 +48,32 @@ def vllm_AddOp : vLLMGraph_Op<"vllm.add", [
             printDefaultvLLMGraphOp(printer, *this, 1, 1);
         }
     }];
+}
 
-
+def vllm_SubOp : vLLMGraph_Op<"vllm.sub", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm::sub : (Tensor?, Tensor? , scalar) -> (Tensor)`";
+    let arguments = (ins 
+        TensorOrScalarType:$input1, 
+        TensorOrScalarType:$input2,  
+        I32:$alpha);
+    
+    let results = (outs
+                AnyTorchTensorType:$result);
+    
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult SubOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void SubOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
 }
 
 def vllm_MulOp : vLLMGraph_Op<"vllm.mul", [

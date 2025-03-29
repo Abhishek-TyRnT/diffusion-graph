@@ -279,6 +279,25 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddScalarOp>::matchAndRewrit
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenRsubScalarOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenRsubScalarOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value Operand1 = op.getOperand(0);
+    Value Operand2 = op.getOperand(1);
+    Value Alpha = op.getOperand(2);
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    result.setType(resultType);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::SubOp>(op, resultType, Operand2, Operand1, Alpha);
+    return mlir::success();
+    
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulScalarOp>::matchAndRewrite(
     mlir::torch::Torch::AtenMulScalarOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -749,6 +768,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenRsubScalarOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenRsubScalarOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddScalarOp>();

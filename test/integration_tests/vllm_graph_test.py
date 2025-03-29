@@ -48,6 +48,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
     [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
     [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
+    [SqueezeOp, (1,), (torch.randn(2, 8),)],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -80,6 +81,7 @@ def test_graph_compiler_python_to_dict(model,
      [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
      [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
      [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
+     [SqueezeOp, (1,), (torch.randn(2, 8),)],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,

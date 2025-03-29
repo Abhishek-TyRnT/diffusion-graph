@@ -239,6 +239,25 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenUnsqueezeOp>::matchAndRewrit
 
 }
 
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSqueezeDimOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSqueezeDimOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = op.getOperand(0);
+    Value dim = op.getOperand(1);
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    result.setType(resultType);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::SqueezeOp>(op, resultType, input, dim);
+
+    return mlir::success();
+
+}
+
 
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddScalarOp>::matchAndRewrite(
@@ -746,6 +765,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenUnsqueezeOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenUnsqueezeOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenSqueezeDimOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSqueezeDimOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenTransposeIntOp>();

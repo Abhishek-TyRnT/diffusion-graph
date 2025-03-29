@@ -168,3 +168,11 @@ class UnSqueezeOp(Module):
     
     def forward(self, input):
         return torch.unsqueeze(input, self.dim)
+    
+class SqueezeOp(Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+    
+    def forward(self, input):
+        return torch.squeeze(input, self.dim)

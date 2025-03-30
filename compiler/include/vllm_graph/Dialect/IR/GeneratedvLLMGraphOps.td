@@ -538,3 +538,29 @@ def vllm_SqueezeOp : vLLMGraph_Op<"vllm.squeeze", [
     }
   }];
 }
+
+def vllm_WhereOp : vLLMGraph_Op<"vllm.where", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for 1 vllm::where : (Tensor, TensororScalar, TensororScalar) -> (Tensor)";
+    let arguments = (ins 
+        TorchTypeOrTensorType : $input,
+        TensorOrScalarType : $trueInput,
+        TensorOrScalarType : $falseInput
+    );
+    
+    let results = (outs
+        AnyTorchTensorType: $result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult WhereOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void WhereOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}

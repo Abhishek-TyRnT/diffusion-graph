@@ -472,7 +472,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
     mlir::torch::Torch::AtenViewOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
-
         Value input = op.getOperand(0);
         Value shape = op.getOperand(1);
 
@@ -483,9 +482,27 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
         rewriter.replaceOpWithNewOp<vllm_graph::ViewOp>(op, resultType, input, shape);
         
         return success();
-
         
 }
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenWhereSelfOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenWhereSelfOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter ) const {
+
+        Value condition = op.getOperand(0);
+        Value trueInput = op.getOperand(1);
+        Value falseInput = op.getOperand(2);
+
+        const TypeConverter *convertor = getTypeConverter();
+        Value result = op.getResult();
+        Type resultType = convertor->convertType(op.getResult().getType());
+        result.setType(resultType);
+
+        rewriter.replaceOpWithNewOp<vllm_graph::WhereOp>(op, resultType, condition, trueInput, falseInput);
+        return success();
+}
+
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRewrite(
     mlir::torch::Torch::PrimListConstructOp op, OpAdaptor adaptor,
@@ -802,6 +819,10 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>>(typeConverter,        
                                                          context);
 
+        target.addIllegalOp<mlir::torch::Torch::AtenWhereSelfOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenWhereSelfOp>>(typeConverter,        
+                                                         context);
+        
         target.addIllegalOp<mlir::torch::Torch::AtenSliceTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>>(typeConverter,        
                                                          context);

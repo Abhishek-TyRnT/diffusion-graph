@@ -184,3 +184,10 @@ class RSub(Module):
     
     def forward(self, y):
         return self.x - y
+
+class Where(Module):
+    def __init__(self, ):
+        super().__init__()
+    
+    def forward(self, condition, input, other):
+        return torch.where(condition, input, other)

@@ -106,6 +106,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
      [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
      [SqueezeOp, (1,), (torch.randn(2, 8),)],
+     [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

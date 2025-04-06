@@ -24,3 +24,7 @@ void ConstantDeviceOp::getAsmResultNames(
   setNameFn(getResult(), getValue());
 }
 
+OpFoldResult ValueTensorLiteralOp::fold(FoldAdaptor adaptor) {
+  return getValueAttr();
+}
+

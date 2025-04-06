@@ -18,8 +18,10 @@
 #include <vector>
 #include <numeric>
 #include <optional>
+#include <cassert>
 
 using namespace mlir;
+using namespace llvm;
 using namespace mlir::vllm_graph;
 using namespace mlir::torch::Torch;
 
@@ -63,7 +65,8 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenReluOp>::matchAndRewrite(
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    self.setType(convertor->convertType(self.getType()));
+    // result.setType(resultType);
 
     rewriter.replaceOpWithNewOp<vllm_graph::ReluOp>(op, resultType, self);
     return success();
@@ -86,7 +89,8 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>::matchAndRewrite(
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    self.setType(convertor->convertType(self.getType()));
+    // result.setType(resultType);
 
     rewriter.replaceOpWithNewOp<vllm_graph::TanhOp>(op, resultType, self);
     return success();
@@ -102,9 +106,8 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>::matchAndRewrite(
     int64_t constant = op.getValue();
     Type intType = rewriter.getIntegerType(32);
     Value result = op.getResult();
-    result.setType(intType);
+    // result.setType(intType);
     Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantIntOp>(op, constant, intType);
-    
     return mlir::success();
 
 }
@@ -118,8 +121,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantBoolOp>::matchAndRewrite
     Type boolType = rewriter.getI1Type();
 
     Value result = op.getResult();
-    result.setType(boolType);
-
+    // result.setType(boolType);
     Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, boolType, rewriter.getBoolAttr(constant));
     return mlir::success();
 
@@ -148,7 +150,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantFloatOp>::matchAndRewrit
     
     mlir::FloatType floatType = rewriter.getF32Type();
     Value result = op.getResult();
-    result.setType(floatType);
+    // result.setType(floatType);
 
     Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantFloatOp>(op, constant, floatType);
     return mlir::success();
@@ -167,7 +169,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrit
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    input.setType(convertor->convertType(input.getType()));
+    scalar.setType(convertor->convertType(scalar.getType()));
+    // result.setType(resultType);
 
     rewriter.replaceOpWithNewOp<vllm_graph::DivScalarOp>(op, resultType, input, scalar);
 
@@ -188,7 +192,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPowTensorScalarOp>::matchAnd
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    input.setType(convertor->convertType(input.getType()));
+    exponent.setType(convertor->convertType(exponent.getType()));
+    // result.setType(resultType);
     
     rewriter.replaceOpWithNewOp<vllm_graph::PowOp>(op, resultType, input, exponent);
 
@@ -210,8 +216,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrit
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
-
+    Tensor1.setType(convertor->convertType(Tensor1.getType()));
+    Tensor2.setType(convertor->convertType(Tensor2.getType()));
+    Alpha.setType(convertor->convertType(Alpha.getType()));
 
     assert(Tensor1.getType() == Tensor2.getType() && "The dtypes of the tensors1 must match");
 
@@ -231,7 +238,10 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenUnsqueezeOp>::matchAndRewrit
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    // result.setType(resultType);
+    input.setType(convertor->convertType(input.getType()));
+
+    dim.setType(convertor->convertType(dim.getType()));    
 
     rewriter.replaceOpWithNewOp<vllm_graph::UnsqueezeOp>(op, resultType, input, dim);
 
@@ -250,7 +260,11 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSqueezeDimOp>::matchAndRewri
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+
+    input.setType(convertor->convertType(input.getType()));
+
+    dim.setType(convertor->convertType(dim.getType()));    
+    // result.setType(resultType);
 
     rewriter.replaceOpWithNewOp<vllm_graph::SqueezeOp>(op, resultType, input, dim);
 
@@ -271,7 +285,10 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddScalarOp>::matchAndRewrit
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+
+    Operand1.setType(convertor->convertType(Operand1.getType()));
+    Operand2.setType(convertor->convertType(Operand2.getType()));
+    Alpha.setType(convertor->convertType(Alpha.getType()));
 
     rewriter.replaceOpWithNewOp<vllm_graph::AddOp>(op, resultType, Operand1, Operand2, Alpha);
     return mlir::success();
@@ -290,7 +307,11 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenRsubScalarOp>::matchAndRewri
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    // result.setType(resultType);
+
+    Operand1.setType(convertor->convertType(Operand1.getType()));
+    Operand2.setType(convertor->convertType(Operand2.getType()));
+    Alpha.setType(convertor->convertType(Alpha.getType()));
 
     rewriter.replaceOpWithNewOp<vllm_graph::SubOp>(op, resultType, Operand2, Operand1, Alpha);
     return mlir::success();
@@ -309,11 +330,13 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulScalarOp>::matchAndRewrit
     Value result = op.getResult();
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    // result.setType(resultType);
 
     if(!isa<mlir::torch::Torch::IntType>(Operand2.getType()) || isa<mlir::torch::Torch::FloatType>(Operand2.getType()))
         assert(false && "Scalar must be integer or float");
 
+    Operand1.setType(convertor->convertType(Operand1.getType()));
+    Operand2.setType(convertor->convertType(Operand2.getType()));
 
     rewriter.replaceOpWithNewOp<vllm_graph::MulOp>(op, resultType, Operand1, Operand2);
     return mlir::success();
@@ -333,7 +356,10 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulTensorOp>::matchAndRewrit
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    // result.setType(resultType);
+
+    Tensor1.setType(convertor->convertType(Tensor1.getType()));
+    Tensor2.setType(convertor->convertType(Tensor2.getType()));
 
     assert(Tensor1.getType() == Tensor2.getType() && "The dtypes of the tensors1 must match");
 
@@ -355,7 +381,12 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>::matchAndRew
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+
+    Input.setType(convertor->convertType(Input.getType()));
+    dim0.setType(convertor->convertType(dim0.getType()));
+    dim1.setType(convertor->convertType(dim1.getType()));
+
+    // result.setType(resultType);
     rewriter.replaceOpWithNewOp<vllm_graph::TransposeOp>(op, resultType, Input, dim0, dim1);
     
     return mlir::success();
@@ -371,13 +402,12 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndR
     Value Literalvalue = op.getResult();
     auto LiteralType = cast<mlir::torch::Torch::ValueTensorType>(Literalvalue.getType());
     assert(LiteralType && "Only Value tensor supported as of now");
-    Type elemType = LiteralType.getOptionalDtype();
-    SmallVector<int64_t> shape = cast<SmallVector<int64_t>>(LiteralType.getOptionalSizes());
-    
-    RankedTensorType LiteralTensorType = RankedTensorType::get(shape, elemType);
-    Literalvalue.setType(LiteralTensorType);
-    rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, LiteralTensorType, adaptor.getValue());
-    
+
+    const TypeConverter *convertor = getTypeConverter();
+    Type LiteralTensorType = convertor->convertType(Literalvalue.getType());
+
+    // Literalvalue.setType(LiteralTensorType);
+    rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, LiteralTensorType, adaptor.getValue());
     return success();
 }
 
@@ -393,7 +423,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>::matchAndRewrite(
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    // result.setType(resultType);
+    input.setType(convertor->convertType(input.getType()));
+    weight.setType(convertor->convertType(weight.getType()));
 
     rewriter.replaceOpWithNewOp<vllm_graph::MatmulOp>(op, resultType, input, weight);
     return mlir::success();
@@ -411,7 +443,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBmmOp>::matchAndRewrite(
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    // result.setType(resultType);
+    input.setType(convertor->convertType(input.getType()));
+    weight.setType(convertor->convertType(weight.getType()));
 
     rewriter.replaceOpWithNewOp<vllm_graph::BMMOp>(op, resultType, input, weight);
     return mlir::success();
@@ -438,7 +472,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>::matchAndRewri
 
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    // result.setType(resultType);
+    input.setType(convertor->convertType(input.getType()));
+    dim.setType(convertor->convertType(dim.getType()));
 
     rewriter.replaceOpWithNewOp<vllm_graph::SoftmaxOp>(op, resultType, input, dim);
 
@@ -459,8 +495,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::Aten_SoftmaxOp>::matchAndRewrite
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
-
+    // result.setType(resultType);
+    input.setType(convertor->convertType(input.getType()));
+    dim.setType(convertor->convertType(dim.getType()));
     
     rewriter.replaceOpWithNewOp<vllm_graph::SoftmaxOp>(op, resultType, input, dim);
     return success();
@@ -478,7 +515,11 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
         const TypeConverter *convertor = getTypeConverter();
         Value result = op.getResult();
         Type resultType = convertor->convertType(op.getResult().getType());
-        result.setType(resultType);
+        // result.setType(resultType);    auto operandType = mlir::cast<mlir::torch::Torch::ValueTensorType>(operand.getType());
+
+        input.setType(convertor->convertType(input.getType()));
+        shape.setType(convertor->convertType(shape.getType()));
+
         rewriter.replaceOpWithNewOp<vllm_graph::ViewOp>(op, resultType, input, shape);
         
         return success();
@@ -497,7 +538,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenWhereSelfOp>::matchAndRewrit
         const TypeConverter *convertor = getTypeConverter();
         Value result = op.getResult();
         Type resultType = convertor->convertType(op.getResult().getType());
-        result.setType(resultType);
+        // result.setType(resultType);
+        condition.setType(convertor->convertType(condition.getType()));
+        trueInput.setType(convertor->convertType(trueInput.getType()));
 
         rewriter.replaceOpWithNewOp<vllm_graph::WhereOp>(op, resultType, condition, trueInput, falseInput);
         return success();
@@ -513,7 +556,9 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+    for(auto Operand : operandRange){
+        Operand.setType(convertor->convertType(Operand.getType()));
+    }
 
     ValueRange newValueRange(operandRange);
     rewriter.replaceOpWithNewOp<vllm_graph::ListOp>(op, resultType, newValueRange);
@@ -534,7 +579,10 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenEmbeddingOp>::matchAndRewrit
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    result.setType(resultType);
+
+    weight.setType(convertor->convertType(weight.getType()));
+    input.setType(convertor->convertType(input.getType()));
+    // result.setType(resultType);
 
     rewriter.replaceOpWithNewOp<vllm_graph::EmbeddingOp>(op, resultType, input, weight);
     return success();
@@ -546,6 +594,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     mlir::torch::Torch::AtenSliceTensorOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
+    MLIRContext *context = getContext();
     Value self = op.getOperand(0);
     Value dim = op.getOperand(1);
     Value start = op.getOperand(2);
@@ -567,14 +616,18 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     int64_t shape[] = {x};
     Type elemType = rewriter.getIntegerType(32);
 
-    RankedTensorType IndicesType = RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
+    auto IndicesType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(shape, 1), elemType);//RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
     
-    auto denseAttr = DenseElementsAttr::get(IndicesType, range_array);
-    Value constRangeValOp = rewriter.create<arith::ConstantOp>(loc, IndicesType, denseAttr);
+    ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
+    auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
+
+    Value constRangeValOp = rewriter.create<vllm_graph::ValueTensorLiteralOp>(loc, IndicesType, denseAttr);
 
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
+    self.setType(convertor->convertType(self.getType()));
+    dim.setType(convertor->convertType(dim.getType()));
     // result.setType(resultType);
     
     Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, self, dim, constRangeValOp);
@@ -603,7 +656,14 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>::matchAnd
     Value result = op.getResult(0);
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult(0).getType());
-    result.setType(resultType);
+
+    inputArg.setType(convertor->convertType(inputArg.getType()));
+    normalisedShape.setType(convertor->convertType(normalisedShape.getType()));
+    weight.setType(convertor->convertType(weight.getType()));
+    bias.setType(convertor->convertType(bias.getType()));
+    epsilon.setType(convertor->convertType(epsilon.getType()));
+
+    // result.setType(resultType);
     vllm_graph::LayerNormOp layerNormOp = rewriter.create<vllm_graph::LayerNormOp>(loc, resultType, inputArg, normalisedShape, weight, bias, epsilon);
     OldResult.replaceAllUsesWith(layerNormOp.getResult());
     rewriter.eraseOp(cast<Operation*>(op));
@@ -619,13 +679,57 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBroadcastToOp>::matchAndRewr
         Value shape = op.getOperand(1);
 
         Value result = op.getResult();
+
+        // if(result.use_empty())
+        // {
+        //     rewriter.eraseOp(cast<Operation*>(op));
+        //     return success();
+        // }
         const TypeConverter *convertor = getTypeConverter();
         Type resultType = convertor->convertType(op.getResult().getType());
-        result.setType(resultType);
+        // result.setType(resultType);
+        input.setType(convertor->convertType(input.getType()));
+        shape.setType(convertor->convertType(shape.getType()));
+       
         rewriter.replaceOpWithNewOp<vllm_graph::BroadCastOp>(op, resultType, input, shape);
 
         return success();
+
+}
+
+template<>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenToDtypeOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenToDtypeOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter ) const {
+
+
+        Value input = op.getOperand(0);
+        Value dtype = op.getOperand(1);
+
+        const TypeConverter *convertor = getTypeConverter();
+
+        int dtype_val = dtype.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
+
+        Value result = op.getResult();
+
+        auto resultType = cast<mlir::torch::Torch::ValueTensorType>(result.getType());
+        Type elemType = resultType.getOptionalDtype();
+
+        input.setType(convertor->convertType(input.getType()));
+        dtype.setType(convertor->convertType(dtype.getType()));
         
+
+        //Erasing Op when float to float conversion 
+        if(isa<mlir::torch::Torch::FloatType>(elemType) && dtype_val == 6){
+            result.replaceAllUsesWith(input);
+            rewriter.eraseOp(cast<Operation*>(op));
+        } else {
+            const TypeConverter *convertor = getTypeConverter();
+            Type resultType = convertor->convertType(op.getResult().getType());
+            rewriter.replaceOpWithNewOp<vllm_graph::DtypeCastOp>(op, resultType, input, dtype);
+        }
+
+        return success();
 
 }
 
@@ -645,7 +749,15 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>::matchAndRewrite(
         Value result = op.getResult();
         const TypeConverter *convertor = getTypeConverter();
         Type resultType = convertor->convertType(op.getResult().getType());
-        result.setType(resultType);
+        // result.setType(resultType);
+
+        bias.setType(convertor->convertType(bias.getType()));
+        input.setType(convertor->convertType(input.getType()));
+        weight.setType(convertor->convertType(weight.getType()));
+        Alpha.setType(convertor->convertType(Alpha.getType()));
+        beta.setType(convertor->convertType(beta.getType()));
+
+
 
         rewriter.replaceOpWithNewOp<vllm_graph::AddmmOp>(op, resultType, bias, input, weight, Alpha, beta);
         
@@ -665,7 +777,10 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPermuteOp>::matchAndRewrite(
         Value result = op.getResult();
         const TypeConverter *convertor = getTypeConverter();
         Type resultType = convertor->convertType(op.getResult().getType());
-        result.setType(resultType);
+
+        input.setType(convertor->convertType(input.getType()));
+        shape.setType(convertor->convertType(shape.getType()));
+        // result.setType(resultType);
         rewriter.replaceOpWithNewOp<vllm_graph::PermuteOp>(op, resultType, input, shape);
 
         return success();
@@ -673,23 +788,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPermuteOp>::matchAndRewrite(
 
 }
 
-
-template <>
-LogicalResult EraseOp<mlir::vllm_graph::CastOp>::matchAndRewrite(
-    mlir::vllm_graph::CastOp op, OpAdaptor adaptor,
-    ConversionPatternRewriter &rewriter) const {
-    
-    
-    Value operand = op.getOperand();
-    Value result = op.getResult();
-    auto operandType = mlir::cast<mlir::torch::Torch::ValueTensorType>(operand.getType());
-
-    result.replaceAllUsesWith(operand);
-    rewriter.eraseOp(cast<Operation*>(op));
-    
-    return success();
-
-    }
 
 
 template <>
@@ -700,7 +798,9 @@ LogicalResult EraseOp<mlir::torch::Torch::AtenDropoutOp>::matchAndRewrite(
     
         MLIRContext *context = getContext();
         Value operand = op.getOperand(0);
-        
+
+        const TypeConverter *convertor = getTypeConverter();
+        operand.setType(convertor->convertType(operand.getType()));
         Value result = op.getResult();
 
         result.replaceAllUsesWith(operand);
@@ -738,10 +838,25 @@ public:
             return IntegerType::get(context, 32);
         });
 
+        addConversion([context](torch::Torch::BoolType type) -> std::optional<Type> {
+            return IntegerType::get(context, 1);
+        });
+
         addConversion([context](torch::Torch::ListType type) -> std::optional<Type> {
             auto containedType = convertvLLMContainedType(type, context);
             return vllm_graph::ListType::get(context, containedType);
         });
+
+        addSourceMaterialization([](OpBuilder &builder, Type type, ValueRange inputs, Location loc) -> Value {
+
+            return builder.create<vllm_graph::CastOp>(loc, type, inputs[0]).getResult();
+        });
+
+        addTargetMaterialization([](OpBuilder &builder, Type type, ValueRange inputs, Location loc) -> Value {
+
+            return builder.create<vllm_graph::CastOp>(loc, type, inputs[0]).getResult();
+        });
+
 
     }
 
@@ -855,6 +970,11 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenNativeLayerNormOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>>(typeConverter,        
                                                          context);
+            
+        target.addIllegalOp<mlir::torch::Torch::AtenToDtypeOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenToDtypeOp>>(typeConverter,        
+                                                         context);
+
         target.addIllegalOp<mlir::torch::Torch::AtenTanhOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>>(typeConverter,        
                                                          context);
@@ -884,9 +1004,9 @@ public:
                                                          context);
 
         //Erased operations
-        target.addIllegalOp<mlir::vllm_graph::CastOp>();
-        patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        
-                                                         context);
+        // target.addIllegalOp<mlir::vllm_graph::CastOp>();
+        // patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        
+        //                                                  context);
         
         
         target.addIllegalOp<mlir::torch::Torch::AtenDropoutOp>();

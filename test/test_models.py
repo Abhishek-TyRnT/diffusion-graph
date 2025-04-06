@@ -191,3 +191,12 @@ class Where(Module):
     
     def forward(self, condition, input, other):
         return torch.where(condition, input, other)
+
+class Cast(Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = dtype
+    
+    def forward(self, input):
+        return input.to(self.dtype)
+    

@@ -12,6 +12,8 @@ include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "vllm_graph/Dialect/IR/vLLMGraphTypes.td"
+include "mlir/IR/OpBase.td"
+
 
 class vLLMGraph_Op<string mnenomic, list<Trait> traits = []>
     : Op<vLLMGraphIR_Dialect, mnenomic, traits> {
@@ -76,6 +78,28 @@ def vllm_ListOp: vLLMGraph_Op<"vllm.list_op", [
     $elements attr-dict `:` functional-type(operands, results)
   }];
 }
+
+def vllm_ValueTensorLiteralOp : vLLMGraph_Op<"constant.tensor", [
+    ConstantLike,
+    Pure,
+  ]> {
+  let summary = "Create a value of !vllm_graph.constant.tensor type from a literal";
+  let description = [{
+    Example:
+    ```
+    Constant tensor storage for parameters
+    ```
+  }];
+  let arguments = (ins ElementsAttr:$value);
+  let results = (outs Torch_ValueTensorType:$result);
+
+  let assemblyFormat = [{
+    `(` $value `)` attr-dict `:` qualified(type($result))
+  }];
+
+  let hasFolder = 1;
+}
+
 
 
 #endif // VLLMGRAPH_OPS

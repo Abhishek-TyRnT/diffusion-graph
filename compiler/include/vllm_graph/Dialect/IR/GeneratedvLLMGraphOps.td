@@ -544,7 +544,7 @@ def vllm_WhereOp : vLLMGraph_Op<"vllm.where", [
     vLLMHasValueSemantics,
     vLLMReadOnly
   ]> {
-    let summary = "Generated op for 1 vllm::where : (Tensor, TensororScalar, TensororScalar) -> (Tensor)";
+    let summary = "Generated op for vllm::where : (Tensor, TensororScalar, TensororScalar) -> (Tensor)";
     let arguments = (ins 
         TorchTypeOrTensorType : $input,
         TensorOrScalarType : $trueInput,
@@ -560,6 +560,33 @@ def vllm_WhereOp : vLLMGraph_Op<"vllm.where", [
             return parseDefaultvLLMGraphOp(parser, result, 1, 1);
         }
         void WhereOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}
+
+def vllm_DtypeCastOp : vLLMGraph_Op<"vllm.cast_dtype",[
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+]> {
+
+    let summary = "Generated op for vllm::cast_dtype : (Tensor, int ) -> (Tensor)";
+    let arguments = (ins
+        AnyTorchTensorType: $input,
+        I32: $dtype
+    );
+
+    let results = (outs
+        AnyTorchTensorType: $result
+    );
+
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult DtypeCastOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+        }
+        void DtypeCastOp::print(OpAsmPrinter &printer) {
             printDefaultvLLMGraphOp(printer, *this, 1, 1);
         }
     }];

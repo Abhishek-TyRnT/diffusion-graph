@@ -1,6 +1,5 @@
 
 set(PROTO_FILE ${CMAKE_CURRENT_SOURCE_DIR}/weightBuffers.proto)
-message(${PROTO_FILE})
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILE})
 
 # Generate Python code from Proto file

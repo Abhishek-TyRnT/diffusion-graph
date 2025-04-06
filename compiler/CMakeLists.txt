@@ -35,9 +35,8 @@ include_directories(${HDF5_INCLUDE_DIRS})
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-
 list(APPEND CMAKE_MODULE_PATH ${MLIR_MAIN_SRC_DIR}/cmake/modules)
-list(APPEND CMAKE_MODULE_PATH ${LLVM_MAIN_SRC_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${LLVM_MAIN_SRC_DIR}/cmake/modules)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 

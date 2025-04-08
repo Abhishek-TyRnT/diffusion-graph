@@ -8,10 +8,14 @@ Type mlir::vllm_graph::convertTorchvTypeTovLLMvType(Type type, MLIRContext *cont
     auto torchvTensor = cast<mlir::torch::Torch::ValueTensorType>(type);
     if(torchvTensor){
         Type opType;
+        Type elemType = torchvTensor.getOptionalDtype();
+        if(elemType.isF64())
+            elemType = Float32Type::get(context);
+        
         vllm_graph::ValueTensorType vLLMvTensor;
         vLLMvTensor = vLLMvTensor.get(context, 
                         torchvTensor.getOptionalSizes(), 
-                        torchvTensor.getOptionalDtype(), 
+                        elemType, 
                         torchvTensor.getOptionalSparsity());
         opType = cast<Type>(vLLMvTensor);
         return opType;

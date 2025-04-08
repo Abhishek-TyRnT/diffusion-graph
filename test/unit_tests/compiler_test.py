@@ -57,7 +57,8 @@ def test_vllm_graph_compiler_from_mlir(filename):
         (1, 0), (torch.randn(25, 10),)],
     [AttentionHead,  ["convert-global-function-pass","inline-dialect-resource-dict-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
         (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-    [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)]
+    [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)],
+    [Cast, ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, vllm-canonicalizer-pass, vllm-canonicalizer-pass, recompose-simple-ops-to-complex)" ], (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)]
      ))
 def test_vllm_graph_compiler_passes_from_models(model,
                                                 pass_list,
@@ -90,24 +91,24 @@ def test_vllm_graph_compiler_passes_from_models(model,
 
 
 @pytest.mark.parametrize("model, model_args, inputs",(
-    #  [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
-    #  [RSub, (2.,), (torch.randn(224, 10, 3),)],
-    #  [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
-    #  [ReluModule, (), (torch.randn(1, 10, 5))],
-    #  [Softmax, (1,), (torch.randn(1, 10, 5))],
-    #  [Transpose, (1, 0), (torch.randn(25, 10),)],
-    #  [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
-    #  [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-    #  [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
-    #  [Tanh, (), (torch.randn(3, 256, 1024),)],
-    #  [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
-    #  [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
-    #  [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
-    #  [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
-    #  [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
-    #  [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
-    #  [SqueezeOp, (1,), (torch.randn(2, 8),)],
-    #  [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
+     [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+     [RSub, (2.,), (torch.randn(224, 10, 3),)],
+     [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
+     [ReluModule, (), (torch.randn(1, 10, 5))],
+     [Softmax, (1,), (torch.randn(1, 10, 5))],
+     [Transpose, (1, 0), (torch.randn(25, 10),)],
+     [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
+     [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
+     [Tanh, (), (torch.randn(3, 256, 1024),)],
+     [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+     [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
+     [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
+     [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
+     [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
+     [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
+     [SqueezeOp, (1,), (torch.randn(2, 8),)],
+     [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
      [Cast, (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)],
      [Cast, (torch.float,), (torch.rand(2, 5, dtype=torch.double),)],
      ))
@@ -130,6 +131,8 @@ def test_vllm_graph_compiler_from_models(model,
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
         f.write(str(torchIR))
+    
+    print(torchIR)
     cmd = ["vllm-graph" ,filename]
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = process.returncode

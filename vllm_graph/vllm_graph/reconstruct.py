@@ -169,7 +169,9 @@ class vLLMGraph:
             if node_type == "input_arg":
                 graph_nodes[node] = graph.placeholder(node)
             
-            elif node_type == "arith.constant" or node_type == "vllm_graph.vllm.const_tuple":
+            elif node_type == "arith.constant" or \
+                 node_type == "vllm_graph.vllm.const_tuple" or \
+                 node_type == "vllm_graph.constant.tensor" :
                 ssa_id = node.split(".")[0]
                 graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
             

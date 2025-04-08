@@ -401,7 +401,7 @@ def vllm_EmbeddingOp : vLLMGraph_Op<"vllm.embedding", [
     let summary = "Generated op for `vllm::embedding : (Tensor, Tensor) -> Tensor`";
     let arguments = (ins
         AnyTorchTensorType:$input,
-        F32Tensor:$weight
+        AnyTorchTensorType:$weight
         );
 
     let results = (outs

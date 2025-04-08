@@ -407,6 +407,26 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndR
     Type LiteralTensorType = convertor->convertType(Literalvalue.getType());
 
     // Literalvalue.setType(LiteralTensorType);
+    DenseElementsAttr values = mlir::cast<DenseElementsAttr>(adaptor.getValue());
+
+    if(values && values.getElementType().isF64()){
+        SmallVector<float, 16> floatValues;
+        bool losesInfo;
+        for (auto val : values.getValues<APFloat>()) {
+            APFloat floatVal = val; // Copy
+            floatVal.convert(APFloat::IEEEsingle(), APFloat::rmNearestTiesToEven, &losesInfo);
+            floatValues.push_back(floatVal.convertToFloat());
+        }
+
+        if(losesInfo){
+            llvm::errs() << "Warning: Precision loss or rounding occurred during conversion.\n";
+        }
+        // Create the new f32 type
+        ArrayRef<int64_t> shape(LiteralType.getOptionalSizes()->begin(), LiteralType.getOptionalSizes()->end());
+        auto f32Type = RankedTensorType::get(shape, rewriter.getF32Type());
+        values = DenseElementsAttr::get(f32Type, floatValues);
+
+    }
     rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, LiteralTensorType, adaptor.getValue());
     return success();
 }
@@ -541,6 +561,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenWhereSelfOp>::matchAndRewrit
         // result.setType(resultType);
         condition.setType(convertor->convertType(condition.getType()));
         trueInput.setType(convertor->convertType(trueInput.getType()));
+        falseInput.setType(convertor->convertType(falseInput.getType()));
 
         rewriter.replaceOpWithNewOp<vllm_graph::WhereOp>(op, resultType, condition, trueInput, falseInput);
         return success();
@@ -1002,12 +1023,6 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenPermuteOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenPermuteOp>>(typeConverter,        
                                                          context);
-
-        //Erased operations
-        // target.addIllegalOp<mlir::vllm_graph::CastOp>();
-        // patterns.add<EraseOp<mlir::vllm_graph::CastOp>>(typeConverter,        
-        //                                                  context);
-        
         
         target.addIllegalOp<mlir::torch::Torch::AtenDropoutOp>();
         patterns.add<EraseOp<mlir::torch::Torch::AtenDropoutOp>>(typeConverter,        

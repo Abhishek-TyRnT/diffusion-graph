@@ -37,7 +37,6 @@ LogicalResult EraseOp<vllm_graph::CastOp>::matchAndRewrite(
     Value result = op.getResult();
     const TypeConverter *convertor = getTypeConverter();
     
-    
     result.replaceAllUsesWith(operand);
     rewriter.eraseOp(cast<Operation*>(op));
 
@@ -110,19 +109,22 @@ public:
         MLIRContext *context = &getContext();
         vLLMGraphConversion typeConverter(context);
         RewritePatternSet patterns(context);
+        ConversionTarget target(*context);
+        // target.addILegalDialect<vllm_graph::vLLMGraphIRDialect, arith::ArithDialect, func::FuncDialect>();
+
 
         patterns.add<EraseOp<vllm_graph::CastOp>>(typeConverter,        
                                                          context);
 
         patterns.add<EraseOp<vllm_graph::BroadCastOp>>(typeConverter,        
                                                          context);
+        
+        patterns.add<EraseOp<vllm_graph::DtypeCastOp>>(typeConverter,        
+                                                         context);
 
-        GreedyRewriteConfig config;
-        config.useTopDownTraversal = true;
-        config.maxIterations = GreedyRewriteConfig::kNoLimit;
 
-        if (failed(applyPatternsGreedily(getOperation(), std::move(patterns),
-                                            config)))
+        if (failed(applyPartialConversion(getOperation(), target,
+                                      std::move(patterns))))
             return signalPassFailure();
     }
 };

@@ -95,9 +95,18 @@ void GraphWriter::addOp(mlir::Operation *op){
         std::unordered_map<std::string, NestedValueType> map;
         mlir::Type resType = res.getType();
         //Case when it's a constant op 
-        if(mlir::isa<mlir::arith::ConstantOp>(*op)){
-            auto constOp = mlir::cast<mlir::arith::ConstantOp>(*op);
-            auto attr = constOp.getValue();
+        if(mlir::isa<mlir::arith::ConstantOp>(*op) || 
+            mlir::isa<vllm_graph::ValueTensorLiteralOp>(*op)){
+            llvm::outs() << *op << "\n";
+            TypedAttr attr;
+            if(mlir::isa<mlir::arith::ConstantOp>(*op)){
+                auto constOp = mlir::cast<mlir::arith::ConstantOp>(*op);
+                attr = constOp.getValue();
+            }
+            else{
+                auto constOp = mlir::cast<vllm_graph::ValueTensorLiteralOp>(*op);
+                attr = constOp.getValue();
+            }
             if (auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr)) {
                 storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
             } else if(auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(attr)){

@@ -3,6 +3,7 @@ add_mlir_library(vLLMGraphTransformPasses
   TransformPasses.cpp
   recompositionPass.cpp
   InlineDialectResourcesDictPass.cpp
+  vLLMCanonicalizerPass.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${PROJECT_SOURCE_DIR}/include/vllm_graph/Dialect/Transform

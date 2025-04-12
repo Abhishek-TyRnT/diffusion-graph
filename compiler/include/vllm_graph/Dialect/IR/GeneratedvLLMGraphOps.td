@@ -48,8 +48,32 @@ def vllm_AddOp : vLLMGraph_Op<"vllm.add", [
             printDefaultvLLMGraphOp(printer, *this, 1, 1);
         }
     }];
+}
 
-
+def vllm_SubOp : vLLMGraph_Op<"vllm.sub", [
+        vLLMAllowsTypeRefinement,
+        vLLMHasValueSemantics,
+        vLLMReadOnly
+    ]> {
+    
+    let summary = "Generated op for `vllm::sub : (Tensor?, Tensor? , scalar) -> (Tensor)`";
+    let arguments = (ins 
+        TensorOrScalarType:$input1, 
+        TensorOrScalarType:$input2,  
+        I32:$alpha);
+    
+    let results = (outs
+                AnyTorchTensorType:$result);
+    
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult SubOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void SubOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
 }
 
 def vllm_MulOp : vLLMGraph_Op<"vllm.mul", [
@@ -377,7 +401,7 @@ def vllm_EmbeddingOp : vLLMGraph_Op<"vllm.embedding", [
     let summary = "Generated op for `vllm::embedding : (Tensor, Tensor) -> Tensor`";
     let arguments = (ins
         AnyTorchTensorType:$input,
-        F32Tensor:$weight
+        AnyTorchTensorType:$weight
         );
 
     let results = (outs
@@ -442,4 +466,128 @@ def vllm_PermuteOp : vLLMGraph_Op<"vllm.permute", [
             printDefaultvLLMGraphOp(printer, *this, 1, 1);
         }
     }];    
+}
+
+def vllm_IndexSelectOp : vLLMGraph_Op<"vllm.index_select", [
+    vLLMAllowsTypeRefinement,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::index_select : (Tensor, int, Tesnor) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    I32:$dim,
+    TorchTypeOrTensorType:$indices
+  );
+  
+  let results = (outs
+    AnyTorchTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult IndexSelectOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void IndexSelectOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+  }];
+}
+
+def vllm_UnsqueezeOp : vLLMGraph_Op<"vllm.unsqueeze", [
+    vLLMAllowsTypeRefinement,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::unsqueeze : (Tensor, int) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    I32:$dim
+  );
+  let results = (outs
+    AnyTorchTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult UnsqueezeOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void UnsqueezeOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+  }];
+}
+
+def vllm_SqueezeOp : vLLMGraph_Op<"vllm.squeeze", [
+    vLLMAllowsTypeRefinement,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::squeeze : (Tensor, int) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    I32:$dim
+  );
+  let results = (outs
+    AnyTorchTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult SqueezeOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+    }
+    void SqueezeOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 1, 1);
+    }
+  }];
+}
+
+def vllm_WhereOp : vLLMGraph_Op<"vllm.where", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for vllm::where : (Tensor, TensororScalar, TensororScalar) -> (Tensor)";
+    let arguments = (ins 
+        TorchTypeOrTensorType : $input,
+        TensorOrScalarType : $trueInput,
+        TensorOrScalarType : $falseInput
+    );
+    
+    let results = (outs
+        AnyTorchTensorType: $result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult WhereOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        }
+        void WhereOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
+}
+
+def vllm_DtypeCastOp : vLLMGraph_Op<"vllm.cast_dtype",[
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+]> {
+
+    let summary = "Generated op for vllm::cast_dtype : (Tensor, int ) -> (Tensor)";
+    let arguments = (ins
+        AnyTorchTensorType: $input,
+        I32: $dtype
+    );
+
+    let results = (outs
+        AnyTorchTensorType: $result
+    );
+
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+        ParseResult DtypeCastOp::parse(OpAsmParser &parser, OperationState &result) {
+            return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+        }
+        void DtypeCastOp::print(OpAsmPrinter &printer) {
+            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        }
+    }];
 }

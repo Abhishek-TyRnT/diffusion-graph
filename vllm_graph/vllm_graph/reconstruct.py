@@ -76,9 +76,12 @@ class vLLMGraph:
             kind = spec.kind
             #Buffers
             if kind == InputKind.BUFFER:
-                self.arg_dict[index] = {"target" : spec.target,
-                                         "kind": "buffer",
-                                         "value": getattr(model, spec.target)
+                sub_model = model
+                for target in spec.target.split("."):
+                    sub_model = getattr(sub_model, target)
+                self.arg_dict[index] = {"target" : spec.target.replace(".", "_"),
+                                        "kind": "buffer",
+                                        "value": sub_model
                                         }
                 index +=1
             
@@ -166,7 +169,9 @@ class vLLMGraph:
             if node_type == "input_arg":
                 graph_nodes[node] = graph.placeholder(node)
             
-            elif node_type == "arith.constant" or node_type == "vllm_graph.vllm.const_tuple":
+            elif node_type == "arith.constant" or \
+                 node_type == "vllm_graph.vllm.const_tuple" or \
+                 node_type == "vllm_graph.constant.tensor" :
                 ssa_id = node.split(".")[0]
                 graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
             
@@ -175,7 +180,7 @@ class vLLMGraph:
                 list_nodes = [graph_nodes[inp] for inp in self.graph_dict[node]['input_nodes']]
                 graph_nodes[node] = list_nodes
 
-            elif node_type == "vllm_graph.vllm.add":
+            elif node_type in ["vllm_graph.vllm.add", "vllm_graph.vllm.sub"]:
                 add_func = OP_MAP.get(node_type, None)
                 input_args = []
                 input_kwargs = {}

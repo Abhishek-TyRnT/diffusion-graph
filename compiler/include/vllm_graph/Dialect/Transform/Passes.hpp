@@ -16,6 +16,7 @@ std::unique_ptr<OperationPass<ModuleOp>> createConvertGlobalFunctionPass();
 std::unique_ptr<OperationPass<ModuleOp>> createInlineDialectResourcesDictPass();
 
 std::unique_ptr<OperationPass<func::FuncOp>> createRecomposeSimpleOpsToComplexOps();
+std::unique_ptr<OperationPass<func::FuncOp>> createvLLMCanonicalizerPass();
 
 void createTorchTovLLMGraphPipeline(PassManager &pm);
 

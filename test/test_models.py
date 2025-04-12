@@ -150,3 +150,53 @@ class Permute(Module):
         self.shape = shape
     def forward(self, inputs):
         return torch.permute(inputs, self.shape)
+    
+class SliceTensorDim1axis(Module):
+    def __init__(self, start, end, step):
+        super().__init__()
+        self.start = start
+        self.end = end
+        self.step = step
+    
+    def forward(self, inputs):
+        return inputs[:, self.start: self.end: self.step]
+    
+class UnSqueezeOp(Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+    
+    def forward(self, input):
+        return torch.unsqueeze(input, self.dim)
+    
+class SqueezeOp(Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+    
+    def forward(self, input):
+        return torch.squeeze(input, self.dim)
+
+class RSub(Module):
+    def __init__(self, x):
+        super().__init__()
+        self.x = x
+    
+    def forward(self, y):
+        return self.x - y
+
+class Where(Module):
+    def __init__(self, ):
+        super().__init__()
+    
+    def forward(self, condition, input, other):
+        return torch.where(condition, input, other)
+
+class Cast(Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = dtype
+    
+    def forward(self, input):
+        return input.to(self.dtype)
+    

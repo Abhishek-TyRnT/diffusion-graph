@@ -5,3 +5,4 @@ pybind11
 ninja
 pytest
 protobuf
+nanobind

@@ -15,15 +15,26 @@ template<>
 void GraphWriter::storeWeights<mlir::DenseElementsAttr>(mlir::DenseElementsAttr val, std::string ssa_id){
     Type type = val.getElementType();
     if(isa<IntegerType>(type))
-    {    
-        std::vector<int64_t> denseVal(val.getValues<int64_t>().begin(), val.getValues<int64_t>().end());
-        auto* int_proto = constData.add_integerweights();
-        int_proto->set_name("weight_datasets" + ssa_id);
-        
-        // Add entire vector at once
-        auto* values_field = int_proto->mutable_values();
-        values_field->Reserve(denseVal.size());
-        values_field->Add(denseVal.begin(), denseVal.end());
+    {   
+        if(type.isInteger(64)){        
+            std::vector<int64_t> denseVal(val.getValues<int64_t>().begin(), val.getValues<int64_t>().end());
+            auto* int_proto = constData.add_integerweights();
+            int_proto->set_name("weight_datasets" + ssa_id);
+            
+            // Add entire vector at once
+            auto* values_field = int_proto->mutable_values();
+            values_field->Reserve(denseVal.size());
+            values_field->Add(denseVal.begin(), denseVal.end());
+        } else {
+            std::vector<int32_t> denseVal(val.getValues<int32_t>().begin(), val.getValues<int32_t>().end());
+            auto* int_proto = constData.add_integerweights();
+            int_proto->set_name("weight_datasets" + ssa_id);
+            
+            // Add entire vector at once
+            auto* values_field = int_proto->mutable_values();
+            values_field->Reserve(denseVal.size());
+            values_field->Add(denseVal.begin(), denseVal.end());
+        }
 
     } else { 
         std::vector<float> denseVal(val.getValues<float>().begin(), val.getValues<float>().end());
@@ -84,9 +95,17 @@ void GraphWriter::addOp(mlir::Operation *op){
         std::unordered_map<std::string, NestedValueType> map;
         mlir::Type resType = res.getType();
         //Case when it's a constant op 
-        if(mlir::isa<mlir::arith::ConstantOp>(*op)){
-            auto constOp = mlir::cast<mlir::arith::ConstantOp>(*op);
-            auto attr = constOp.getValue();
+        if(mlir::isa<mlir::arith::ConstantOp>(*op) || 
+            mlir::isa<vllm_graph::ValueTensorLiteralOp>(*op)){
+            TypedAttr attr;
+            if(mlir::isa<mlir::arith::ConstantOp>(*op)){
+                auto constOp = mlir::cast<mlir::arith::ConstantOp>(*op);
+                attr = constOp.getValue();
+            }
+            else{
+                auto constOp = mlir::cast<vllm_graph::ValueTensorLiteralOp>(*op);
+                attr = constOp.getValue();
+            }
             if (auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr)) {
                 storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
             } else if(auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(attr)){

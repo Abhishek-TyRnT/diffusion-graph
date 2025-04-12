@@ -32,4 +32,15 @@ def InlineDialectResourcesDictPass : Pass<"inline-dialect-resource-dict-pass", "
     }];
 }
 
+def vLLMCanonicalizerPass : Pass<"vllm-canonicalizer-pass", "func::FuncOp"> {
+    let summary = "CanonicalizerPass for eliminating dead code and remove cast Ops.";
+    let description = [{
+        Eliminating unnecessary cast ops created during function signature change
+        and eliminating dead code
+    }];
+
+    let constructor = "mlir::vllm_graph::createvLLMCanonicalizerPass()";
+
+}
+
 #endif //VLLM_GRAPH_TRANSFORM_PASSES_H_

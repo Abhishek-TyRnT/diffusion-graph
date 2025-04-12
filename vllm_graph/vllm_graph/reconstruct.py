@@ -79,7 +79,7 @@ class vLLMGraph:
                 sub_model = model
                 for target in spec.target.split("."):
                     sub_model = getattr(sub_model, target)
-                self.arg_dict[index] = {"target" : spec.target,
+                self.arg_dict[index] = {"target" : spec.target.replace(".", "_"),
                                         "kind": "buffer",
                                         "value": sub_model
                                         }

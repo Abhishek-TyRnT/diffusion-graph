@@ -422,12 +422,13 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndR
             llvm::errs() << "Warning: Precision loss or rounding occurred during conversion.\n";
         }
         // Create the new f32 type
+        ArrayRef<float> floatArray(floatValues.begin(), floatValues.end());
         ArrayRef<int64_t> shape(LiteralType.getOptionalSizes()->begin(), LiteralType.getOptionalSizes()->end());
         auto f32Type = RankedTensorType::get(shape, rewriter.getF32Type());
-        values = DenseElementsAttr::get(f32Type, floatValues);
+        values = DenseElementsAttr::get(f32Type, floatArray);
 
     }
-    rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, LiteralTensorType, adaptor.getValue());
+    rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, LiteralTensorType, values);
     return success();
 }
 

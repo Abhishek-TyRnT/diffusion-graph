@@ -97,7 +97,6 @@ void GraphWriter::addOp(mlir::Operation *op){
         //Case when it's a constant op 
         if(mlir::isa<mlir::arith::ConstantOp>(*op) || 
             mlir::isa<vllm_graph::ValueTensorLiteralOp>(*op)){
-            llvm::outs() << *op << "\n";
             TypedAttr attr;
             if(mlir::isa<mlir::arith::ConstantOp>(*op)){
                 auto constOp = mlir::cast<mlir::arith::ConstantOp>(*op);

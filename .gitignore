@@ -6,3 +6,4 @@ test.cpp
 weight.h5
 temp_files
 build
+build_vllm

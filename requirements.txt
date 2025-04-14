@@ -1,8 +1,9 @@
 torch==2.4.0
-vllm>=0.6
 numpy
 pybind11
 ninja
 pytest
 protobuf
 nanobind
+setuptools>=61
+cmake>=3.26

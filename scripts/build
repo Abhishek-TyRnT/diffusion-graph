@@ -53,6 +53,21 @@ build_compiler(){
     cd $current_dir
 }
 
+build_vllm(){
+
+    current_dir=$(pwd)
+    cd $HOME/vllm-project
+    cmake -B build_vllm -G "Ninja" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+        -DVLLM_TARGET_DEVICE=cpu \
+        -DVLLM_PYTHON_EXECUTABLE=$(which python3) \
+        -DVLLM_PYTHON_PATH=$PYTHONPATH \
+        ./external/vllm
+    cmake --build build_vllm -j$(nproc)
+
+}
+
 clean_compiler(){
     cd $HOME
     rm -rf $HOME/vllm-project/build

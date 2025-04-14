@@ -5,7 +5,6 @@ ARG UID
 #TODO: remove h5
 RUN apt update && \
     apt install -y clang \
-                    cmake \
                     build-essential \
                     python3-pip \
                     sudo \
@@ -13,7 +12,8 @@ RUN apt update && \
                     ccache \
                     curl \
                     unzip \
-                    valgrind
+                    valgrind \
+                    libnuma-dev
 
 
 COPY requirements.txt /opt/requirements.txt

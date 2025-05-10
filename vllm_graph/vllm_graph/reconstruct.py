@@ -19,6 +19,12 @@ class vLLMGraphModel(torch.nn.Module):
                 self.register_buffer(arg_dict[buffer]["target"], arg_dict[buffer]["value"], persistent = True)
 
         for constant in self.graph_dict["constants"]:
+            if(self.graph_dict[constant]["dtype"] == "!vllm_graph.none"):
+                ssa_id = constant.split(".")[0]
+                var_name = f"weight_{ssa_id}"
+                setattr(self, var_name, None)
+                continue
+
             data_name = f"weight_datasets{constant}"
             data = self.weights[data_name]
             dtype = self.graph_dict[constant]['dtype']
@@ -32,6 +38,8 @@ class vLLMGraphModel(torch.nn.Module):
             if(self.graph_dict[constant].get("output_shape", None) is None):
                 ssa_id = constant.split(".")[0]
                 var_name = f"weight_{ssa_id}"
+                if(dtype == "i1"):
+                    data = bool(data)
                 setattr(self, var_name, data)
                 continue
             
@@ -171,7 +179,8 @@ class vLLMGraph:
             
             elif node_type == "arith.constant" or \
                  node_type == "vllm_graph.vllm.const_tuple" or \
-                 node_type == "vllm_graph.constant.tensor" :
+                 node_type == "vllm_graph.constant.tensor" or \
+                 node_type == "vllm_graph.constant.none":
                 ssa_id = node.split(".")[0]
                 graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
             
@@ -208,6 +217,21 @@ class vLLMGraph:
                         input_args.append(graph_nodes[inp])
                 
                 graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
+            elif node_type == "vllm_graph.vllm.scaled_dot_product_attention":
+                attn_func = OP_MAP.get(node_type, None)
+                input_args = []
+                input_kwargs = {}
+                kwarg_id = [ "scale", "enable_gqa"]
+                i = 0
+                for inp in self.graph_dict[node]['input_nodes'][:6]:
+                    input_args.append(graph_nodes[inp])
+                
+                for inp in self.graph_dict[node]['input_nodes'][6:]:
+                    input_kwargs[kwarg_id[i]] = graph_nodes[inp]
+                    i+=1
+
+                
+                graph_nodes[node] = graph.call_function(attn_func, args=tuple(input_args), kwargs = input_kwargs)
                 
             else:
                 op_func = OP_MAP.get(node_type, None)

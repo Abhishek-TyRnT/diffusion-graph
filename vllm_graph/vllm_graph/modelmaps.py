@@ -3,7 +3,8 @@ from vllm_graph import funcs
 TYPE_MAP = {
     "f32": torch.float32,
     "i32" : torch.int32,
-    "i64" : torch.int64 
+    "i64" : torch.int64,
+    "i1" : torch.bool
 }
 
 OP_MAP = {
@@ -28,5 +29,6 @@ OP_MAP = {
     "vllm_graph.vllm.squeeze": torch.squeeze,
     "vllm_graph.vllm.sub": torch.sub,
     "vllm_graph.vllm.where": torch.where,
-    "vllm_graph.vllm.cast_dtype": funcs.cast_func
+    "vllm_graph.vllm.cast_dtype": funcs.cast_func,
+    "vllm_graph.vllm.scaled_dot_product_attention": torch.nn.functional.scaled_dot_product_attention
 }

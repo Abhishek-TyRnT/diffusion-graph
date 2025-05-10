@@ -468,7 +468,28 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>::matchAndRewrite(
     rewriter.replaceOpWithNewOp<vllm_graph::MatmulOp>(op, resultType, input, weight);
     return mlir::success();
 
-    }
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMmOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenMmOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    
+    Value input = op.getOperand(0);
+    Value weight = op.getOperand(1);
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    // result.setType(resultType);
+    input.setType(convertor->convertType(input.getType()));
+    weight.setType(convertor->convertType(weight.getType()));
+
+    rewriter.replaceOpWithNewOp<vllm_graph::MatmulOp>(op, resultType, input, weight);
+    return mlir::success();
+
+}
 
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBmmOp>::matchAndRewrite(
@@ -1029,7 +1050,11 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenMatmulOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>>(typeConverter,        
                                                          context);
-        
+
+        target.addIllegalOp<mlir::torch::Torch::AtenMmOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMmOp>>(typeConverter,        
+                                                         context);
+                
         target.addIllegalOp<mlir::torch::Torch::AtenBmmOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenBmmOp>>(typeConverter,        
                                                          context);

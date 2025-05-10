@@ -122,6 +122,9 @@ void GraphWriter::addOp(mlir::Operation *op){
             auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr);
             storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
             std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
+        } else if(mlir::isa<vllm_graph::ConstantNoneOp>(op))
+        {
+            std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
         }
         
         if(mlir::isa<mlir::vllm_graph::ValueTensorType>(resType)){

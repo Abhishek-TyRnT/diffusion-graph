@@ -100,6 +100,21 @@ def vllm_ValueTensorLiteralOp : vLLMGraph_Op<"constant.tensor", [
   let hasFolder = 1;
 }
 
+def vllm_ConstantNoneOp : vLLMGraph_Op<"constant.none", [
+    ConstantLike,
+    Pure,
+  ]> {
+  let summary = "Get the singleton None value.";
+  let description = [{
+    Not to be confused with the `mlir::NoneType`. Be careful to use
+    `vllm::NoneType` to avoid namespace ambiguity.
+  }];
+  let arguments = (ins);
+  let results = (outs Torch_NoneType:$result);
+  let assemblyFormat = "attr-dict";
+  let hasFolder = 1;
+}
+
 
 
 #endif // VLLMGRAPH_OPS

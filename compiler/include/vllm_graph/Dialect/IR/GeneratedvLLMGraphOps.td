@@ -591,3 +591,33 @@ def vllm_DtypeCastOp : vLLMGraph_Op<"vllm.cast_dtype",[
         }
     }];
 }
+
+def vllm_ScaledDotProductAttentionOp : vLLMGraph_Op<"vllm.scaled_dot_product_attention", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::scaled_dot_product_attention : (Tensor, Tensor, Tensor, Tensor?, float, bool, float?, bool) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchTensorType:$query,
+    AnyTorchTensorType:$key,
+    AnyTorchTensorType:$value,
+    AnyTorchOptionalTensorType:$attn_mask,
+    F32:$dropout_p,
+    I1:$is_causal,
+    OptionalF32Type:$scale,
+    I1:$enable_gqa
+  );
+  let results = (outs
+    AnyTorchOptionalTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult ScaledDotProductAttentionOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 8, 1);
+    }
+    void ScaledDotProductAttentionOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 8, 1);
+    }
+  }];
+}

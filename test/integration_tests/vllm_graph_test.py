@@ -51,6 +51,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
     [SqueezeOp, (1,), (torch.randn(2, 8),)],
     [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
+    [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -86,6 +87,7 @@ def test_graph_compiler_python_to_dict(model,
      [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
      [SqueezeOp, (1,), (torch.randn(2, 8),)],
      [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
+     [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,

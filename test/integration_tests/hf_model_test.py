@@ -57,13 +57,13 @@ def test_hf_models(model_name, text, model_class, device):
     activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
     inputs.update(input_kwargs)
     
-    with profile(activities=activities) as prof1:
-        vllm_graph_output = reconstructed_model(inputs['input_ids'], inputs['attention_mask'], inputs['token_type_ids'], )
-    prof1.export_chrome_trace("vllm_graph_trace.json")
-
     with profile(activities=activities) as prof2:
         normal_output = model(**inputs)
     prof2.export_chrome_trace("torch_trace.json")
+    
+    with profile(activities=activities) as prof1:
+        vllm_graph_output = reconstructed_model(inputs['input_ids'], inputs['attention_mask'], inputs['token_type_ids'], )
+    prof1.export_chrome_trace("vllm_graph_trace.json")
 
 
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

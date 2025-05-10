@@ -111,6 +111,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
      [Cast, (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)],
      [Cast, (torch.float,), (torch.rand(2, 5, dtype=torch.double),)],
+     [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,
@@ -132,7 +133,6 @@ def test_vllm_graph_compiler_from_models(model,
     with open(filename , "w") as f:
         f.write(str(torchIR))
     
-    print(torchIR)
     cmd = ["vllm-graph" ,filename]
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = process.returncode

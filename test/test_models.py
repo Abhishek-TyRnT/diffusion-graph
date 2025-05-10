@@ -199,4 +199,13 @@ class Cast(Module):
     
     def forward(self, input):
         return input.to(self.dtype)
+
+class SDPAttention(Module):
+    def __init__(self, dropout = 0.5):
+        super().__init__()
+        self.dropout = dropout
+    
+    def forward(self, query, key, value):
+        return torch.nn.functional.scaled_dot_product_attention(query, key, value, dropout_p = self.dropout)
+
     

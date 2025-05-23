@@ -2,7 +2,7 @@ import pytest
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph
-from transformers import AutoTokenizer, AlbertModel
+from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM
 from test_utils import validate_outputs
 from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
 from transformers import AlbertConfig
@@ -33,7 +33,9 @@ def test_hf_model_layer(Model,
 
 
 @pytest.mark.parametrize("model_name, text, model_class, device",
-    (["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel, "cuda"],))
+    (
+     ["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel, "cuda"],
+     ["albert/albert-base-v2", "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],))
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)

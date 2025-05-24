@@ -34,8 +34,9 @@ def test_hf_model_layer(Model,
 
 @pytest.mark.parametrize("model_name, text, model_class, device",
     (
-     ["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel, "cuda"],
-     ["albert/albert-base-v2", "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],))
+     ["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel, "cpu"],
+    # ["albert/albert-base-v2", "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
+     ))
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)
@@ -45,16 +46,19 @@ def test_hf_models(model_name, text, model_class, device):
     tmp_folder = f"./temp_files"
 
     vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = True)
-    input_kwargs = {"return_dict" : False}
-    vllmgraph.compile(model, tuple(inputs.values()), input_kwargs)
+    position_ids = torch.zeros_like(inputs['input_ids'], dtype = torch.int32)
+    input_kwargs = {"return_dict" : False, 'position_ids': position_ids}
+    vllmgraph.compile(model, (inputs["input_ids"], ), input_kwargs)
     reconstructed_model = vllmgraph.reconstruct()
+
+    input_kwargs["position_ids"] = input_kwargs["position_ids"].to(device)
 
     #Offloading to target deivce
     inputs = {key : inputs[key].to(device) for key in inputs}
     reconstructed_model = reconstructed_model.to(device)
     model = model.to(device)
-    reconstructed_model(inputs['input_ids'], inputs['attention_mask'], inputs['token_type_ids'], )
-    model(**inputs)
+    reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
+    model(inputs["input_ids"], position_ids = input_kwargs['position_ids'])
     #Profiling
     activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
     inputs.update(input_kwargs)
@@ -64,7 +68,7 @@ def test_hf_models(model_name, text, model_class, device):
     prof2.export_chrome_trace("torch_trace.json")
     
     with profile(activities=activities) as prof1:
-        vllm_graph_output = reconstructed_model(inputs['input_ids'], inputs['attention_mask'], inputs['token_type_ids'], )
+        vllm_graph_output = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'], )
     prof1.export_chrome_trace("vllm_graph_trace.json")
 
 

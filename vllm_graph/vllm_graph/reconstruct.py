@@ -35,6 +35,8 @@ class vLLMGraphModel(torch.nn.Module):
                 setattr(self, var_name, tuple(data))
                 continue
 
+            
+
             if(self.graph_dict[constant].get("output_shape", None) is None):
                 ssa_id = constant.split(".")[0]
                 var_name = f"weight_{ssa_id}"
@@ -229,10 +231,22 @@ class vLLMGraph:
                 for inp in self.graph_dict[node]['input_nodes'][6:]:
                     input_kwargs[kwarg_id[i]] = graph_nodes[inp]
                     i+=1
-
-                
                 graph_nodes[node] = graph.call_function(attn_func, args=tuple(input_args), kwargs = input_kwargs)
-                
+            
+            elif node_type == "vllm_graph.vllm.ones":
+                ones_func = OP_MAP.get(node_type, None)
+                i = 0
+                input_kwargs = {}
+                input_args = []
+                kwarg_id = [ "dtype", "layout"]
+                for inp in self.graph_dict[node]['input_nodes'][:1]:
+                    input_args.append(graph_nodes[inp])
+
+                for inp in self.graph_dict[node]['input_nodes'][1:]:
+                    input_kwargs[kwarg_id[i]] = graph_nodes[inp]
+                    i+=1
+                graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
+
             else:
                 op_func = OP_MAP.get(node_type, None)
                 if op_func is None:

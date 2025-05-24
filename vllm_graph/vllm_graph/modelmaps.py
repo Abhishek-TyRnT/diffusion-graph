@@ -30,5 +30,6 @@ OP_MAP = {
     "vllm_graph.vllm.sub": torch.sub,
     "vllm_graph.vllm.where": torch.where,
     "vllm_graph.vllm.cast_dtype": funcs.cast_func,
-    "vllm_graph.vllm.scaled_dot_product_attention": torch.nn.functional.scaled_dot_product_attention
+    "vllm_graph.vllm.scaled_dot_product_attention": torch.nn.functional.scaled_dot_product_attention,
+    "vllm_graph.vllm.ones": torch.ones
 }

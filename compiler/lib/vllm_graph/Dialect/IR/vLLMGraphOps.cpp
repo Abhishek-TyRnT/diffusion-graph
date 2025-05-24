@@ -32,3 +32,7 @@ OpFoldResult ConstantNoneOp::fold(FoldAdaptor adaptor) {
   return TypeAttr::get(vllm_graph::NoneType::get(getContext()));
 }
 
+OpFoldResult ConstantDeviceOp::fold(FoldAdaptor adaptor){
+    return getValueAttr();
+}
+

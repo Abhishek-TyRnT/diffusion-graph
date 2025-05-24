@@ -35,7 +35,7 @@ void replaceFuncDtypes(func::FuncOp &op)
         if(arg.use_empty()){
             arg.replaceAllUsesWith(nullptr);
             entryBlock.eraseArgument(i);
-         removedArgIndices.push_back(i);
+            removedArgIndices.push_back(i);
         }
     }
     mlir::FunctionType oldFuncType = op.getFunctionType();
@@ -99,12 +99,15 @@ void replaceFuncDtypes(func::FuncOp &op)
     /*Inserting an CastOp so as to not disturb subsequent Ops. 
     Note that in subsequent passes the cast Ops will be eliminated
     */
+    //Adding offset so as to ignore types that have been removed.
+    int offset = 0;
     for (unsigned i = 0; i < op.getNumArguments(); ++i) {
         mlir::Value arg = op.getArgument(i);
         mlir::Value::user_range opList = arg.getUsers();
         mlir::Location loc = mlir::UnknownLoc::get(context);
-
-        auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[i], arg);
+        if(std::find(removedArgIndices.begin(), removedArgIndices.end(), i) != removedArgIndices.end())
+            offset += 1;
+        auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[i + offset], arg);
         mlir::Operation *genCastOp = castOp.getOperation();
         mlir::Value castOpResult = castOp.getResult();
         arg.replaceAllUsesExcept(castOpResult, genCastOp);

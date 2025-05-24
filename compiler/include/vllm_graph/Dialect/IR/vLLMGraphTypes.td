@@ -409,7 +409,7 @@ def AnyTorchOptionalTensorType :
       OptionalOf<AnyTorchTensorType, "Optional torch tensor type">;
 def AnyTorchOptionalNonValueTensorType :
       OptionalOf<Torch_NonValueTensorType, "Optional torch non value tensor type">;
-def AnyTorchOptionalIntType: OptionalOf<Torch_IntType, "Optional torch int type">;
+def OptionalIntType: OptionalOf<I32, "Optional torch int type">;
 def OptionalF32Type: OptionalOf<F32, "Optional torch float type">;
 def AnyTorchOptionalBoolType:
       OptionalOf<Torch_BoolType, "Optional torch bool type">;
@@ -441,9 +441,9 @@ def AnyTorchListOfOptionalTensorType :
 def AnyTorchListOfOptionalNonValueTensorType :
       ListOf<[AnyTorchOptionalNonValueTensorType],
              "Any optional tensor list type (Tensor?[])">;
-def AnyTorchListOfOptionalIntType :
-      ListOf<[AnyTorchOptionalIntType],
-             "List of optional ints type (int?[])">;
+// def AnyTorchListOfOptionalIntType :
+//       ListOf<[AnyTorchOptionalIntType],
+//              "List of optional ints type (int?[])">;
 def AnyTorchOptionalListOfTorchIntType : OptionalOf<AnyTorchListOfTorchIntType, "Optional torch int list type (int[]?)">;
 def AnyTorchOptionalListOfTorchFloatType : OptionalOf<AnyTorchListOfTorchFloatType, "Optional torch float list type (float[]?)">;
 

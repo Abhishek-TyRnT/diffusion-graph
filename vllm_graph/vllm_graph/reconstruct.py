@@ -9,7 +9,7 @@ import os
 from collections import deque
 
 
-class vLLMGraphModel(torch.nn.Module):
+class ParameterModel(torch.nn.Module):
     def __init__(self, graph_dict: dict, weight_path: str, arg_dict: dict):
         super().__init__()
         self.weights = read_pb(weight_path)
@@ -55,6 +55,30 @@ class vLLMGraphModel(torch.nn.Module):
             del data
             setattr(self, var_name, weight)
 
+    @property
+    def device(self):
+        """Returns the device of the model by checking the first parameter"""
+        return next(self.parameters()).device
+
+class vLLMGraphModel(torch.nn.Module):
+    def __init__(self, graph_module: torch.fx.GraphModule):
+        super().__init__()
+        self.graph_module = graph_module
+    
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        self.device = torch.device(args[0])
+        self.graph_module = self.graph_module.to(self.device)
+        self.graph_module.device = self.device
+        return self
+
+    
+    def forward(self,input_ids,
+                positions,
+                intermediate_tensors=None,
+                inputs_embeds=None,
+                ):
+        return self.graph_module(input_ids, positions)
 
 class vLLMGraph:
     def __init__(self, model_name: str, temp_directory: str | None = None, debug: bool = False):
@@ -245,6 +269,7 @@ class vLLMGraph:
                 for inp in self.graph_dict[node]['input_nodes'][1:]:
                     input_kwargs[kwarg_id[i]] = graph_nodes[inp]
                     i+=1
+                input_kwargs['device'] = graph.get_attr("device")
                 graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
 
             else:
@@ -268,7 +293,7 @@ class vLLMGraph:
     def reconstruct(self) -> torch.fx.GraphModule:
 
         assert len(self.graph_dict) != 0, "Model not compiled"
-        model = vLLMGraphModel(self.graph_dict, self.weights_directory, self.arg_dict)
+        model = ParameterModel(self.graph_dict, self.weights_directory, self.arg_dict)
         Nodes = []
         for node in self.graph_dict:
             if node in ['entrypoint', 'constants', 'results']:

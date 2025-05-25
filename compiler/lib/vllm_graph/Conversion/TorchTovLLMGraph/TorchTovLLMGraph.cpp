@@ -211,6 +211,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrit
 
 }
 
+//TODO: Replace the current decomposition with constOp and viewOp 
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenOnesOp>::matchAndRewrite(
     mlir::torch::Torch::AtenOnesOp op, OpAdaptor adaptor,

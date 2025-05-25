@@ -1,7 +1,7 @@
 import pytest
 import json
 import torch
-from vllm_graph.reconstruct import vLLMGraph
+from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel
 from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM
 from test_utils import validate_outputs
 from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
@@ -34,8 +34,8 @@ def test_hf_model_layer(Model,
 
 @pytest.mark.parametrize("model_name, text, model_class, device",
     (
-     ["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel, "cpu"],
-    # ["albert/albert-base-v2", "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
+     ["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel, "cuda"],
+    ["albert/albert-base-v2", "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
      ))
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -43,19 +43,20 @@ def test_hf_models(model_name, text, model_class, device):
     inputs = tokenizer(text, return_tensors="pt")
     
     #model(**inputs)
-    tmp_folder = f"./temp_files"
+    tmp_folder = f"/tmp"
 
     vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = True)
     position_ids = torch.zeros_like(inputs['input_ids'], dtype = torch.int32)
     input_kwargs = {"return_dict" : False, 'position_ids': position_ids}
     vllmgraph.compile(model, (inputs["input_ids"], ), input_kwargs)
     reconstructed_model = vllmgraph.reconstruct()
-
+    reconstructed_model = vLLMGraphModel(reconstructed_model)
     input_kwargs["position_ids"] = input_kwargs["position_ids"].to(device)
 
     #Offloading to target deivce
     inputs = {key : inputs[key].to(device) for key in inputs}
-    reconstructed_model = reconstructed_model.to(device)
+    reconstructed_model.to(device)
+    # reconstructed_model.device = device
     model = model.to(device)
     reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
     model(inputs["input_ids"], position_ids = input_kwargs['position_ids'])
@@ -64,7 +65,7 @@ def test_hf_models(model_name, text, model_class, device):
     inputs.update(input_kwargs)
     
     with profile(activities=activities) as prof2:
-        normal_output = model(**inputs)
+        normal_output = model(inputs["input_ids"], **input_kwargs)
     prof2.export_chrome_trace("torch_trace.json")
     
     with profile(activities=activities) as prof1:

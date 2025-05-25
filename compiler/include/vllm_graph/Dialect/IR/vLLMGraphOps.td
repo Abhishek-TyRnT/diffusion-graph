@@ -23,7 +23,8 @@ include "vllm_graph/Dialect/IR/GeneratedvLLMGraphOps.td"
 
 def vllm_ConstantDeviceOp : vLLMGraph_Op<"constant.device",
     [Pure,
-    DeclareOpInterfaceMethods<OpAsmOpInterface, ["getAsmResultNames"]>]> {
+    DeclareOpInterfaceMethods<OpAsmOpInterface, ["getAsmResultNames"]>,
+    ConstantLike]> {
   let summary = "Materialize a constant Device value.";
   let description = [{
     Info regarding device which a given op should run on
@@ -35,6 +36,7 @@ def vllm_ConstantDeviceOp : vLLMGraph_Op<"constant.device",
     Torch_DeviceType:$result
   );
   let assemblyFormat = "$value attr-dict";
+  let hasFolder = 1;
 }
 
 def vllm_CastOp : vLLMGraph_Op<"vllm.cast_op",[Pure]> {

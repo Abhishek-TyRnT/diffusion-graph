@@ -98,6 +98,20 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantDeviceOp>::matchAndRewrite(
+    mlir::torch::Torch::ConstantDeviceOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    llvm::StringRef device = op.getValue();
+
+    MLIRContext *context = getContext();
+    auto device_type = vllm_graph::DeviceType::get(context);
+    rewriter.replaceOpWithNewOp<vllm_graph::ConstantDeviceOp>(op, device_type, device);
+    return success();
+
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>::matchAndRewrite(
     mlir::torch::Torch::ConstantIntOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -193,6 +207,28 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrit
     rewriter.replaceOpWithNewOp<vllm_graph::DivScalarOp>(op, resultType, input, scalar);
 
 
+    return mlir::success();
+
+}
+
+//TODO: Replace the current decomposition with constOp and viewOp 
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenOnesOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenOnesOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = op.getOperand(0);
+    Value dtype = op.getOperand(1);
+    Value layout = op.getOperand(2);
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    input.setType(convertor->convertType(input.getType()));
+    dtype.setType(convertor->convertType(dtype.getType()));
+    layout.setType(convertor->convertType(layout.getType()));
+
+    rewriter.replaceOpWithNewOp<vllm_graph::OnesOp>(op, resultType, input, dtype, layout);     
     return mlir::success();
 
 }
@@ -846,8 +882,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>::matchAndRewrite(
         Alpha.setType(convertor->convertType(Alpha.getType()));
         beta.setType(convertor->convertType(beta.getType()));
 
-
-
         rewriter.replaceOpWithNewOp<vllm_graph::AddmmOp>(op, resultType, bias, input, weight, Alpha, beta);
         
         return success();
@@ -1010,6 +1044,15 @@ public:
         target.addIllegalOp<mlir::torch::Torch::AtenScaledDotProductAttentionOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenScaledDotProductAttentionOp>>(typeConverter,
                                                          context);
+
+        target.addIllegalOp<mlir::torch::Torch::ConstantDeviceOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantDeviceOp>>(typeConverter,
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenOnesOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenOnesOp>>(typeConverter,
+                                                         context);
+
 
         target.addIllegalOp<mlir::torch::Torch::AtenMulTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMulTensorOp>>(typeConverter,        

@@ -621,3 +621,28 @@ def vllm_ScaledDotProductAttentionOp : vLLMGraph_Op<"vllm.scaled_dot_product_att
     }
   }];
 }
+
+def vllm_OnesOp : vLLMGraph_Op<"vllm.ones", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::ones : (int[], int?, int?) -> (Tensor)`";
+  let arguments = (ins
+    AnyTorchArrayType:$size,
+    OptionalIntType:$dtype,
+    OptionalIntType:$layout
+  );
+  let results = (outs
+    AnyTorchOptionalTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult OnesOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 5, 1);
+    }
+    void OnesOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 5, 1);
+    }
+  }];
+}

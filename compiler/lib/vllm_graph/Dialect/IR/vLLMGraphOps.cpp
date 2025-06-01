@@ -61,9 +61,39 @@ OpFoldResult SizeOp::fold(FoldAdaptor adaptor){
     if(sizes[dim] == DYNAMIC_SIZE)
       return {};
     
-    llvm::outs() << sizes[dim] << "\n";
     Type resultType = getResult().getType();
 
     return IntegerAttr::get(resultType, sizes[dim]);
+}
+
+OpFoldResult MulOp::fold(FoldAdaptor adaptor){
+
+    // return {};
+    ArrayRef<Attribute> operands = adaptor.getOperands();
+
+    if(!operands[0] || !operands[1])
+      return {};
+    if(getOperand(0).getType() != getOperand(1).getType())
+      return {};
+    Type resultType = getResult().getType();
+    if (auto intAttr = dyn_cast<IntegerAttr>(operands[1])) {
+      int64_t constant_1 = intAttr.getInt();
+      int64_t constant_2 = dyn_cast<IntegerAttr>(operands[0]).getInt();
+
+      int64_t prod = constant_1 * constant_2;
+      return IntegerAttr::get(resultType, prod);
+
+
+    } else if(auto floatAttr = dyn_cast<FloatAttr>(operands[1])){
+      llvm::APFloat constant_1 = floatAttr.getValue();
+      llvm::APFloat constant_2 = dyn_cast<FloatAttr>(operands[0]).getValue();
+
+      llvm::APFloat prod = constant_1 * constant_2;
+      return FloatAttr::get(resultType, prod);
+
+    } else {
+      return {};
+    }
+    
 }
 

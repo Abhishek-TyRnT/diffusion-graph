@@ -99,6 +99,8 @@ def vllm_MulOp : vLLMGraph_Op<"vllm.mul", [
             printDefaultvLLMGraphOp(printer, *this, 1, 1);
         }
     }];
+
+    let hasFolder = 1;
 }
 
 def vllm_TransposeOp : vLLMGraph_Op<"vllm.transpose", [

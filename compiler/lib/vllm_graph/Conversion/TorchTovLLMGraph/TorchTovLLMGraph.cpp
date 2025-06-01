@@ -211,6 +211,27 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrit
 
 }
 
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSizeIntOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSizeIntOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+            
+    Value input = op.getOperand(0);
+    Value dim = op.getOperand(1);
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    input.setType(convertor->convertType(input.getType()));
+    dim.setType(convertor->convertType(dim.getType()));
+    // result.setType(resultType);
+
+    rewriter.replaceOpWithNewOp<vllm_graph::SizeOp>(op, resultType, input, dim);
+    return mlir::success();
+
+}
+
 //TODO: Replace the current decomposition with constOp and viewOp 
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenOnesOp>::matchAndRewrite(
@@ -1035,6 +1056,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenRsubScalarOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenRsubScalarOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenSizeIntOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSizeIntOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddScalarOp>();

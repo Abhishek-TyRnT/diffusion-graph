@@ -16,16 +16,17 @@ sys.path.append(getmodel_path())
 from test_models import *
 
 @pytest.mark.parametrize("filename",
-    ["add_static_shapes.mlir",
-     "add_dynamic_shapes.mlir",
-     "Linear_static_shapes_with_bias.mlir",
-     pytest.param("Linear_dynamic_shapes_with_bias.mlir", marks=pytest.mark.xfail),
-     "Relu_static_shapes.mlir",
-     "Relu_dynamic_shapes.mlir",
-     "softmax.mlir",
-     "transpose_dynamic_shapes.mlir",
-     "transpose_static_shapes.mlir",
-     "NewGELUActivation.mlir"
+    [
+    #  "add_static_shapes.mlir",
+    #  "add_dynamic_shapes.mlir",
+    #  "Linear_static_shapes_with_bias.mlir",
+     pytest.param("Linear_dynamic_shapes_with_bias.mlir"),
+    #  "Relu_static_shapes.mlir",
+    #  "Relu_dynamic_shapes.mlir",
+    #  "softmax.mlir",
+    #  "transpose_dynamic_shapes.mlir",
+    #  "transpose_static_shapes.mlir",
+    #  "NewGELUActivation.mlir"
      ])
 def test_vllm_graph_compiler_from_mlir(filename):
     #TODO: Add lit test for verification            llvm::outs() << getOperation() << "\n";

@@ -646,3 +646,29 @@ def vllm_OnesOp : vLLMGraph_Op<"vllm.ones", [
     }
   }];
 }
+
+def vllm_SizeOp : vLLMGraph_Op<"vllm.size", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::size : (Tensor, int) -> (int)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    I32:$dim
+  );
+  let results = (outs
+    I32:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult SizeOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+    }
+    void SizeOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 2, 1);
+    }
+  }];
+
+  let hasFolder = 1;
+}

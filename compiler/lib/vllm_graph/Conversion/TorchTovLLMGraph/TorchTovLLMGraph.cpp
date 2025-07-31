@@ -220,6 +220,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSizeIntOp>::matchAndRewrite(
     Value input = op.getOperand(0);
     Value dim = op.getOperand(1);
 
+    llvm::outs() << op << " " << dim << "\n";
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
@@ -753,35 +754,54 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     Value step = op.getOperand(4);
 
     Location loc = op.getLoc();
-
-    int64_t start_index = start.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
-    int64_t end_index = end.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
-    int64_t step_size = step.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
-
-    std::vector<int32_t> range;
-    for(int32_t i = start_index; i < end_index; i+=step_size)
-        range.push_back(i);
-    
-    ArrayRef<int32_t> range_array(range.data(), range.size());
-    int64_t x = static_cast<int64_t>(range.size());
-    int64_t shape[] = {x};
-    Type elemType = rewriter.getIntegerType(32);
-
-    auto IndicesType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(shape, 1), elemType);//RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
-    
-    ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
-    auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
-
-    Value constRangeValOp = rewriter.create<vllm_graph::ValueTensorLiteralOp>(loc, IndicesType, denseAttr);
+    Value RangeValOp;
 
     const TypeConverter *convertor = getTypeConverter();
+    Type elemType = rewriter.getIntegerType(32);
+
+    if(start.getDefiningOp<torch::Torch::ConstantIntOp>() && 
+       end.getDefiningOp<torch::Torch::ConstantIntOp>() && 
+       step.getDefiningOp<torch::Torch::ConstantIntOp>() 
+    ){
+        int64_t start_index = start.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
+        int64_t end_index = end.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
+        int64_t step_size = step.getDefiningOp<torch::Torch::ConstantIntOp>().getValue();
+
+        std::vector<int32_t> range;
+        for(int32_t i = start_index; i < end_index; i+=step_size)
+            range.push_back(i);
+        
+        ArrayRef<int32_t> range_array(range.data(), range.size());
+        int64_t x = static_cast<int64_t>(range.size());
+        int64_t shape[] = {x};
+
+        auto IndicesType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(shape, 1), elemType);//RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
+        
+        ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
+        auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
+
+        RangeValOp = rewriter.create<vllm_graph::ValueTensorLiteralOp>(loc, IndicesType, denseAttr);
+    } else {
+        start.setType(convertor->convertType(start.getType()));
+        end.setType(convertor->convertType(end.getType()));
+        step.setType(convertor->convertType(step.getType()));
+        
+        vllm_graph::ValueTensorType RangeTypeOp;
+        RangeTypeOp = RangeTypeOp.get(context, 
+                        ArrayRef<int64_t>({-1}), 
+                        elemType);
+        
+        RangeValOp = rewriter.create<vllm_graph::ArangeOp>(loc, RangeTypeOp, start, end, step);
+        
+    }
+    
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
     self.setType(convertor->convertType(self.getType()));
     dim.setType(convertor->convertType(dim.getType()));
     // result.setType(resultType);
     
-    Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, self, dim, constRangeValOp);
+    Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, self, dim, RangeValOp);
     result.replaceAllUsesWith(indexSelectResult);
     rewriter.eraseOp(cast<Operation*>(op));
 

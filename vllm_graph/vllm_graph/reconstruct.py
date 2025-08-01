@@ -271,6 +271,16 @@ class vLLMGraph:
                     i+=1
                 input_kwargs['device'] = graph.get_attr("device")
                 graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
+            
+            elif node_type == "vllm_graph.vllm.arange":
+                arange_func = OP_MAP.get(node_type, None)
+                input_args = []
+                for inp in self.graph_dict[node]['input_nodes']:
+                    input_args.append(graph_nodes[inp])
+                
+                input_kwargs = { "device" : graph.get_attr("device")}
+
+                graph_nodes[node] = graph.call_function(arange_func, args=tuple(input_args), kwargs = input_kwargs)
 
             else:
                 op_func = OP_MAP.get(node_type, None)

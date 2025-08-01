@@ -6,4 +6,7 @@ def cast_func(x: torch.Tensor, dtype: int):
                  6: torch.float
                  }
     return x.to(dtype_map[dtype])
+
+def size_func(x: torch.Tensor, dim: int):
+    return x.size()[dim]
     

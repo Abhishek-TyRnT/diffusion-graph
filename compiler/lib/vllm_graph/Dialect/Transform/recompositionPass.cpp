@@ -71,6 +71,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         Value size0;
         Value size1;
         Value size2;
+        Value size3;
 
         if(!hasStaticShape(inputType.getSizes())){
             
@@ -136,7 +137,8 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
                 auto viewResultType = vllm_graph::ValueTensorType::get(context, viewInput_size, inputType.getDtype());
                 new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputTupleOp);
             } else {
-                Value value_array[] = {size0, size1, size2}; 
+                size3 = rewriter.create<vllm_graph::SizeOp>(loc, intType, weight, dim1);
+                Value value_array[] = {size0, size1, size3}; 
                 ArrayRef<Value> Operand_array(value_array, 3);
                 ValueRange OperandList(Operand_array);
 

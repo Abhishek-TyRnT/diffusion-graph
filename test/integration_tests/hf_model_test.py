@@ -39,7 +39,7 @@ def test_hf_model_layer(Model,
 @pytest.mark.parametrize("model_name, text, model_class, device",
     (
      ["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel, "cuda"],
-    # ["albert/albert-base-v2", "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
+    ["albert/albert-base-v2", "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
      ))
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -48,7 +48,7 @@ def test_hf_models(model_name, text, model_class, device):
     inputs = tokenizer(text, return_tensors="pt")
     
     #model(**inputs)
-    tmp_folder = f"./temp_files"
+    tmp_folder = f"/tmp"
 
     seq_dim = Dim("seq_len", min = 1, max = model.config.max_position_embeddings - 1)
     dynamic_dims = {
@@ -60,6 +60,7 @@ def test_hf_models(model_name, text, model_class, device):
     position_ids = torch.zeros_like(inputs['input_ids'], dtype = torch.int32)
     input_kwargs = {"return_dict" : False, 'position_ids': position_ids}
     vllmgraph.compile(model, (inputs['input_ids'], ), input_kwargs, dynamic_dims = dynamic_dims)
+    
     reconstructed_model = vllmgraph.reconstruct()
     reconstructed_model = vLLMGraphModel(reconstructed_model)
     input_kwargs["position_ids"] = input_kwargs["position_ids"].to(device)

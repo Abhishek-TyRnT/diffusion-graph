@@ -4,7 +4,8 @@ TYPE_MAP = {
     "f32": torch.float32,
     "i32" : torch.int32,
     "i64" : torch.int64,
-    "i1" : torch.bool
+    "i1" : torch.bool,
+    "si64" : torch.int64
 }
 
 OP_MAP = {
@@ -31,5 +32,7 @@ OP_MAP = {
     "vllm_graph.vllm.where": torch.where,
     "vllm_graph.vllm.cast_dtype": funcs.cast_func,
     "vllm_graph.vllm.scaled_dot_product_attention": torch.nn.functional.scaled_dot_product_attention,
-    "vllm_graph.vllm.ones": torch.ones
+    "vllm_graph.vllm.ones": torch.ones,
+    "vllm_graph.vllm.arange": torch.arange,
+    "vllm_graph.vllm.size": funcs.size_func
 }

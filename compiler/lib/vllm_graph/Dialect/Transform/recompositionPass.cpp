@@ -64,46 +64,94 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         vllm_graph::ValueTensorType inputType = mlir::cast<vllm_graph::ValueTensorType>(input.getType());
 
         Type resultType = addRes.getType();
+        Value dim0;
+        Value dim1;
+        Value dim2;
+
+        Value size0;
+        Value size1;
+        Value size2;
+        Value size3;
+
         if(!hasStaticShape(inputType.getSizes())){
-            llvm::report_fatal_error("Only static shapes are currently supported\n");
+            
+            dim0 = rewriter.create<arith::ConstantIntOp>(loc, 0, intType );
+            dim1 = rewriter.create<arith::ConstantIntOp>(loc, 1, intType );
+            dim2 = rewriter.create<arith::ConstantIntOp>(loc, 2, intType );
+
         }
-        
 
         ArrayRef<int64_t> input_shape = inputType.getSizes();
         ArrayRef<int64_t> result_shape =  mlir::cast<vllm_graph::ValueTensorType>(resultType).getSizes();
         // Need to reshape incase the input has batch size.
         if(input_shape.size() == 3){
             // c Array is Added for casting purposes
-            int64_t new_input_size_c[] = {-1, input_shape[2]};
-            ArrayRef<int64_t> viewInput_size(new_input_size_c, 2);
-            auto vewInputType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
-            auto DenseInputType = RankedTensorType::get({2}, rewriter.getIntegerType(64));
-            auto denseAttr = DenseElementsAttr::get(DenseInputType, viewInput_size);
-            auto viewInputTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
-            
-            int64_t new_result_view_size_c[] = {input_shape[0] * input_shape[1], input_shape[2]};
-            ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
-            auto viewResultType = vllm_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
+            if(hasStaticShape(inputType.getSizes())){
+                int64_t new_input_size_c[] = {-1, input_shape[2]};
+                ArrayRef<int64_t> viewInput_size(new_input_size_c, 2);
+                auto vewInputType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
+                auto DenseInputType = RankedTensorType::get({2}, rewriter.getIntegerType(64));
+                auto denseAttr = DenseElementsAttr::get(DenseInputType, viewInput_size);
+                auto viewInputTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
+                
+                int64_t new_result_view_size_c[] = {input_shape[0] * input_shape[1], input_shape[2]};
+                ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
+                auto viewResultType = vllm_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
 
-            input = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, input, viewInputTupleOp);
+                input = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, input, viewInputTupleOp);
 
-            int64_t new_result_size_c[] = {result_shape[0]*result_shape[1], result_shape[2]};
-            ArrayRef<int64_t> ResultSize(new_result_size_c, 2);
-            resultType = vllm_graph::ValueTensorType::get(context, ResultSize, inputType.getDtype());
+                int64_t new_result_size_c[] = {result_shape[0]*result_shape[1], result_shape[2]};
+                ArrayRef<int64_t> ResultSize(new_result_size_c, 2);
+                resultType = vllm_graph::ValueTensorType::get(context, ResultSize, inputType.getDtype());
+            } else {
+                size0 = rewriter.create<vllm_graph::SizeOp>(loc, intType, input, dim0);
+                size1 = rewriter.create<vllm_graph::SizeOp>(loc, intType, input, dim1);
+                size2 = rewriter.create<vllm_graph::SizeOp>(loc, intType, input, dim2);
+                Value MulOp = rewriter.create<vllm_graph::MulOp>(loc, intType, size0, size1);
+                Value value_array[] = {MulOp, size2}; 
+                ArrayRef<Value> Operand_array(value_array, 2);
+                ValueRange OperandList(Operand_array);
+                Type viewListResultType = vllm_graph::ListType::get(context, intType);
+                auto viewInputListOp = rewriter.create<vllm_graph::ListOp>(loc, viewListResultType, OperandList);
+                
+                int64_t new_result_view_size_c[] = {DYNAMIC_SIZE, input_shape[2]};
+                ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
+                auto viewResultType = vllm_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
+                
+                input = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, input, viewInputListOp);
+                 
+            }
         }
         
         vllm_graph::AddmmOp addmmOp = rewriter.create<vllm_graph::AddmmOp>(loc, resultType, bias, input, weight, alpha, beta);
         Value new_res = addmmOp.getResult();
         if(input_shape.size() == 3){
-            ArrayRef<int64_t> viewInput_size = result_shape;
-            RankedTensorType DenseInputType = RankedTensorType::get({3}, rewriter.getIntegerType(64));
-            auto denseAttr = DenseElementsAttr::get(DenseInputType, viewInput_size);
+            if(hasStaticShape(inputType.getSizes())){
+                ArrayRef<int64_t> viewInput_size = result_shape;
+                RankedTensorType DenseInputType = RankedTensorType::get({3}, rewriter.getIntegerType(64));
+                auto denseAttr = DenseElementsAttr::get(DenseInputType, viewInput_size);
 
-            auto vewInputType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
-            auto viewInputTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
+                auto vewInputType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
+                auto viewInputTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
 
-            auto viewResultType = vllm_graph::ValueTensorType::get(context, viewInput_size, inputType.getDtype());
-            new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputTupleOp);
+                auto viewResultType = vllm_graph::ValueTensorType::get(context, viewInput_size, inputType.getDtype());
+                new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputTupleOp);
+            } else {
+                size3 = rewriter.create<vllm_graph::SizeOp>(loc, intType, weight, dim1);
+                Value value_array[] = {size0, size1, size3}; 
+                ArrayRef<Value> Operand_array(value_array, 3);
+                ValueRange OperandList(Operand_array);
+
+                Type viewListResultType = vllm_graph::ListType::get(context, intType);
+                auto viewInputListOp = rewriter.create<vllm_graph::ListOp>(loc, viewListResultType, OperandList);
+                
+                // int64_t new_result_view_size_c[] = {DYNAMIC_SIZE, input_shape[2]};
+                // ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
+                auto vllm_resultType = cast<vllm_graph::ValueTensorType>(resultType);
+                auto viewResultType = vllm_graph::ValueTensorType::get(context, vllm_resultType.getSizes(), vllm_resultType.getDtype());
+                
+                new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputListOp);
+            }
             
         }
 

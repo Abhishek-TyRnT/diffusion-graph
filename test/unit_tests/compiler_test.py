@@ -16,10 +16,13 @@ sys.path.append(getmodel_path())
 from test_models import *
 
 @pytest.mark.parametrize("filename",
-    ["add_static_shapes.mlir",
+    [
+     "add_static_shapes.mlir",
      "add_dynamic_shapes.mlir",
      "Linear_static_shapes_with_bias.mlir",
-     pytest.param("Linear_dynamic_shapes_with_bias.mlir", marks=pytest.mark.xfail),
+     "Linear_dynamic_shapes_with_bias.mlir",
+     "Linear_dynamic_shapes_with_bias2.mlir",
+     "Linear_dynamic_shapes_with_bias3.mlir",
      "Relu_static_shapes.mlir",
      "Relu_dynamic_shapes.mlir",
      "softmax.mlir",

@@ -70,11 +70,18 @@ void vLLMGraphIRDialect::initialize() {
 Operation *vLLMGraphIRDialect::materializeConstant(OpBuilder &builder,
                                              Attribute value, Type type,
                                              Location loc) {
-    if (auto integerType = dyn_cast<vllm_graph::IntType>(type))
-        return builder.create<arith::ConstantIntOp>(loc, cast<IntegerAttr>(value).getValue().getSExtValue(), builder.getIntegerType(32));
+    // if (auto integerType = dyn_cast<vllm_graph::IntType>(type))
+    //     return builder.create<arith::ConstantIntOp>(loc, cast<IntegerAttr>(value).getValue().getSExtValue(), builder.getIntegerType(32));
 
     if (auto floatType = dyn_cast<vllm_graph::FloatType>(type))
         return builder.create<arith::ConstantFloatOp>(loc, cast<FloatAttr>(value).getValue(), builder.getF32Type());
+
+    if (auto intAttr = dyn_cast<IntegerAttr>(value)) {
+      if (isa<IntegerType>(type)) {
+        // Use your dialect's constant op instead of arith.constant
+        return builder.create<arith::ConstantIntOp>(loc, intAttr.getInt(), type);
+      }
+   }
 
 
     // TODO: Add number type

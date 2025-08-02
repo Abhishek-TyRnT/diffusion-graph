@@ -7,6 +7,10 @@ from test_utils import validate_outputs
 from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
 from transformers import AlbertConfig
 from torch.profiler import profile, record_function, ProfilerActivity
+from torch_mlir.compiler_utils import (
+    TensorPlaceholder,
+)
+from torch.export import Dim
 
 
 @pytest.mark.parametrize("Model, inputs, input_kwargs", (
@@ -40,15 +44,23 @@ def test_hf_model_layer(Model,
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)
+    # breakpoint()
     inputs = tokenizer(text, return_tensors="pt")
     
     #model(**inputs)
     tmp_folder = f"/tmp"
 
+    seq_dim = Dim("seq_len", min = 1, max = model.config.max_position_embeddings - 1)
+    dynamic_dims = {
+        "input_ids": {1 : seq_dim},
+        "position_ids": {1 : seq_dim},
+        "return_dict": None
+    }
     vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = True)
     position_ids = torch.zeros_like(inputs['input_ids'], dtype = torch.int32)
     input_kwargs = {"return_dict" : False, 'position_ids': position_ids}
-    vllmgraph.compile(model, (inputs["input_ids"], ), input_kwargs)
+    vllmgraph.compile(model, (inputs['input_ids'], ), input_kwargs, dynamic_dims = dynamic_dims)
+    
     reconstructed_model = vllmgraph.reconstruct()
     reconstructed_model = vLLMGraphModel(reconstructed_model)
     input_kwargs["position_ids"] = input_kwargs["position_ids"].to(device)

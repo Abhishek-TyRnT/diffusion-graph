@@ -95,13 +95,13 @@ class vLLMGraph:
         self.graph_compiler = GraphCompiler(self.weights_directory, debug = debug)
         self.graph_dict : dict = {}
     
-    def compile(self, model: torch.nn.Module, inputs: torch.Tensor, input_kwargs : dict = {}):
+    def compile(self, model: torch.nn.Module, inputs: torch.Tensor, input_kwargs : dict = {}, dynamic_dims = {}):
         """
         Compiles the model and returns a topologically unsorted
         graph in dictionary format and stores it in graph_dict object of the class 
         """
         
-        dynamo_model = torch.export.export(model, inputs, input_kwargs, dynamic_shapes = None)
+        dynamo_model = torch.export.export(model, inputs, input_kwargs, dynamic_shapes = dynamic_dims)
         graph_signature = dynamo_model.graph_signature
         input_specs = graph_signature.input_specs
         index = 0
@@ -271,6 +271,16 @@ class vLLMGraph:
                     i+=1
                 input_kwargs['device'] = graph.get_attr("device")
                 graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
+            
+            elif node_type == "vllm_graph.vllm.arange":
+                arange_func = OP_MAP.get(node_type, None)
+                input_args = []
+                for inp in self.graph_dict[node]['input_nodes']:
+                    input_args.append(graph_nodes[inp])
+                
+                input_kwargs = { "device" : graph.get_attr("device")}
+
+                graph_nodes[node] = graph.call_function(arange_func, args=tuple(input_args), kwargs = input_kwargs)
 
             else:
                 op_func = OP_MAP.get(node_type, None)

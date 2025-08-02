@@ -99,6 +99,8 @@ def vllm_MulOp : vLLMGraph_Op<"vllm.mul", [
             printDefaultvLLMGraphOp(printer, *this, 1, 1);
         }
     }];
+
+    let hasFolder = 1;
 }
 
 def vllm_TransposeOp : vLLMGraph_Op<"vllm.transpose", [
@@ -643,6 +645,58 @@ def vllm_OnesOp : vLLMGraph_Op<"vllm.ones", [
     }
     void OnesOp::print(OpAsmPrinter &printer) {
       printDefaultvLLMGraphOp(printer, *this, 5, 1);
+    }
+  }];
+}
+
+def vllm_SizeOp : vLLMGraph_Op<"vllm.size", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+  let summary = "Generated op for `vllm::size : (Tensor, int) -> (int)`";
+  let arguments = (ins
+    AnyTorchTensorType:$self,
+    I32:$dim
+  );
+  let results = (outs
+    I32:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult SizeOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+    }
+    void SizeOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 2, 1);
+    }
+  }];
+
+  let hasFolder = 1;
+}
+
+def vllm_ArangeOp : vLLMGraph_Op<"vllm.arange", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+  
+  let summary = "Generated op for `vllm::arange : (int, int, int) -> (Tensor)`";
+  let arguments = (ins
+    I32:$start_index,
+    I32:$end_index,
+    I32:$step
+  );
+  let results = (outs
+    AnyTorchTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult ArangeOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 3, 1);
+    }
+    void ArangeOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 3, 1);
     }
   }];
 }

@@ -208,4 +208,20 @@ class SDPAttention(Module):
     def forward(self, query, key, value):
         return torch.nn.functional.scaled_dot_product_attention(query, key, value, dropout_p = self.dropout)
 
-    
+
+#graph Models to be split
+
+class PoolingLayer(Module):
+    def __init__(self, hidden_size: int):
+        super().__init__()
+
+        self.pooler = nn.Linear(hidden_size, hidden_size)
+        self.pooler_activation = nn.Tanh()
+
+        self.layerNorm = nn.LayerNorm((hidden_size, ))
+
+    def forward(self, inputs):
+        x = self.layerNorm(inputs)
+        y = self.pooler_activation(self.pooler(x[:, 0]))
+
+        return x, y

@@ -1,0 +1,173 @@
+// PDL Pattern for Custom Dialect Subgraph Extraction
+pdl.pattern @extract_subgraph : benefit(1) {
+  // Match the parent function containing the subgraph
+  %parent_func = pdl.operation "func.func" {
+    "sym_name" = %func_name : !pdl.attribute
+  } -> (%func_results : !pdl.range<type>)
+  
+  // Define the subgraph pattern - customize this based on your specific ops
+  // This is a template - replace with your actual custom dialect operations
+  
+  // Match the root operation of your subgraph
+  %root_op = pdl.operation "vllm_graph.vllm.layer_norm" {
+    // Add any attributes your root op should have
+  } (%root_args : !pdl.range<value>) -> (%root_results : !pdl.range<type>)
+  
+  // Match intermediate operations in the subgraph
+  %size = pdl.operation "vllm_graph.vllm.size" 
+    (%intermediate_args1 : !pdl.range<value>) -> (%intermediate_results1 : !pdl.range<type>)
+  
+  %index_select_op = pdl.operation "vllm_graph.vllm.index_select"
+    (%intermediate_args2 : !pdl.range<value>) -> (%intermediate_results2 : !pdl.range<type>)
+
+  %squeeze_op = pdl.operation "vllm_graph.vllm.squeeze"
+    (%intermediate_args3 : !pdl.range<value>) -> (%intermediate_results3 : !pdl.range<type>)
+
+  %transpose_op = pdl.operation "vllm_graph.vllm.transpose"
+    (%intermediate_args4 : !pdl.range<value>) -> (%intermediate_results4 : !pdl.range<type>)
+  
+  %addmm_op = pdl.operation "vllm_graph.vllm.addmm"
+    (%intermediate_args5 : !pdl.range<value>) -> (%intermediate_results5 : !pdl.range<type>)
+
+  %tanh_op = pdl.operation "vllm_graph.vllm.tanh"
+    (%intermediate_args6 : !pdl.range<value>) -> (%intermediate_results6 : !pdl.range<type>)
+
+  // Match constant operations within the subgraph
+  %const_op1 = pdl.operation "arith.constant" {
+    "value" = %const_value1 : !pdl.attribute
+  } -> (%const_result1 : !pdl.type)
+  
+  %const_op2 = pdl.operation "arith.constant" {
+    "value" = %const_value2 : !pdl.attribute  
+  } -> (%const_result2 : !pdl.type)
+
+  %const_op3 = pdl.operation "vllm_graph.constant.tensor" {
+    "value" = %const_value2 : !pdl.attribute  
+  } -> (%const_result2 : !pdl.type)
+  
+  
+  // Define connectivity constraints
+  // Ensure the operations are connected in the expected pattern
+  pdl.apply_native_constraint "isConnectedSubgraph" 
+    (%root_op, %size, %index_select_op, %squeeze_op, %transpose_op, %addmm_op, %tanh_op, %const_op1, %const_op2, %const_op3 : 
+     !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation)
+  
+  // Collect all operations that should be moved to the new function
+  %ops_to_move = pdl.range (%size, %index_select_op, %squeeze_op, %transpose_op, %addmm_op, %tanh_op, %const_op3: 
+    !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation, !pdl.operation)
+  
+  %ops_to_clone = pdl.range (%const_op1, %const_op2: 
+    !pdl.operation, !pdl.operation)
+
+  // Collect input values that come from outside the subgraph
+  %external_inputs = pdl.apply_native_rewrite "getExternalInputs"(%ops_to_move : !pdl.range<operation>) : !pdl.range<value>
+  
+  // Collect output values used outside the subgraph  
+  %external_outputs = pdl.apply_native_rewrite "getExternalOutputs"(%ops_to_move : !pdl.range<operation>) : !pdl.range<value>
+  
+  pdl.rewrite {
+    // Generate a unique function name
+    %new_func_name = pdl.apply_native_rewrite "generateUniqueFuncName"(%func_name : !pdl.attribute) : !pdl.attribute
+    
+    // Get input and output types for the new function
+    %input_types = pdl.apply_native_rewrite "getValueTypes"(%external_inputs : !pdl.range<value>) : !pdl.range<type>
+    %output_types = pdl.apply_native_rewrite "getValueTypes"(%external_outputs : !pdl.range<value>) : !pdl.range<type>
+    
+    // Create the new function type
+    %new_func_type = pdl.apply_native_rewrite "createFunctionType"(%input_types, %output_types : 
+      !pdl.range<type>, !pdl.range<type>) : !pdl.type
+    
+    // Create the new function operation
+    %new_func = pdl.operation "func.func" {
+      "sym_name" = %new_func_name,
+      "function_type" = %new_func_type,
+      "sym_visibility" = "private"
+    }
+    
+    // Create function arguments for inputs
+    %func_args = pdl.apply_native_rewrite "createFunctionArguments"(%new_func, %input_types : 
+      !pdl.operation, !pdl.range<type>) : !pdl.range<value>
+    
+    // Move operations into the new function, handling constants appropriately
+    %moved_ops = pdl.apply_native_rewrite "cloneOperationsToFunction"
+      (%ops_to_move, %new_func, %external_inputs, %func_args : 
+       !pdl.range<operation>, !pdl.operation, !pdl.range<value>, !pdl.range<value>) : !pdl.range<operation>
+
+    // Clone operations into the new function, handling constants appropriately
+    %cloned_ops = pdl.apply_native_rewrite "cloneOperationsToFunction"
+      (%ops_to_clone, %new_func, %external_inputs, %func_args : 
+       !pdl.range<operation>, !pdl.operation, !pdl.range<value>, !pdl.range<value>) : !pdl.range<operation>
+    
+    // Get the cloned outputs that correspond to external outputs
+    %moved_outputs = pdl.apply_native_rewrite "getClonedOutputs"
+      (%moved_ops, %external_outputs : !pdl.range<operation>, !pdl.range<value>) : !pdl.range<value>
+    
+    // Create return operation in the new function
+    %return_op = pdl.operation "func.return" (%moved_outputs : !pdl.range<value>)
+  
+    // Erase the original operations
+    pdl.apply_native_rewrite "eraseOperations"(%ops_to_move : !pdl.range<operation>)
+  }
+}
+
+// Additional helper patterns for different subgraph configurations
+
+// Pattern for subgraphs with different constant patterns
+// pdl.pattern @extract_subgraph_with_splat_constants : benefit(1) {
+//   // Similar structure but matching splat constants
+//   %root_op = pdl.operation "custom_dialect.root_op" 
+//     (%root_args : !pdl.range<value>) -> (%root_results : !pdl.range<type>)
+//     
+//   %splat_const = pdl.operation "arith.constant" {
+//     "value" = %splat_value : !pdl.attribute
+//   } -> (%splat_type : !pdl.type)
+//   
+//   // Apply constraint to check if it's a splat constant
+//   pdl.apply_native_constraint "isSplatConstant"(%splat_const : !pdl.operation)
+//   
+//   // Rest of pattern similar to above...
+//   pdl.rewrite {
+//     // Handle splat constants specially during cloning
+//     // Implementation similar to main pattern
+//   }
+// }
+
+// Pattern for handling different subgraph topologies
+// pdl.pattern @extract_linear_subgraph : benefit(1) {
+//   // Match linear chains of operations
+//   %op1 = pdl.operation "custom_dialect.op1" 
+//     (%inputs1 : !pdl.range<value>) -> (%outputs1 : !pdl.range<type>)
+//   
+//   %op2 = pdl.operation "custom_dialect.op2" 
+//     (%inputs2 : !pdl.range<value>) -> (%outputs2 : !pdl.range<type>)
+//     
+//   %op3 = pdl.operation "custom_dialect.op3"
+//     (%inputs3 : !pdl.range<value>) -> (%outputs3 : !pdl.range<type>)
+//   
+//   // Constraint to ensure linear connectivity  
+//   pdl.apply_native_constraint "isLinearChain"(%op1, %op2, %op3 : 
+//     !pdl.operation, !pdl.operation, !pdl.operation)
+//   
+//   pdl.rewrite {
+//     // Extract linear chain as before
+//   }
+// }
+
+// Comments on required native constraints and rewrites:
+//
+// Native Constraints (implement in C++):
+// - isConnectedSubgraph: Verifies ops form expected connectivity pattern
+// - isSplatConstant: Checks if constant is a splat value
+// - isLinearChain: Verifies operations form a linear dependency chain
+//
+// Native Rewrites (implement in C++):  
+// - getExternalInputs: Find values flowing into subgraph from outside
+// - getExternalOutputs: Find values flowing out of subgraph
+// - generateUniqueFuncName: Create unique name for extracted function
+// - getValueTypes: Extract types from value range
+// - createFunctionType: Build function type from input/output types
+// - createFunctionArguments: Create block arguments for new function
+// - cloneOperationsToFunction: Clone ops, remap values, handle constants
+// - getClonedOutputs: Map original outputs to cloned equivalents
+// - replaceUsesWithCallResults: Update uses to use call results
+// - eraseOperations: Clean up original operations

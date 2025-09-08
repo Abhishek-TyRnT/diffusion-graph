@@ -43,4 +43,13 @@ def vLLMCanonicalizerPass : Pass<"vllm-canonicalizer-pass", "func::FuncOp"> {
 
 }
 
+def vLLMFunctionPartitioningPass : Pass<"function-partioning-pass", "ModuleOp"> {
+    let summary = "FunctionPartitionPass for partioning forward function.";
+    let description = [{
+        Splitting the forward graph to separate out certain subgraphs 
+    }];
+
+    let constructor = "mlir::vllm_graph::createvLLMFunctionPartitionPass()";
+}
+
 #endif //VLLM_GRAPH_TRANSFORM_PASSES_H_

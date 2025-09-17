@@ -6,6 +6,7 @@
 
 using namespace mlir;
 using namespace mlir::pdl_interp;
+using namespace mlir::pdl;
 
 class PDLInterpMatcher {
 private:
@@ -16,6 +17,9 @@ private:
     struct InterpreterState {
         Operation* currentOp = nullptr;
         DenseMap<Value, Operation*> valueToOp;
+        DenseMap<Value, Value> valueToValue;
+        llvm::DenseMap<Value, SmallVector<Operation*, 4>> valueToOpRanges;
+        llvm::DenseMap<Value, ValueRange> valueToValueRanges;
         DenseMap<Value, Attribute> valueToAttr;
         SmallVector<Operation*> matches;
         bool success = false;
@@ -31,6 +35,8 @@ private:
     bool executeCheckResultCount(CheckResultCountOp op, InterpreterState& state);
     
     bool executeGetOperand(GetOperandOp op, InterpreterState& state);
+
+    bool executeGetOperands(GetOperandsOp op, InterpreterState& state);
     
     bool executeGetResult(GetResultOp op, InterpreterState& state);
     
@@ -40,8 +46,14 @@ private:
     
     bool executeApplyRewrite(ApplyRewriteOp op, InterpreterState& state);
 
-    bool executeIsNotNull(IsNotNullOp Op, InterpreterState& state);
+    bool executeIsNotNull(IsNotNullOp op, InterpreterState& state);
 
+    bool executeAreEqual(AreEqualOp op, InterpreterState& state);
+
+    bool executeGetUsers(GetUsersOp op, InterpreterState& state);
+
+    bool executeForLoop(ForEachOp op, InterpreterState& state);
+    
     bool executeBlock(Block& block, InterpreterState& state);
     
     bool executeRegion(Region& region, InterpreterState& state);

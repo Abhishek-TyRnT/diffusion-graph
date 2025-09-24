@@ -47,7 +47,7 @@ Pattern ExtractPoolingLayer with benefit(1) {
   let TanhOp = op<vllm_graph.vllm.tanh>(AddMmOp);
                       
   rewrite IndexSelectOp with {
-    CreatePoolingFunc(IndexSelectOp);
+    CreatePoolingFunc(layerNormOp);
     erase IndexSelectOp;
     erase SqueezeOp;
     erase TransposeOp;

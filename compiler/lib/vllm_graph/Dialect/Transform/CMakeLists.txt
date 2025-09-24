@@ -21,4 +21,5 @@ add_mlir_library(vLLMGraphTransformPasses
   TorchMLIRTorchDialect
   vLLMGraphIRDialect
   vLLMGraphTorchTovLLMGraph
+  vLLMGraphPatternInterpreter
 )

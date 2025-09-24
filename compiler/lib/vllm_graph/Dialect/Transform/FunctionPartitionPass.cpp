@@ -7,13 +7,14 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
+#include "vllm_graph/Dialect/Patterns/PatternInterpreter.hpp"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include <unistd.h>
 #include <string>
+#include <filesystem>
 
 using namespace mlir;
-
-
-
+using namespace mlir::vllm_graph;
 
 std::string getRootPath() {
     char buffer[1024];
@@ -26,6 +27,44 @@ std::string getRootPath() {
     return "";
 
 }
+
+class PoolingLayerSplit : public RewritePattern {
+    std::string pattern_path = getRootPath() + "/Patterns/poolingLayer.pdl_interp.mlir";
+    const PDLInterpMatcher pattern_interpreter;
+
+public:
+    PoolingLayerSplit(MLIRContext *context)
+      : RewritePattern(func::FuncOp::getOperationName(), 1, context), pattern_interpreter(context, pattern_path) {
+        ;
+        // pattern_interpreter.loadPDLInterpFile(pattern_path);
+      }
+
+    bool match(Operation *op) const {
+
+        func::FuncOp func = dyn_cast<func::FuncOp>(op);
+        if (!func.getSymName().starts_with("main"))
+            return false;
+
+        return pattern_interpreter.matchInTree(op);
+    }
+
+    void rewrite(Operation *funcOp, PatternRewriter &rewriter) const {
+        llvm::outs() << "The match was successful\n";
+    }
+
+    LogicalResult matchAndRewrite(Operation *op, PatternRewriter &rewriter) const override {
+
+        
+        if(match(op)){
+            rewrite(op, rewriter);
+            return success();
+        }
+
+        llvm::outs() << "The match failed\n";
+        return failure();
+
+    }
+};
 
 namespace {
 class vLLMFunctionPartitioningPass : public vLLMFunctionPartitioningPassBase<vLLMFunctionPartitioningPass> {
@@ -42,73 +81,20 @@ public:
     void runOnOperation() override {
         ModuleOp module = getOperation();
         MLIRContext *context = &getContext();
-        
-        // Load PDL pattern from file or embed it
-        OwningOpRef<ModuleOp> pdlModule = loadPDLModule(context);
-        if (!pdlModule) {
-            signalPassFailure();
-            return;
-        }
 
         // Convert PDL to PDLInterp
-        RewritePatternSet pdlPatterns(context);
-        populatePDLToPDLInterpPatterns(pdlPatterns, pdlModule.get());
+        RewritePatternSet patterns(context);
+        patterns.add<PoolingLayerSplit>(context);
 
-        // Register native constraints and rewrites
-        registerNativeConstraintsAndRewrites(pdlModule.get());
 
         // Apply patterns using greedy rewriter
-        if (failed(applyPatternsAndFoldGreedily(module, std::move(pdlPatterns)))) {
+        if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
             signalPassFailure();
         }
     }
-
-private:
-    OwningOpRef<ModuleOp> loadPDLModule(MLIRContext *context) {
-        // Option 1: Load from file
-        std::string parent_path = getRootPath();
-
-        //TODO: Hardcoding it, need to figure out later how to make it dynamic 
-        std::string pattern_path = parent_path + "/patterns/poolingLayer.pdl"
-        return parseSourceFile<ModuleOp>(pattern_path, context);
-        
-    }
-
-    void registerNativeConstraintsAndRewrites(ModuleOp pdlModule) {
-        auto *context = pdlModule.getContext();
-        
-        // Register native constraints
-        PDLPatternModule &patternModule = 
-            context->getOrLoadDialect<pdl_interp::PDLInterpDialect>()
-                ->getPatternModule();
-        
-        patternModule.registerConstraintFunction(
-            "isConnectedSubgraph", IsConnectedSubgraphConstraint::apply);
-        // patternModule.registerConstraintFunction(
-        //     "isSplatConstant", IsSplatConstantConstraint::apply);
-        
-        // Register native rewrites
-        patternModule.registerRewriteFunction(
-            "getExternalInputs", GetExternalInputsRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "getExternalOutputs", GetExternalOutputsRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "generateUniqueFuncName", GenerateUniqueFuncNameRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "getValueTypes", GetValueTypesRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "createFunctionType", CreateFunctionTypeRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "createFunctionArguments", CreateFunctionArgumentsRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "cloneOperationsToFunction", CloneOperationsToFunctionRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "getClonedOutputs", GetClonedOutputsRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "replaceUsesWithCallResults", ReplaceUsesWithCallResultsRewrite::rewrite);
-        patternModule.registerRewriteFunction(
-            "eraseOperations", EraseOperationsRewrite::rewrite);
-    }
-
-}
+};
 } //namespace
+
+std::unique_ptr<OperationPass<ModuleOp>> mlir::vllm_graph::createvLLMFunctionPartitionPass(){
+    return std::make_unique<vLLMFunctionPartitioningPass>();
+}

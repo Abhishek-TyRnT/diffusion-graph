@@ -1,18 +1,11 @@
-#include "vllm_graph/Dialect/Patterns/Patterns/PatternInterpreter.hpp"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Operation.h"
-#include "mlir/IR/OwningOpRef.h"
-#include "mlir/Parser/Parser.h"
-#include "mlir/Support/FileUtilities.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/raw_ostream.h"
+#include "vllm_graph/Dialect/Patterns/PatternInterpreter.hpp"
 
 #include <memory>
 #include <vector>
 
+using namespace mlir::vllm_graph;
 
-bool PDLInterpMatcher::executeInstruction(Operation* instrOp, InterpreterState& state) {
+bool PDLInterpMatcher::executeInstruction(Operation* instrOp, InterpreterState& state) const {
     if (auto checkOpName = dyn_cast<CheckOperationNameOp>(instrOp)) {
         return executeCheckOperationName(checkOpName, state);
     }
@@ -41,7 +34,7 @@ bool PDLInterpMatcher::executeInstruction(Operation* instrOp, InterpreterState& 
         return executeIsNotNull(isNotNull, state);
     }
 
-    if (auto forEach = dyn_cast<IsNotNullOp>(instrOp)) {
+    if (auto forEach = dyn_cast<ForEachOp>(instrOp)) {
         return executeForLoop(forEach, state); 
     }
 
@@ -54,7 +47,11 @@ bool PDLInterpMatcher::executeInstruction(Operation* instrOp, InterpreterState& 
     }
 
     if ( auto getUsers = dyn_cast<GetUsersOp>(instrOp)) {
-        return executeGetUsers(op, state);
+        return executeGetUsers(getUsers, state);
+    }
+
+    if ( auto getDefOp = dyn_cast<GetDefiningOpOp>(instrOp)) {
+        return executeGetDefiningOp(getDefOp, state);
     }
 
     if (auto finalize = dyn_cast<FinalizeOp>(instrOp)) {
@@ -70,10 +67,12 @@ bool PDLInterpMatcher::executeInstruction(Operation* instrOp, InterpreterState& 
         return true; // Continue execution
     }
     
-    return true; // Default: continue execution
+    llvm::errs() << instrOp->getName() << " is not implemented\n";
+
+    return false; // Default: continue execution
 }
 
-bool PDLInterpMatcher::executeCheckOperationName(CheckOperationNameOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeCheckOperationName(CheckOperationNameOp op, InterpreterState& state) const {
     if (!state.currentOp) return false;
     
     Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
@@ -85,12 +84,12 @@ bool PDLInterpMatcher::executeCheckOperationName(CheckOperationNameOp op, Interp
     Block *falseDest = op.getFalseDest();
 
     if(inputOp->getName().getStringRef() == expectedName)
-        return executeBlock(*trueDest);
+        return executeBlock(*trueDest, state);
     else
-        return executeBlock(*falseDest);
+        return executeBlock(*falseDest, state);
 }
 
-bool PDLInterpMatcher::executeCheckOperandCount(CheckOperandCountOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeCheckOperandCount(CheckOperandCountOp op, InterpreterState& state) const {
     Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
     if (!inputOp) return false;
     
@@ -99,13 +98,25 @@ bool PDLInterpMatcher::executeCheckOperandCount(CheckOperandCountOp op, Interpre
 
     
     if(inputOp->getNumOperands() == op.getCount())
-        return executeBlock(*trueDest);
+        return executeBlock(*trueDest, state);
     else
-        return executeBlock(*falseDest);
+        return executeBlock(*falseDest, state);
 
 }
 
-bool PDLInterpMatcher::executeCheckResultCount(CheckResultCountOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeGetDefiningOp(GetDefiningOpOp op, InterpreterState& state) const {
+    
+    Value inputValue = state.valueToValue.lookup(op.getInputOp());
+    if (!inputValue) return false;
+
+    Operation* def_op = inputValue.getDefiningOp();
+
+    state.valueToOp[op.getValue()] = def_op;
+
+    return true;
+}
+
+bool PDLInterpMatcher::executeCheckResultCount(CheckResultCountOp op, InterpreterState& state) const {
     Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
     if (!inputOp) return false;
 
@@ -113,12 +124,12 @@ bool PDLInterpMatcher::executeCheckResultCount(CheckResultCountOp op, Interprete
     Block *falseDest = op.getFalseDest();
 
     if(inputOp->getNumResults() == op.getCount())
-        return executeBlock(*trueDest);
+        return executeBlock(*trueDest, state);
     else
-        return executeBlock(*falseDest);
+        return executeBlock(*falseDest, state);
 }
 
-bool PDLInterpMatcher::executeGetOperand(GetOperandOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeGetOperand(GetOperandOp op, InterpreterState& state) const {
     Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
     if (!inputOp) return false;
     
@@ -131,7 +142,7 @@ bool PDLInterpMatcher::executeGetOperand(GetOperandOp op, InterpreterState& stat
     return true;
 }
 
-bool PDLInterpMatcher::executeGetResult(GetResultOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeGetResult(GetResultOp op, InterpreterState& state) const {
     Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
     if (!inputOp) return false;
     
@@ -146,7 +157,7 @@ bool PDLInterpMatcher::executeGetResult(GetResultOp op, InterpreterState& state)
     return true;
 }
 
-bool PDLInterpMatcher::executeGetAttribute(GetAttributeOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeGetAttribute(GetAttributeOp op, InterpreterState& state) const {
     Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
     if (!inputOp) return false;
     
@@ -159,19 +170,19 @@ bool PDLInterpMatcher::executeGetAttribute(GetAttributeOp op, InterpreterState& 
     return false;
 }
 
-bool PDLInterpMatcher::executeIsNotNull(IsNotNullOp op, InterpreterState& state){
+bool PDLInterpMatcher::executeIsNotNull(IsNotNullOp op, InterpreterState& state) const {
 
     Type type = op.getValue().getType();
     Block *trueDest = op.getTrueDest();
     Block *falseDest = op.getFalseDest();
     if(isa<OperationType>(type)){
-        Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
+        Operation* inputOp = state.valueToOp.lookup(op.getOperand());
         if(inputOp)
             return executeBlock(*trueDest, state);
         else
             return executeBlock(*falseDest, state);
     } else {
-        Value input = state.valueTovalue.lookup(op.getInputOp());
+        Value input = state.valueToValue.lookup(op.getOperand());
         if(input)
             return executeBlock(*trueDest, state);
         else
@@ -179,9 +190,9 @@ bool PDLInterpMatcher::executeIsNotNull(IsNotNullOp op, InterpreterState& state)
     }
 }
 
-bool PDLInterpMatcher::executeForLoop(ForEachOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeForLoop(ForEachOp op, InterpreterState& state) const {
     
-    SmallVector<Operation*, 4> OpRanges = state.valueToOpRanges.lookup(op.getInputOp);
+    SmallVector<Operation*, 4> OpRanges = state.valueToOpRanges.lookup(op.getOperand());
 
     Block* SuccessorBlock = op.getSuccessor();
     BlockArgument arg = op.getLoopVariable();
@@ -191,16 +202,19 @@ bool PDLInterpMatcher::executeForLoop(ForEachOp op, InterpreterState& state) {
     //TODO: Need to do it for Types and Attributes as well.
     for(Operation* op : OpRanges){
         state.valueToOp[arg] = op;
-        bool passed = executeBlock(*LoopBody);
+        bool passed = executeBlock(*LoopBody, state);
+        if(state.success)
+            break;
+
         if(!passed)
             return false;
     }
 
-    return executeBlock(*SuccessorBlock);
+    return executeBlock(*SuccessorBlock, state);
 }
 
-bool PDLInterpMatcher::executeGetUsers(GetUsersOp op, InterpreterState& state){
-    Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
+bool PDLInterpMatcher::executeGetUsers(GetUsersOp op, InterpreterState& state) const {
+    Operation* inputOp = state.valueToOp.lookup(op.getOperand());
     SmallVector<Operation*, 4> OpRanges;
     for(Operation *user : inputOp->getUsers())
         OpRanges.push_back(user);
@@ -210,8 +224,8 @@ bool PDLInterpMatcher::executeGetUsers(GetUsersOp op, InterpreterState& state){
     
 }
 
-bool PDLInterpMatcher::executeAreEqual(AreEqualOp op, InterpreterState& state){
-    Type type = op.getValue().getType();
+bool PDLInterpMatcher::executeAreEqual(AreEqualOp op, InterpreterState& state) const{
+    Type type = op.getOperands()[0].getType();
     Block *trueDest = op.getTrueDest();
     Block *falseDest = op.getFalseDest();
     if(isa<OperationType>(type)){
@@ -223,8 +237,11 @@ bool PDLInterpMatcher::executeAreEqual(AreEqualOp op, InterpreterState& state){
         //TODO: Implement OperationRange and AttributeRange
         RangeType rangeType = cast<RangeType>(type);
         if(isa<ValueType>(rangeType.getElementType())){
-            ValueRange lhs = state.valueToValue.lookup(op.getLhs());
-            ValueRange rhs = state.valueToValue.lookup(op.getRhs());
+            Value lhskey = op.getLhs();
+            Value rhskey = op.getRhs();
+            ValueRange lhs(state.valueToValue.lookup(lhskey));
+            ValueRange rhs(state.valueToValue.lookup(rhskey));
+
             if (lhs.size() != rhs.size())
                 return executeBlock(*falseDest, state);
             for (auto [l, r] : llvm::zip(lhs, rhs)) {
@@ -232,7 +249,8 @@ bool PDLInterpMatcher::executeAreEqual(AreEqualOp op, InterpreterState& state){
                     return executeBlock(*falseDest, state);
             }
             return executeBlock(*trueDest, state);
-        }
+        } else 
+            return false;
 
     } else {
         
@@ -244,14 +262,14 @@ bool PDLInterpMatcher::executeAreEqual(AreEqualOp op, InterpreterState& state){
     
 }
 
-bool PDLInterpMatcher::executeGetOperands(GetOperandsOp op, InterpreterState& state){
+bool PDLInterpMatcher::executeGetOperands(GetOperandsOp op, InterpreterState& state) const{
     Operation* inputOp = state.valueToOp.lookup(op.getInputOp());
 
     state.valueToValueRanges[op.getValue()] = inputOp->getOperands();
     return true;
 }
 
-bool PDLInterpMatcher::executeRecordMatch(RecordMatchOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeRecordMatch(RecordMatchOp op, InterpreterState& state) const{
     // Record all matched operations
     for (Value input : op.getInputs()) {
         if (Operation* matchedOp = state.valueToOp.lookup(input)) {
@@ -263,18 +281,21 @@ bool PDLInterpMatcher::executeRecordMatch(RecordMatchOp op, InterpreterState& st
     return true;
 }
 
-bool PDLInterpMatcher::executeApplyRewrite(ApplyRewriteOp op, InterpreterState& state) {
+bool PDLInterpMatcher::executeApplyRewrite(ApplyRewriteOp op, InterpreterState& state) const {
     // This would execute the actual rewrite
     // For now, just mark as successful match
     state.success = true;
     return true;
 }
 
-bool PDLInterpMatcher::executeBlock(Block& block, InterpreterState& state){
+bool PDLInterpMatcher::executeBlock(Block& block, InterpreterState& state) const {
     for (Operation& op : block) {
+        llvm::outs() << op << "\n";
         if (!executeInstruction(&op, state)) {
             return false;
         }
+
+        
         
         // If we hit a successful match, we can stop
         if (state.success) {
@@ -285,7 +306,7 @@ bool PDLInterpMatcher::executeBlock(Block& block, InterpreterState& state){
     return true;
 }
 
-bool PDLInterpMatcher::executeRegion(Region& region, InterpreterState& state) {
+bool PDLInterpMatcher::executeRegion(Region& region, InterpreterState& state) const{
     if (region.empty()) return true;
     
     Block& block = region.front();
@@ -307,7 +328,7 @@ bool PDLInterpMatcher::loadPDLInterpFile(const std::string& filename) {
     llvm::SourceMgr sourceMgr;
     sourceMgr.AddNewSourceBuffer(std::move(file), llvm::SMLoc());
     
-    pdlModule = mlir::parseSourceFile<ModuleOp>(sourceMgr, context.get());
+    pdlModule = mlir::parseSourceFile<ModuleOp>(sourceMgr, context);
     if (!pdlModule) {
         llvm::errs() << "Failed to parse PDL-interp file\n";
         return false;
@@ -316,14 +337,17 @@ bool PDLInterpMatcher::loadPDLInterpFile(const std::string& filename) {
     return true;
 }
 
-bool PDLInterpMatcher::matchPattern(Operation* rootOp) {
+bool PDLInterpMatcher::matchPattern(Operation* rootOp) const {
+
+    InterpreterState state;
+
     if (!pdlModule) {
         llvm::errs() << "No PDL-interp module loaded\n";
         return false;
     }
     
     // Initialize interpreter state
-    InterpreterState state;
+    
     state.currentOp = rootOp;
     
     // Find the main matching function (typically the first function)
@@ -340,29 +364,34 @@ bool PDLInterpMatcher::matchPattern(Operation* rootOp) {
     if (!entryBlock.getArguments().empty()) {
         Value rootArg = entryBlock.getArgument(0);
         state.valueToOp[rootArg] = rootOp;
-    }
-    
+    }    
     // Execute the function
-    return executeRegion(mainFunc.getBody(), state);
+    if(!executeRegion(mainFunc.getBody(), state))
+        return false;
+
+    return state.success;
 }
 
 // Recursively match against IR tree
-bool PDLInterpMatcher::matchInTree(Operation* op) {
+bool PDLInterpMatcher::matchInTree(Operation* op) const {
     // Try matching at current operation
-    if (matchPattern(op)) {
+    if(matchPattern(op))
         return true;
-    }
     
     // Recursively check nested operations
+    //TODO: Add this feature later on
     for (Region& region : op->getRegions()) {
         for (Block& block : region) {
             for (Operation& nestedOp : block) {
+                llvm::outs() << nestedOp << "\n";
                 if (matchInTree(&nestedOp)) {
                     return true;
                 }
             }
         }
     }
-    
+
     return false;
+    
 }
+

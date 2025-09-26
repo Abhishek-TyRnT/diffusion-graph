@@ -11,6 +11,7 @@
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/DenseMap.h"
 
 using namespace mlir;
 using namespace mlir::pdl_interp;
@@ -51,7 +52,11 @@ private:
     bool executeGetOperands(GetOperandsOp op, InterpreterState& state) const;
     
     bool executeGetResult(GetResultOp op, InterpreterState& state) const ;
+
+    bool executeGetResults(GetResultsOp op, InterpreterState& state) const ;
     
+    bool executeExtractOp(ExtractOp op, InterpreterState& state) const ;
+
     bool executeGetAttribute(GetAttributeOp op, InterpreterState& state) const;
     
     bool executeRecordMatch(RecordMatchOp op, InterpreterState& state) const;

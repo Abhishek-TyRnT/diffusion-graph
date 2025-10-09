@@ -34,9 +34,7 @@ bool PDLInterpMatcher::executeInstruction(Operation* instrOp, InterpreterState& 
     if (auto recordMatch = dyn_cast<RecordMatchOp>(instrOp)) {
         return executeRecordMatch(recordMatch, state);
     }
-    if (auto applyRewrite = dyn_cast<ApplyRewriteOp>(instrOp)) {
-        return executeApplyRewrite(applyRewrite, state);
-    }
+
     if (auto isNotNull = dyn_cast<IsNotNullOp>(instrOp)) {
         return executeIsNotNull(isNotNull, state);
     }
@@ -70,7 +68,7 @@ bool PDLInterpMatcher::executeInstruction(Operation* instrOp, InterpreterState& 
     }
     
     // Handle control flow operations
-    if (instrOp->hasTrait<OpTrait::IsTerminator>()) {
+    if (instrOp->hasTrait<mlir::OpTrait::IsTerminator>()) {
         return true; // Continue execution
     }
     
@@ -324,19 +322,26 @@ bool PDLInterpMatcher::executeRecordMatch(RecordMatchOp op, InterpreterState& st
     // Record all matched operations
     for (Value input : op.getInputs()) {
         if (Operation* matchedOp = state.valueToOp.lookup(input)) {
-            state.matches.push_back(matchedOp);
+            rewriteState->matches.push_back(matchedOp);
         }
     }
+
+    rewriteState->rewriterSymbol = op.getRewriter();
     state.success = true;
 
     return true;
 }
 
-bool PDLInterpMatcher::executeApplyRewrite(ApplyRewriteOp op, InterpreterState& state) const {
-    // This would execute the actual rewrite
-    // For now, just mark as successful match
-    state.success = true;
-    return true;
+bool PDLInterpMatcher::executeApplyRewrite(ApplyRewriteOp op, PatternRewriter& rewriter, InterpreterState& state) const {
+    // TODO: make it type agnostic.
+    std::string nativeRewriteName = op.getName().str();
+    Value input = state.valueToValue.lookup(op.getOperand(0));
+    if(holds_alternative<function<bool(Value, PatternRewriter&)>>(functionMap.at(nativeRewriteName))){
+        auto func = get<function<bool(Value, PatternRewriter&)>>(functionMap.at(nativeRewriteName));
+        return func(input, rewriter);
+    }
+    
+    return false;
 }
 
 bool PDLInterpMatcher::executeBlock(Block& block, InterpreterState& state) const {
@@ -441,5 +446,67 @@ bool PDLInterpMatcher::matchInTree(Operation* op) const {
 
     return false;
     
+}
+
+bool PDLInterpMatcher::rewriteOrExecuteOps(Operation* op, PatternRewriter& rewriter, InterpreterState& state) const {
+
+    if(auto applyRewriteOp = dyn_cast<ApplyRewriteOp>(op)){
+        return executeApplyRewrite(applyRewriteOp, rewriter, state);
+    } else if(auto eraseOp = dyn_cast<EraseOp>(op)){
+        return true;
+    } else {
+        return executeInstruction(op, state);
+    }
+}
+
+LogicalResult PDLInterpMatcher::rewriteModule(PatternRewriter& rewriter) const {
+
+    InterpreterState state;
+
+    if (!pdlModule) {
+        llvm::errs() << "No PDL-interp module loaded\n";
+        return failure();
+    }
+    
+    // Initialize interpreter state
+    
+    // state.currentOp = rootOp;
+    
+    // Find the main matching function (typically the first function)
+    SymbolRefAttr sym = rewriteState->rewriterSymbol;
+    Operation* symbolOp = SymbolTable::lookupNearestSymbolFrom(*pdlModule, sym);
+
+    if (!symbolOp) {
+        // Symbol not found
+        llvm::errs() << "Symbol not found: " << sym;
+        return failure();
+    }
+
+    auto rewriterModule = mlir::dyn_cast<pdl_interp::FuncOp>(symbolOp);
+
+    if(!rewriterModule){
+        llvm::errs() << "Rewriter Module not found\n";
+        return failure();
+    }
+    
+    // // Set up initial bindings - map root operation
+    Block& entryBlock = rewriterModule.getBody().front();
+    int i = 0;
+    for (BlockArgument arg: entryBlock.getArguments()) {
+        state.valueToOp[arg] = rewriteState->matches[i++];
+    }    
+    // Execute the function
+    for(Operation& rewriteOp : entryBlock){
+        bool passed = rewriteOrExecuteOps(&rewriteOp, rewriter, state);
+        if(!passed)
+            return failure();
+    }
+
+    return success();
+}
+
+void PDLInterpMatcher::registerNativeRewrites() {
+    //Register more native rewrites as and when they are required
+    functionMap["CreatePoolingFunc"] = std::function<bool(Value, PatternRewriter&)>(createPoolingFunc);
 }
 

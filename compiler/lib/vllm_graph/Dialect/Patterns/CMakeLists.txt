@@ -1,5 +1,6 @@
 set(InterpreterFiles
     PatternInterpreter.cpp
+    NativeRewrites.cpp
 )
 
 add_mlir_library(

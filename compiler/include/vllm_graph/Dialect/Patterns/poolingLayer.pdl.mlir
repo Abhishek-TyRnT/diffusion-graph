@@ -10,7 +10,7 @@
 
 
 
-Rewrite CreatePoolingFunc(ops: ValueRange);
+Rewrite CreatePoolingFunc(ops: Value);
 
 // Pattern to identify and extract constant operations along with custom ops
 Pattern ExtractPoolingLayer with benefit(1) {
@@ -47,7 +47,7 @@ Pattern ExtractPoolingLayer with benefit(1) {
   let TanhOp = op<vllm_graph.vllm.tanh>(AddMmOp);
                       
   rewrite IndexSelectOp with {
-    CreatePoolingFunc(layerNormOp);
+    CreatePoolingFunc(IndexSelectOp);
     erase IndexSelectOp;
     erase SqueezeOp;
     erase TransposeOp;

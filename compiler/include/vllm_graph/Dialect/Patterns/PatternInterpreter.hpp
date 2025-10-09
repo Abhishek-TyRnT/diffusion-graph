@@ -13,14 +13,23 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseMap.h"
 
+#include "vllm_graph/Dialect/Patterns/NativeRewrites.hpp"
+
 using namespace mlir;
 using namespace mlir::pdl_interp;
 using namespace mlir::pdl;
+using namespace std;
 
 namespace mlir {
 
 namespace vllm_graph {
 class PDLInterpMatcher {
+
+using FuncVariant = std::variant<
+    std::function<bool(PatternRewriter&)>,
+    std::function<bool(Value, PatternRewriter&)>
+>;
+
 private:
     MLIRContext *context;
     mutable OwningOpRef<ModuleOp> pdlModule;
@@ -33,10 +42,17 @@ private:
         llvm::DenseMap<Value, SmallVector<Operation*, 4>> valueToOpRanges;
         llvm::DenseMap<Value, ValueRange> valueToValueRanges;
         DenseMap<Value, Attribute> valueToAttr;
-        SmallVector<Operation*> matches;
-        SymbolRefAttr rewriteCode;
         bool success = false;
     };
+
+    struct RewriteState {
+        SmallVector<Operation*> matches;
+        SymbolRefAttr rewriterSymbol;
+        LogicalResult passed = failure();
+    };
+
+    std::unique_ptr<RewriteState> rewriteState;
+    std::unordered_map<std::string, FuncVariant> functionMap;
     
     // Execute a single PDL interpreter instruction
     bool executeInstruction(Operation* instrOp, InterpreterState& state) const;
@@ -61,7 +77,7 @@ private:
     
     bool executeRecordMatch(RecordMatchOp op, InterpreterState& state) const;
     
-    bool executeApplyRewrite(ApplyRewriteOp op, InterpreterState& state) const;
+    bool executeApplyRewrite(ApplyRewriteOp op, PatternRewriter& rewriter, InterpreterState& state) const;
 
     bool executeIsNotNull(IsNotNullOp op, InterpreterState& state) const;
 
@@ -78,17 +94,28 @@ private:
     bool executeRegion(Region& region, InterpreterState& state) const;
     
     bool loadPDLInterpFile(const std::string& filename);
+
+    bool matchPattern(Operation* rootOp) const;
+
+    //Execute rewrite Ops
+    bool rewriteOrExecuteOps(Operation* op, PatternRewriter& rewriter, InterpreterState& state) const;
+
+    void registerNativeRewrites();
 public:
     PDLInterpMatcher(MLIRContext *context, const std::string& pdlFile) {
         this->context = context;
         loadPDLInterpFile(pdlFile);
-            
+        rewriteState = std::make_unique<RewriteState>();
+        registerNativeRewrites();    
     }
     
-    bool matchPattern(Operation* rootOp) const;
+    
     // Recursively match against IR tree
     bool matchInTree(Operation* op) const;
     
+
+    LogicalResult rewriteModule(PatternRewriter& rewriter) const;
+
     void dumpPDLModule() {
         if (pdlModule) {
             pdlModule->dump();

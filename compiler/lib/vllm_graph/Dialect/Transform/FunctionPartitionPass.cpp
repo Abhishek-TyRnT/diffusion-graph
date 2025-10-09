@@ -48,16 +48,15 @@ public:
         return pattern_interpreter.matchInTree(op);
     }
 
-    void rewrite(Operation *funcOp, PatternRewriter &rewriter) const {
-        llvm::outs() << "The match was successful\n";
+    LogicalResult rewrite(PatternRewriter &rewriter) const {
+        return pattern_interpreter.rewriteModule(rewriter);
     }
 
     LogicalResult matchAndRewrite(Operation *op, PatternRewriter &rewriter) const override {
 
         
         if(match(op)){
-            rewrite(op, rewriter);
-            return success();
+            return rewrite(rewriter);
         }
 
         llvm::outs() << "The match failed\n";
@@ -86,9 +85,13 @@ public:
         RewritePatternSet patterns(context);
         patterns.add<PoolingLayerSplit>(context);
 
+        GreedyRewriteConfig config;
+        config.maxIterations = 1;  // Only run one iteration
+        config.useTopDownTraversal = true;
+
 
         // Apply patterns using greedy rewriter
-        if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
+        if (failed(applyPatternsGreedily(module, std::move(patterns), config))) {
             signalPassFailure();
         }
     }

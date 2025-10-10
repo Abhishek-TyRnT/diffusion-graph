@@ -42,8 +42,9 @@ public:
     bool match(Operation *op) const {
 
         func::FuncOp func = dyn_cast<func::FuncOp>(op);
-        if (!func.getSymName().starts_with("main"))
+        if (!func.getSymName().starts_with("main")){
             return false;
+        }
 
         return pattern_interpreter.matchInTree(op);
     }
@@ -55,12 +56,12 @@ public:
     LogicalResult matchAndRewrite(Operation *op, PatternRewriter &rewriter) const override {
 
         
-        if(match(op)){
-            return rewrite(rewriter);
+        if(match(op)){            
+            LogicalResult result = rewrite(rewriter);
+            return result;
         }
 
-        llvm::outs() << "The match failed\n";
-        return failure();
+        return success();
 
     }
 };
@@ -85,15 +86,23 @@ public:
         RewritePatternSet patterns(context);
         patterns.add<PoolingLayerSplit>(context);
 
-        GreedyRewriteConfig config;
-        config.maxIterations = 1;  // Only run one iteration
-        config.useTopDownTraversal = true;
+        // TODO: Iterate through all the patterns
+         auto &pattern = *patterns.getNativePatterns().begin();
+    
+    // Create a rewriter
+        PatternRewriter rewriter(&getContext());
+        
+        //TODO: Refine this logic.It looks little bit shaky
+        for (auto &op : module.getBody()->getOperations()) {
+            if(auto funcOp = dyn_cast<func::FuncOp>(op))
+            {
+                if(failed(pattern->matchAndRewrite(&op, rewriter))){
+                    return signalPassFailure();
+                }
 
-
-        // Apply patterns using greedy rewriter
-        if (failed(applyPatternsGreedily(module, std::move(patterns), config))) {
-            signalPassFailure();
+            }
         }
+
     }
 };
 } //namespace

@@ -92,6 +92,8 @@ private:
     bool executeBlock(Block& block, InterpreterState& state) const;
     
     bool executeRegion(Region& region, InterpreterState& state) const;
+
+    bool executeEraseOp(EraseOp op, PatternRewriter& rewriter, InterpreterState& state) const;
     
     bool loadPDLInterpFile(const std::string& filename);
 

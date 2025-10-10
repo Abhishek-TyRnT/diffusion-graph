@@ -48,11 +48,15 @@ Pattern ExtractPoolingLayer with benefit(1) {
                       
   rewrite IndexSelectOp with {
     CreatePoolingFunc(IndexSelectOp);
-    erase IndexSelectOp;
-    erase SqueezeOp;
-    erase TransposeOp;
-    erase AddMmOp;
     erase TanhOp;
+    erase AddMmOp;
+    erase TransposeOp;
+    erase SqueezeOp;
+    erase IndexSelectOp;
+    
+    
+    
+    
 
   };
 

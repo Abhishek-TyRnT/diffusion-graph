@@ -360,6 +360,22 @@ bool PDLInterpMatcher::executeBlock(Block& block, InterpreterState& state) const
     return true;
 }
 
+bool PDLInterpMatcher::executeEraseOp(EraseOp op, PatternRewriter& rewriter, InterpreterState& state) const {
+    Operation* inputOp = state.valueToOp.lookup(op.getOperand());
+    if(!inputOp)
+        return false;
+
+    Value input = inputOp->getOperand(0);
+    Value result = inputOp->getResult(1);
+
+    if(!inputOp->use_empty())
+        return false;
+
+    rewriter.eraseOp(inputOp);
+    
+    return true;
+}
+
 bool PDLInterpMatcher::executeRegion(Region& region, InterpreterState& state) const{
     if (region.empty()) return true;
     
@@ -453,7 +469,7 @@ bool PDLInterpMatcher::rewriteOrExecuteOps(Operation* op, PatternRewriter& rewri
     if(auto applyRewriteOp = dyn_cast<ApplyRewriteOp>(op)){
         return executeApplyRewrite(applyRewriteOp, rewriter, state);
     } else if(auto eraseOp = dyn_cast<EraseOp>(op)){
-        return true;
+        return executeEraseOp(eraseOp, rewriter, state);
     } else {
         return executeInstruction(op, state);
     }
@@ -498,6 +514,7 @@ LogicalResult PDLInterpMatcher::rewriteModule(PatternRewriter& rewriter) const {
     // Execute the function
     for(Operation& rewriteOp : entryBlock){
         bool passed = rewriteOrExecuteOps(&rewriteOp, rewriter, state);
+        
         if(!passed)
             return failure();
     }

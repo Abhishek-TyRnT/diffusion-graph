@@ -171,7 +171,7 @@ def test_vllm_graph_compiler_partioning(model,
                                 backend_legal_ops=backend_legal_ops, 
                                 decomposition_table = get_decompositions(DECOMPOSITION_OPS))
 
-    filename = f"./temp_files/{torch_model.__class__.__name__}.mlir"
+    filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
         f.write(str(torchIR))
     

@@ -29,7 +29,8 @@ std::string getRootPath() {
 }
 
 class PoolingLayerSplit : public RewritePattern {
-    std::string pattern_path = getRootPath() + "/Patterns/poolingLayer.pdl_interp.mlir";
+    //TODO: Remove the hardcoding and take the input from the user
+    std::string pattern_path = "/home/abhishek/vllm-project/build/Patterns/poolingLayer.pdl_interp.mlir";
     const PDLInterpMatcher pattern_interpreter;
 
 public:

@@ -13,11 +13,11 @@ class ModelDict(dict):
         super().__init__(*args, **kwargs)
         self.config = args[0]["config"]
         self.name = args[0]["model_name"]
-    # def __str__(self):
-    #     return f"<{self.name}>"
+    def __str__(self):
+        return f"<{self.name}>"
     
-    # def __repr__(self):
-    #     return f"<{self.name}>"
+    def __repr__(self):
+        return f"<{self.name}>"
 
 class ParameterModel(torch.nn.Module):
     def __init__(self, graph_dict: dict, weight_path: str, arg_dict: dict):
@@ -79,12 +79,17 @@ class vLLMGraphModel(torch.nn.Module):
         
         for func_name, graph_module in graph_modules.items():
             setattr(self, func_name, graph_module)
+        
+        self.func_names = list(graph_modules.keys())
     
     def to(self, *args, **kwargs):
         super().to(*args, **kwargs)
         self.device = torch.device(args[0])
-        self.graph_module = self.graph_module.to(self.device)
-        self.graph_module.device = self.device
+        for func_name in self.func_names:
+            module = getattr(self, func_name)
+            module = module.to(self.device)
+            module.device = self.device
+            
         return self
 
     
@@ -94,7 +99,7 @@ class vLLMGraphModel(torch.nn.Module):
                 intermediate_tensors=None,
                 inputs_embeds=None,
                 ):
-        return self.main(input_ids, positions)
+        return self.main(input_ids, positions)[0]
 
 class vLLMGraph:
     def __init__(self, model_name: str, temp_directory: str | None = None, debug: bool = False):
@@ -291,10 +296,13 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             
             graph_nodes[node] = graph.call_function(op_func, args=tuple(input_args))
     
-    result_nodes = []
-    for result_ssa_id in results:
-        result_nodes.append(graph_nodes[result_ssa_id])
-    graph.output(result_nodes)
+    if len(results) == 1:
+        graph.output(graph_nodes[results[0]])
+    else:
+        result_nodes = []
+        for result_ssa_id in results:
+            result_nodes.append(graph_nodes[result_ssa_id])
+        graph.output(result_nodes)
     return graph
 
 

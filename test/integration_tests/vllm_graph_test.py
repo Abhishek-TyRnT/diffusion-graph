@@ -31,7 +31,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     
     else:
         #print(vllm_graph_output[0].shape, regular_output.shape)
-        return torch.allclose(vllm_graph_output[0], regular_output, atol = 1e-3)
+        return torch.allclose(vllm_graph_output, regular_output, atol = 1e-3)
 
     
 
@@ -135,9 +135,9 @@ def test_graph_compiler_function_partioning_to_model(model,
     reconstructed_model = reconstruct_model(IRdict)
 
     hidden_states = reconstructed_model["main"](*inputs)
-    pooling_output = reconstructed_model["compute_pooling_layer"](*hidden_states)
+    pooling_output = reconstructed_model["compute_pooling_layer"](hidden_states)
 
-    vllm_graph_output = hidden_states + pooling_output
+    vllm_graph_output = hidden_states , pooling_output
     normal_output = torch_model(*inputs)
 
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

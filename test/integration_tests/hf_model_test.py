@@ -1,7 +1,7 @@
 import pytest
 import json
 import torch
-from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel
+from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel, reconstruct_model
 from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM
 from test_utils import validate_outputs
 from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
@@ -15,7 +15,7 @@ from torch.export import Dim
 
 @pytest.mark.parametrize("Model, inputs, input_kwargs", (
     [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),), {}],
-    [AlbertSdpaAttention, (torch.randn(8, 512, 4096),), {}],
+    [AlbertSdpaAttention, (torch.randn(1, 8, 4096),), {}],
     [AlbertLayer, (torch.randn(1, 8, 4096),), {}],
     [AlbertTransformer, (torch.randn(1, 8, 128),), {"return_dict": False}],
 ))
@@ -29,26 +29,28 @@ def test_hf_model_layer(Model,
 
     vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder, )
     vllmgraph.compile(model, inputs, input_kwargs)
-    reconstructed_model = vllmgraph.reconstruct()
+    compiled_model_dict = vllmgraph.get_graph_dict()
+    reconstructed_model = reconstruct_model(compiled_model_dict)
     normal_output = model(*inputs)
-    vllm_graph_output = reconstructed_model(*inputs)
+    vllm_graph_output = reconstructed_model["main"](*inputs)
 
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
 
 
-@pytest.mark.parametrize("model_name, text, model_class, device",
+@pytest.mark.parametrize("model_name, dummy_input, text, model_class, device",
     (
-     ["albert/albert-base-v2", "Hello, my dog is cute", AlbertModel, "cuda"],
-    ["albert/albert-base-v2", "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
+    ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda"],
+    ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
      ))
-def test_hf_models(model_name, text, model_class, device):
+def test_hf_models(model_name, dummy_input, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)
-    # breakpoint()
-    inputs = tokenizer(text, return_tensors="pt")
     
+    dummy_input_ids = dummy_input[0]
+    dummy_position_ids = dummy_input[1]
+    inputs = tokenizer(text, return_tensors="pt")
     #model(**inputs)
-    tmp_folder = f"/tmp"
+    tmp_folder = f"./temp_files"
 
     seq_dim = Dim("seq_len", min = 1, max = model.config.max_position_embeddings - 1)
     dynamic_dims = {
@@ -57,19 +59,20 @@ def test_hf_models(model_name, text, model_class, device):
         "return_dict": None
     }
     vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = True)
-    position_ids = torch.zeros_like(inputs['input_ids'], dtype = torch.int32)
-    input_kwargs = {"return_dict" : False, 'position_ids': position_ids}
-    vllmgraph.compile(model, (inputs['input_ids'], ), input_kwargs, dynamic_dims = dynamic_dims)
+    dummy_input_kwargs = {"return_dict" : False, 'position_ids': dummy_position_ids, }
+    vllmgraph.compile(model, (dummy_input_ids, ), dummy_input_kwargs, dynamic_dims = dynamic_dims)
     
-    reconstructed_model = vllmgraph.reconstruct()
+    compiled_model_dict = vllmgraph.get_graph_dict()
+    reconstructed_model = reconstruct_model(compiled_model_dict)
     reconstructed_model = vLLMGraphModel(reconstructed_model)
-    input_kwargs["position_ids"] = input_kwargs["position_ids"].to(device)
 
     #Offloading to target deivce
     inputs = {key : inputs[key].to(device) for key in inputs}
+   
     reconstructed_model.to(device)
-    # reconstructed_model.device = device
+    
     model = model.to(device)
+    input_kwargs = {"position_ids" : torch.zeros_like(inputs['input_ids']).to(device), "return_dict" : False}
     reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
     model(inputs["input_ids"], position_ids = input_kwargs['position_ids'])
     #Profiling
@@ -81,9 +84,15 @@ def test_hf_models(model_name, text, model_class, device):
     prof2.export_chrome_trace("torch_trace.json")
     
     with profile(activities=activities) as prof1:
-        vllm_graph_output = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'], )
+        #TODO: Make function splitting optional
+        if(hasattr(reconstructed_model, "compute_pooling_layer")):
+            hidden_states = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
+            pooling_output = reconstructed_model.compute_pooling_layer(hidden_states)[0]
+            vllm_graph_output = (hidden_states, pooling_output)
+        else:
+            vllm_graph_output = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
+
     prof1.export_chrome_trace("vllm_graph_trace.json")
 
 
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
-

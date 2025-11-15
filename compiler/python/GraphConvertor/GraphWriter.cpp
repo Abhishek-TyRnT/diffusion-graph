@@ -77,21 +77,21 @@ void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string
 }
 
 
-void GraphWriter::addOp(mlir::Operation *op){
+void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
 
     if(mlir::isa<func::ReturnOp>(*op)){
         std::vector<std::string> results;
         for(auto operand : op->getOperands())
             results.push_back(opMap[operand]);
 
-        graph["results"] = results;        
+        subGraph["results"] = results;        
     }
 
     uint resCount = 0;
     for(mlir::Value res : op->getResults()){
 
         std::stringstream ssa_id;
-        ssa_id << opCount << "." << resCount++;
+        ssa_id << funcCount << "." << opCount << "." << resCount++;
         std::unordered_map<std::string, NestedValueType> map;
         mlir::Type resType = res.getType();
         //Case when it's a constant op 
@@ -115,16 +115,16 @@ void GraphWriter::addOp(mlir::Operation *op){
             } else if(auto boolAttr = mlir::dyn_cast<mlir::BoolAttr>(attr)){
                 storeWeights<mlir::BoolAttr>(boolAttr, ssa_id.str());
             }
-            std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
+            std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
         } else if(mlir::isa<vllm_graph::ConstTupleOp>(*op)) {
             auto TupleOp = mlir::cast<vllm_graph::ConstTupleOp>(*op);
             auto attr = TupleOp.getValue();
             auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr);
             storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
-            std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
+            std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
         } else if(mlir::isa<vllm_graph::ConstantNoneOp>(op))
         {
-            std::get<std::vector<std::string>>(graph["constants"]).push_back(ssa_id.str());
+            std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
         }
         
         if(mlir::isa<mlir::vllm_graph::ValueTensorType>(resType)){
@@ -194,7 +194,7 @@ void GraphWriter::addOp(mlir::Operation *op){
             }
             input_nodes.push_back(opMap[operand]);
             std::string operandSSA_id = opMap[operand];
-            ValueType prevNodeData = graph[operandSSA_id]; 
+            ValueType prevNodeData = subGraph[operandSSA_id]; 
             if(std::holds_alternative<std::unordered_map<std::string, NestedValueType>>(prevNodeData)){       
                 std::unordered_map<std::string, NestedValueType> prev_map =
                                 std::get<std::unordered_map<std::string, NestedValueType>>(prevNodeData);   
@@ -209,12 +209,12 @@ void GraphWriter::addOp(mlir::Operation *op){
                     }
                 }
 
-                graph[operandSSA_id] = prev_map;
+                subGraph[operandSSA_id] = prev_map;
             }
                 
         }
         map["input_nodes"] = input_nodes;
-        graph[ssa_id.str()] = map;
+        subGraph[ssa_id.str()] = map;
     }
 
     opCount++;
@@ -222,8 +222,6 @@ void GraphWriter::addOp(mlir::Operation *op){
 
 GraphWriter::GraphWriter(std::string weightsPath) : weightsPath(weightsPath) {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
-    graph["entrypoint"] = std::vector<std::string>({});
-    graph["constants"] = std::vector<std::string>({});
     
     // file = H5::H5File(weightsPath, H5F_ACC_TRUNC);
 
@@ -232,11 +230,18 @@ GraphWriter::GraphWriter(std::string weightsPath) : weightsPath(weightsPath) {
 void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
 
     for(func::FuncOp funcOp : module->getOps<func::FuncOp>()){
+
+        argCount = 0;
+        opCount = 0;
+        SubGraphMap subGraph;
+        opMap.clear();
+        subGraph["entrypoint"] = std::vector<std::string>({});
+        subGraph["constants"] = std::vector<std::string>({});
         for(mlir::Value operand : funcOp.getArguments()){
             std::stringstream argName;
             argName << "arg" << argCount++;
             opMap[operand] = argName.str();
-            std::get<std::vector<std::string>>(graph["entrypoint"]).push_back(argName.str());
+            std::get<std::vector<std::string>>(subGraph["entrypoint"]).push_back(argName.str());
             mlir::Type argType = operand.getType();
             mlir::vllm_graph::ValueTensorType RankedArg = 
                         mlir::cast<mlir::vllm_graph::ValueTensorType>(argType);
@@ -257,13 +262,21 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
                 map["op_name"] = "input_arg";
             }
 
-            graph[argName.str()] = map;
+            subGraph[argName.str()] = map;
         }
+
+        Block &FuncBlock = funcOp.getBody().front();
+        for(Operation &op : FuncBlock)
+            addOp(&op, subGraph);
+
+        StringRef funcName = funcOp.getName();
+        graph[funcName.str()] = subGraph;
+        funcCount++;
+        // module->walk([this, &subGraph](mlir::Operation *op) {
+        //     this->addOp(op, subGraph);
+        // });
     }
-    module->walk([this](mlir::Operation *op) {
-        // Print the operation name
-        this->addOp(op);
-    });
+
 }
 
 void GraphWriter::closeFile(){

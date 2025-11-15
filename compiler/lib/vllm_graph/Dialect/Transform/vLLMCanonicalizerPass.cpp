@@ -57,6 +57,19 @@ LogicalResult EraseOp<vllm_graph::BroadCastOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult EraseOp<vllm_graph::SizeOp>::matchAndRewrite(
+    vllm_graph::SizeOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    if(op.use_empty()){
+        rewriter.eraseOp(cast<Operation*>(op));
+    } else 
+        return rewriter.notifyMatchFailure(op, "can't erase, not a dead op");
+
+    return success();
+}
+
+template <>
 LogicalResult EraseOp<vllm_graph::DtypeCastOp>::matchAndRewrite(
     vllm_graph::DtypeCastOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -120,6 +133,9 @@ public:
                                                          context);
         
         patterns.add<EraseOp<vllm_graph::DtypeCastOp>>(typeConverter,        
+                                                         context);
+
+        patterns.add<EraseOp<vllm_graph::SizeOp>>(typeConverter,        
                                                          context);
 
 

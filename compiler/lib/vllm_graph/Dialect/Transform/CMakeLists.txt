@@ -4,6 +4,7 @@ add_mlir_library(vLLMGraphTransformPasses
   recompositionPass.cpp
   InlineDialectResourcesDictPass.cpp
   vLLMCanonicalizerPass.cpp
+  FunctionPartitionPass.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${PROJECT_SOURCE_DIR}/include/vllm_graph/Dialect/Transform
@@ -20,4 +21,5 @@ add_mlir_library(vLLMGraphTransformPasses
   TorchMLIRTorchDialect
   vLLMGraphIRDialect
   vLLMGraphTorchTovLLMGraph
+  vLLMGraphPatternInterpreter
 )

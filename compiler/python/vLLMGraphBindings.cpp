@@ -21,7 +21,7 @@ public:
 
 vLLMGraph(std::string weightsPath) : convertor(weightsPath){}
 
-std::unordered_map<std::string, ValueType> compile(std::string IR){
+std::unordered_map<std::string, SubGraphMap> compile(std::string IR){
     mlir::OwningOpRef<mlir::ModuleOp> moduleRef = parse(IR);
     convert(moduleRef);
     convertor.build(moduleRef);

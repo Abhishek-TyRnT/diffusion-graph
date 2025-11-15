@@ -8,6 +8,16 @@ import json
 import os
 from collections import deque
 
+class ModelDict(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.config = args[0]["config"]
+        self.name = args[0]["model_name"]
+    def __str__(self):
+        return f"<{self.name}>"
+    
+    def __repr__(self):
+        return f"<{self.name}>"
 
 class ParameterModel(torch.nn.Module):
     def __init__(self, graph_dict: dict, weight_path: str, arg_dict: dict):
@@ -20,7 +30,7 @@ class ParameterModel(torch.nn.Module):
 
         for constant in self.graph_dict["constants"]:
             if(self.graph_dict[constant]["dtype"] == "!vllm_graph.none"):
-                ssa_id = constant.split(".")[0]
+                ssa_id = constant.replace(".","_")
                 var_name = f"weight_{ssa_id}"
                 setattr(self, var_name, None)
                 continue
@@ -30,7 +40,7 @@ class ParameterModel(torch.nn.Module):
             dtype = self.graph_dict[constant]['dtype']
 
             if(self.graph_dict[constant]["vllm_graph_type"] == "tuple"):
-                ssa_id = constant.split(".")[0]
+                ssa_id = constant.replace(".","_")
                 var_name = f"weight_{ssa_id}"
                 setattr(self, var_name, tuple(data))
                 continue
@@ -38,7 +48,7 @@ class ParameterModel(torch.nn.Module):
             
 
             if(self.graph_dict[constant].get("output_shape", None) is None):
-                ssa_id = constant.split(".")[0]
+                ssa_id = constant.replace(".","_")
                 var_name = f"weight_{ssa_id}"
                 if(dtype == "i1"):
                     data = bool(data)
@@ -49,7 +59,7 @@ class ParameterModel(torch.nn.Module):
             tensor = torch.tensor(data, dtype = TYPE_MAP[dtype])
             tensor = torch.reshape(tensor, self.graph_dict[constant]["output_shape"])
             
-            ssa_id = constant.split(".")[0]
+            ssa_id = constant.replace(".","_")
             var_name = f"weight_{ssa_id}"
             weight = torch.nn.Parameter(tensor, requires_grad=False)
             del data
@@ -61,27 +71,39 @@ class ParameterModel(torch.nn.Module):
         return next(self.parameters()).device
 
 class vLLMGraphModel(torch.nn.Module):
-    def __init__(self, graph_module: torch.fx.GraphModule):
+    def __init__(self, graph_modules: dict[str, torch.fx.GraphModule]):
         super().__init__()
-        self.graph_module = graph_module
+
+        if graph_modules.get("main", None) is None:
+            raise ValueError("FATAL: Model has no main module!")
+        
+        for func_name, graph_module in graph_modules.items():
+            setattr(self, func_name, graph_module)
+        
+        self.func_names = list(graph_modules.keys())
     
     def to(self, *args, **kwargs):
         super().to(*args, **kwargs)
         self.device = torch.device(args[0])
-        self.graph_module = self.graph_module.to(self.device)
-        self.graph_module.device = self.device
+        for func_name in self.func_names:
+            module = getattr(self, func_name)
+            module = module.to(self.device)
+            module.device = self.device
+            
         return self
 
     
-    def forward(self,input_ids,
+    def forward(self,
+                input_ids,
                 positions,
                 intermediate_tensors=None,
                 inputs_embeds=None,
                 ):
-        return self.graph_module(input_ids, positions)
+        return self.main(input_ids, positions)[0]
 
 class vLLMGraph:
     def __init__(self, model_name: str, temp_directory: str | None = None, debug: bool = False):
+        self.name = model_name
         if temp_directory is None:
             root_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             self.temp_directory = f"{root_folder}/temp_files/{model_name}"
@@ -102,6 +124,12 @@ class vLLMGraph:
         """
         
         dynamo_model = torch.export.export(model, inputs, input_kwargs, dynamic_shapes = dynamic_dims)
+        #TODO: Figure out a way to calculate this
+        if hasattr(model, "config"):
+            self.config = model.config
+        else:
+            self.config = None
+
         graph_signature = dynamo_model.graph_signature
         input_specs = graph_signature.input_specs
         index = 0
@@ -125,22 +153,27 @@ class vLLMGraph:
                 index += 1
 
         self.graph_dict = self.graph_compiler.compile(dynamo_model, inputs)
-        input_args = self.graph_dict["entrypoint"]
+        input_args = self.graph_dict['main']["entrypoint"]
         new_args = []
         for arg in input_args:
             arg_index = int(arg.split("g")[-1])
             if self.arg_dict[arg_index]["kind"] == "buffer":
-                next_nodes = self.graph_dict[arg]["next_nodes"]
+                next_nodes = self.graph_dict['main'][arg]["next_nodes"]
                 for node in next_nodes:
-                    input_nodes = self.graph_dict[node]["input_nodes"]
+                    input_nodes = self.graph_dict['main'][node]["input_nodes"]
                     index = input_nodes.index(arg)
-                    self.graph_dict[node]["input_nodes"][index] = self.arg_dict[arg_index]["target"]
+                    self.graph_dict['main'][node]["input_nodes"][index] = self.arg_dict[arg_index]["target"]
                 
-                del self.graph_dict[arg]
+                del self.graph_dict['main'][arg]
         
             else:
                 new_args.append(arg)
-        self.graph_dict["entrypoint"] = new_args
+
+        self.graph_dict["main"]["entrypoint"] = new_args
+        self.graph_dict["main"]["arg_dict"] = self.arg_dict
+        self.graph_dict["weights_directory"] = self.weights_directory
+        self.graph_dict["model_name"] = self.name
+        self.graph_dict["config"] = self.config
     
     def store_graph_dict(self):
         """Stores the graph dict for debugging purposes"""
@@ -154,165 +187,181 @@ class vLLMGraph:
     def get_graph_dict(self):
         assert len(self.graph_dict) != 0, "Model not compiled"
 
-        return self.graph_dict
+        return ModelDict(self.graph_dict)
 
-    def topological_sort(self, graph_dict: dict, Nodes: list)->list:
-        # Vector to store indegree of each vertex
-        indegree = {vertex: 0 for vertex in Nodes}
-        for ssa_id in Nodes:
-            for vertex in graph_dict[ssa_id].get("next_nodes", []):
-                indegree[vertex] += 1
 
-        # Queue to store vertices with indegree 0
-        q = deque()
-        for ssa_id in Nodes:
-            if indegree[ssa_id] == 0:
-                q.append(ssa_id)
-        result = []
-        while q:
-            node = q.popleft()
-            result.append(node)
-            # Decrease indegree of adjacent vertices as the current node is in topological order
-            for adjacent in graph_dict[node].get("next_nodes", []):
-                indegree[adjacent] -= 1
-                # If indegree becomes 0, push it to the queue
-                if indegree[adjacent] == 0:
-                    q.append(adjacent)
-
-        # Check for cycle
-        if len(result) != len(Nodes):
-            raise ValueError("InValid Graph!, Graph is not topologically sortable")
+def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results: list[str]) -> torch.fx.Graph:
+    """Reconstructs torch.fx.Graph from grapg dict."""
+    graph_nodes = {}
+    graph = torch.fx.Graph()
+    for buffer_args in arg_dict:
+        if arg_dict[buffer_args]['kind'] == "buffer":
+            target = arg_dict[buffer_args]['target']
+            graph_nodes[target] = graph.get_attr(target)
+    
+    for node in nodes:
+        node_type = graph_dict[node].get("op_name", None)
+        if(node_type is None):
+            raise ValueError(f"op name for {node} is invalid")
         
-        return result
-
-    def construct_graph(self, nodes: list[str], results: list[str]) -> torch.fx.Graph:
-        """Reconstructs torch.fx.Graph from grapg dict."""
-        graph_nodes = {}
-        graph = torch.fx.Graph()
-        for buffer_args in self.arg_dict:
-            if self.arg_dict[buffer_args]['kind'] == "buffer":
-                target = self.arg_dict[buffer_args]['target']
-                graph_nodes[target] = graph.get_attr(target)
+        if node_type == "input_arg":
+            graph_nodes[node] = graph.placeholder(node)
         
+        elif node_type == "arith.constant" or \
+                node_type == "vllm_graph.vllm.const_tuple" or \
+                node_type == "vllm_graph.constant.tensor" or \
+                node_type == "vllm_graph.constant.none":
+            ssa_id = node.replace(".","_")
+            graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
         
-        for node in nodes:
-            node_type = self.graph_dict[node].get("op_name", None)
-            if(node_type is None):
-                raise ValueError(f"op name for {node} is invalid")
+        elif node_type == "vllm_graph.vllm.list_op":
+            ssa_id = node.split(".")[0]
+            list_nodes = [graph_nodes[inp] for inp in graph_dict[node]['input_nodes']]
+            graph_nodes[node] = list_nodes
+
+        elif node_type in ["vllm_graph.vllm.add", "vllm_graph.vllm.sub"]:
+            add_func = OP_MAP.get(node_type, None)
+            input_args = []
+            input_kwargs = {}
+
+            #TODO: Find a better way deal with kwargs
+            for inp in graph_dict[node]['input_nodes'][:-1]:
+                input_args.append(graph_nodes[inp])
             
-            if node_type == "input_arg":
-                graph_nodes[node] = graph.placeholder(node)
+            inp_alpha = graph_dict[node]['input_nodes'][-1]
+            input_kwargs["alpha"] = graph_nodes[inp_alpha]
             
-            elif node_type == "arith.constant" or \
-                 node_type == "vllm_graph.vllm.const_tuple" or \
-                 node_type == "vllm_graph.constant.tensor" or \
-                 node_type == "vllm_graph.constant.none":
-                ssa_id = node.split(".")[0]
-                graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
+            graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
+
+        elif node_type == "vllm_graph.vllm.addmm":
+            add_func = OP_MAP.get(node_type, None)
+            input_args = []
+            input_kwargs = {}
+            for inp in graph_dict[node]['input_nodes']:
+                if graph_dict[inp]["vllm_graph_type"] == "scalar" and input_kwargs.get("alpha", None) is None:
+                    input_kwargs["alpha"] = graph_nodes[inp]
+                
+                elif graph_dict[inp]["vllm_graph_type"] == "scalar":
+                    input_kwargs["beta"] = graph_nodes[inp]
+                else:
+                    input_args.append(graph_nodes[inp])
             
-            elif node_type == "vllm_graph.vllm.list_op":
-                ssa_id = node.split(".")[0]
-                list_nodes = [graph_nodes[inp] for inp in self.graph_dict[node]['input_nodes']]
-                graph_nodes[node] = list_nodes
-
-            elif node_type in ["vllm_graph.vllm.add", "vllm_graph.vllm.sub"]:
-                add_func = OP_MAP.get(node_type, None)
-                input_args = []
-                input_kwargs = {}
-
-                #TODO: Find a better way deal with kwargs
-                for inp in self.graph_dict[node]['input_nodes'][:-1]:
-                    input_args.append(graph_nodes[inp])
-                
-                inp_alpha = self.graph_dict[node]['input_nodes'][-1]
-                input_kwargs["alpha"] = graph_nodes[inp_alpha]
-                
-                graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
-
-            elif node_type == "vllm_graph.vllm.addmm":
-                add_func = OP_MAP.get(node_type, None)
-                input_args = []
-                input_kwargs = {}
-                for inp in self.graph_dict[node]['input_nodes']:
-                    if self.graph_dict[inp]["vllm_graph_type"] == "scalar" and input_kwargs.get("alpha", None) is None:
-                        input_kwargs["alpha"] = graph_nodes[inp]
-                    
-                    elif self.graph_dict[inp]["vllm_graph_type"] == "scalar":
-                        input_kwargs["beta"] = graph_nodes[inp]
-                    else:
-                        input_args.append(graph_nodes[inp])
-                
-                graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
-            elif node_type == "vllm_graph.vllm.scaled_dot_product_attention":
-                attn_func = OP_MAP.get(node_type, None)
-                input_args = []
-                input_kwargs = {}
-                kwarg_id = [ "scale", "enable_gqa"]
-                i = 0
-                for inp in self.graph_dict[node]['input_nodes'][:6]:
-                    input_args.append(graph_nodes[inp])
-                
-                for inp in self.graph_dict[node]['input_nodes'][6:]:
-                    input_kwargs[kwarg_id[i]] = graph_nodes[inp]
-                    i+=1
-                graph_nodes[node] = graph.call_function(attn_func, args=tuple(input_args), kwargs = input_kwargs)
+            graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
+        elif node_type == "vllm_graph.vllm.scaled_dot_product_attention":
+            attn_func = OP_MAP.get(node_type, None)
+            input_args = []
+            input_kwargs = {}
+            kwarg_id = [ "scale", "enable_gqa"]
+            i = 0
+            for inp in graph_dict[node]['input_nodes'][:6]:
+                input_args.append(graph_nodes[inp])
             
-            elif node_type == "vllm_graph.vllm.ones":
-                ones_func = OP_MAP.get(node_type, None)
-                i = 0
-                input_kwargs = {}
-                input_args = []
-                kwarg_id = [ "dtype", "layout"]
-                for inp in self.graph_dict[node]['input_nodes'][:1]:
-                    input_args.append(graph_nodes[inp])
-
-                for inp in self.graph_dict[node]['input_nodes'][1:]:
-                    input_kwargs[kwarg_id[i]] = graph_nodes[inp]
-                    i+=1
-                input_kwargs['device'] = graph.get_attr("device")
-                graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
-            
-            elif node_type == "vllm_graph.vllm.arange":
-                arange_func = OP_MAP.get(node_type, None)
-                input_args = []
-                for inp in self.graph_dict[node]['input_nodes']:
-                    input_args.append(graph_nodes[inp])
-                
-                input_kwargs = { "device" : graph.get_attr("device")}
-
-                graph_nodes[node] = graph.call_function(arange_func, args=tuple(input_args), kwargs = input_kwargs)
-
-            else:
-                op_func = OP_MAP.get(node_type, None)
-                if op_func is None:
-                  raise ValueError(f"op function for {node_type} is not defined!")
-                input_args = []
-                for inp in self.graph_dict[node]['input_nodes']:
-                    input_args.append(graph_nodes[inp])
-                
-                graph_nodes[node] = graph.call_function(op_func, args=tuple(input_args))
+            for inp in graph_dict[node]['input_nodes'][6:]:
+                input_kwargs[kwarg_id[i]] = graph_nodes[inp]
+                i+=1
+            graph_nodes[node] = graph.call_function(attn_func, args=tuple(input_args), kwargs = input_kwargs)
         
+        elif node_type == "vllm_graph.vllm.ones":
+            ones_func = OP_MAP.get(node_type, None)
+            i = 0
+            input_kwargs = {}
+            input_args = []
+            kwarg_id = [ "dtype", "layout"]
+            for inp in graph_dict[node]['input_nodes'][:1]:
+                input_args.append(graph_nodes[inp])
+
+            for inp in graph_dict[node]['input_nodes'][1:]:
+                input_kwargs[kwarg_id[i]] = graph_nodes[inp]
+                i+=1
+            input_kwargs['device'] = graph.get_attr("device")
+            graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
+        
+        elif node_type == "vllm_graph.vllm.arange":
+            arange_func = OP_MAP.get(node_type, None)
+            input_args = []
+            for inp in graph_dict[node]['input_nodes']:
+                input_args.append(graph_nodes[inp])
+            
+            input_kwargs = { "device" : graph.get_attr("device")}
+
+            graph_nodes[node] = graph.call_function(arange_func, args=tuple(input_args), kwargs = input_kwargs)
+
+        else:
+            op_func = OP_MAP.get(node_type, None)
+            if op_func is None:
+                raise ValueError(f"op function for {node_type} is not defined!")
+            input_args = []
+            for inp in graph_dict[node]['input_nodes']:
+                input_args.append(graph_nodes[inp])
+            
+            graph_nodes[node] = graph.call_function(op_func, args=tuple(input_args))
+    
+    if len(results) == 1:
+        graph.output(graph_nodes[results[0]])
+    else:
         result_nodes = []
         for result_ssa_id in results:
             result_nodes.append(graph_nodes[result_ssa_id])
         graph.output(result_nodes)
-        return graph
-                
+    return graph
 
 
-    def reconstruct(self) -> torch.fx.GraphModule:
+def topological_sort(graph_dict: dict, Nodes: list)->list:
+    # Vector to store indegree of each vertex
+    indegree = {vertex: 0 for vertex in Nodes}
+    for ssa_id in Nodes:
+        for vertex in graph_dict[ssa_id].get("next_nodes", []):
+            indegree[vertex] += 1
 
-        assert len(self.graph_dict) != 0, "Model not compiled"
-        model = ParameterModel(self.graph_dict, self.weights_directory, self.arg_dict)
+    # Queue to store vertices with indegree 0
+    q = deque()
+    for ssa_id in Nodes:
+        if indegree[ssa_id] == 0:
+            q.append(ssa_id)
+    result = []
+    while q:
+        node = q.popleft()
+        result.append(node)
+        # Decrease indegree of adjacent vertices as the current node is in topological order
+        for adjacent in graph_dict[node].get("next_nodes", []):
+            indegree[adjacent] -= 1
+            # If indegree becomes 0, push it to the queue
+            if indegree[adjacent] == 0:
+                q.append(adjacent)
+
+    # Check for cycle
+    if len(result) != len(Nodes):
+        raise ValueError("InValid Graph!, Graph is not topologically sortable")
+    
+    return result
+
+def reconstruct_model(graph_dict: ModelDict) -> dict[str, torch.fx.GraphModule]:
+
+    assert len(graph_dict) != 0, "Model not compiled"
+    weights_directory = graph_dict["weights_directory"]
+
+    graph_models = {}
+    for func_name in graph_dict:
+        if func_name in ['weights_directory', 'config', 'model_name']:
+            continue
+        
+        arg_dict = graph_dict[func_name].get("arg_dict", {})
+        model = ParameterModel(graph_dict[func_name], weights_directory, arg_dict)
         Nodes = []
-        for node in self.graph_dict:
-            if node in ['entrypoint', 'constants', 'results']:
+        for node in graph_dict[func_name]:
+            if node in ['entrypoint', 
+                        'constants', 
+                        'results', 
+                        'weights_directory', 
+                        'arg_dict',
+                        'model_name',
+                        'config']:
                 continue
             Nodes.append(node)
         
         #Topologically sorted nodes will ensure we don't have node as input which was
         #not declared before.
-        topologically_sorted_nodes = self.topological_sort(self.graph_dict, Nodes)
+        topologically_sorted_nodes = topological_sort(graph_dict[func_name], Nodes)
         
         #Topological sort changes of the order of the arguments, which can lead to
         #unpredictable output
@@ -322,10 +371,13 @@ class vLLMGraph:
                 continue
             argless_topologically_sorted_nodes.append(node)
         
-        topologically_sorted_nodes = self.graph_dict["entrypoint"] + argless_topologically_sorted_nodes
-        
-        module_graph = self.construct_graph(topologically_sorted_nodes, self.graph_dict["results"])
-        return torch.fx.GraphModule(model, module_graph)
+        topologically_sorted_nodes = graph_dict[func_name]["entrypoint"] + argless_topologically_sorted_nodes
+        module_graph = construct_graph(graph_dict[func_name], arg_dict, topologically_sorted_nodes, graph_dict[func_name]["results"])
+        graph_model = torch.fx.GraphModule(model, module_graph)
+        graph_model.config = graph_dict['config']
+        graph_model.name = graph_dict['model_name']
+        graph_models[func_name] = graph_model
+    return graph_models
 
 
 

@@ -35,7 +35,7 @@ class ParameterModel(torch.nn.Module):
                 setattr(self, var_name, None)
                 continue
 
-            data_name = f"weight_datasets{constant}"
+            data_name = f"weight_datasets{constant}" if self.graph_dict[constant].get("resource", None) is None else self.graph_dict[constant]["resource"]
             data = self.weights[data_name]
             dtype = self.graph_dict[constant]['dtype']
 

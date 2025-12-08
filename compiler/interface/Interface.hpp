@@ -4,6 +4,11 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/AsmState.h"
+#include "llvm/ADT/DenseMap.h"
+#include <vector>
+#include <string>
 
 using namespace mlir;
 
@@ -22,6 +27,11 @@ public:
 protected:
     MLIRContext *context;
     std::unique_ptr<PassManager> passmanager;
+    // DenseMap to store dialect resources: key -> resource blob data
+    llvm::DenseMap<StringRef, mlir::ArrayRef<char>> dialectResourcesMap;
+    
+    // Helper method to extract dialect resources from a module
+    void extractDialectResources(mlir::ModuleOp module);
 };
 
 } //vllm_graph

@@ -101,12 +101,14 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             if(mlir::isa<mlir::arith::ConstantOp>(*op)){
                 auto constOp = mlir::cast<mlir::arith::ConstantOp>(*op);
                 attr = constOp.getValue();
-            }
-            else{
+            } else {
                 auto constOp = mlir::cast<vllm_graph::ValueTensorLiteralOp>(*op);
                 attr = constOp.getValue();
             }
-            if (auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr)) {
+
+            if(auto denseResourceAttr = mlir::dyn_cast<mlir::DenseResourceElementsAttr>(attr)){
+                map["resource"] = denseResourceAttr.getRawHandle().getKey().str();
+            } else if(auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr)) {
                 storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
             } else if(auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(attr)){
                 storeWeights<mlir::IntegerAttr>(intAttr, ssa_id.str());
@@ -227,7 +229,28 @@ GraphWriter::GraphWriter(std::string weightsPath) : weightsPath(weightsPath) {
 
 }
 
-void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module){
+void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module, 
+                         llvm::DenseMap<StringRef, mlir::ArrayRef<char>> &dialectResourcesMap){
+
+    // Print the module with resources
+    mlir::OpPrintingFlags flags;
+    
+    // Storing the float weights from the Dialect Resources Map into protobuf
+    for (const auto& entry : dialectResourcesMap) {
+        //TODO: Handle other dtypes of weights
+        mlir::ArrayRef<char> blobData = entry.second;
+        const float* floatData = reinterpret_cast<const float*>(blobData.data());
+        size_t numFloats = blobData.size() / sizeof(float);
+        std::vector<float> floatVector(floatData, floatData + numFloats);
+        auto* float_proto = constData.add_floatweights();
+        float_proto->set_name(entry.first.str());
+        
+        // Add entire vector at once
+        auto* values_field = float_proto->mutable_values();
+        values_field->Reserve(floatVector.size());
+        values_field->Add(floatVector.begin(), floatVector.end());
+        
+    }
 
     for(func::FuncOp funcOp : module->getOps<func::FuncOp>()){
 

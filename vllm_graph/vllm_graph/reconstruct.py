@@ -99,7 +99,7 @@ class vLLMGraphModel(torch.nn.Module):
                 intermediate_tensors=None,
                 inputs_embeds=None,
                 ):
-        return self.main(input_ids, positions)[0]
+        return self.main(input_ids, positions)
 
 class vLLMGraph:
     def __init__(self, model_name: str, temp_directory: str | None = None, debug: bool = False):
@@ -177,7 +177,7 @@ class vLLMGraph:
     
     def store_graph_dict(self):
         """Stores the graph dict for debugging purposes"""
-    
+
         assert len(self.graph_dict) != 0, "Model not compiled"
         with open(f"{self.temp_directory}/model.json",'w') as f:
             f.write(json.dumps(self.graph_dict, indent = 2))
@@ -295,6 +295,14 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
                 input_args.append(graph_nodes[inp])
             
             graph_nodes[node] = graph.call_function(op_func, args=tuple(input_args))
+        
+        #Keep this code snippet for future debugging
+        # func = lambda name, exp_shape, x : print(f"Op Name :- {name}, Expected Shape :- {exp_shape}, Actual Shape :- {x.shape if hasattr(x, 'shape') else x}")
+        # graph.call_function(
+        #             func,
+        #             args=(node, graph_dict[node].get("output_shape", None), graph_nodes[node])
+        #         )
+        
     
     if len(results) == 1:
         graph.output(graph_nodes[results[0]])

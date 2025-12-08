@@ -11,7 +11,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
         
         return True
     if(isinstance(regular_output, BaseModelOutput)):
-        return torch.allclose(vllm_graph_output[0], regular_output.last_hidden_state, atol = 1e-3)
+        return torch.allclose(vllm_graph_output, regular_output.last_hidden_state, atol = 1e-3)
     
     else:
-        return torch.allclose(vllm_graph_output[0], regular_output, atol = 1e-3)
+        return torch.allclose(vllm_graph_output, regular_output, atol = 1e-3)

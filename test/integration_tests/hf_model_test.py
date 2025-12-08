@@ -63,6 +63,7 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
     vllmgraph.compile(model, (dummy_input_ids, ), dummy_input_kwargs, dynamic_dims = dynamic_dims)
     
     compiled_model_dict = vllmgraph.get_graph_dict()
+    
     reconstructed_model = reconstruct_model(compiled_model_dict)
     reconstructed_model = vLLMGraphModel(reconstructed_model)
 
@@ -87,7 +88,7 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
         #TODO: Make function splitting optional
         if(hasattr(reconstructed_model, "compute_pooling_layer")):
             hidden_states = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
-            pooling_output = reconstructed_model.compute_pooling_layer(hidden_states)[0]
+            pooling_output = reconstructed_model.compute_pooling_layer(hidden_states)
             vllm_graph_output = (hidden_states, pooling_output)
         else:
             vllm_graph_output = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])

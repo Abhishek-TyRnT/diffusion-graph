@@ -71,7 +71,7 @@ class ParameterModel(torch.nn.Module):
         return next(self.parameters()).device
 
 class vLLMGraphModel(torch.nn.Module):
-    def __init__(self, graph_modules: dict[str, torch.fx.GraphModule]):
+    def __init__(self, graph_modules: dict[str, torch.fx.GraphModule], weights_directory: str):
         super().__init__()
 
         if graph_modules.get("main", None) is None:
@@ -80,6 +80,14 @@ class vLLMGraphModel(torch.nn.Module):
         for func_name, graph_module in graph_modules.items():
             setattr(self, func_name, graph_module)
         
+        self.weights = read_pb(weights_directory)
+        vocab_size = self.main.config.vocab_size
+        embedding_size = self.main.config.embedding_size
+        weight_name = f"torch_tensor_{vocab_size}_{embedding_size}_torch.float32"
+        data = self.weights[weight_name]
+        tensor = torch.tensor(data, dtype = torch.float32)
+        tensor = torch.reshape(tensor, (vocab_size, embedding_size))
+        self.embeddings = torch.nn.Parameter(tensor, requires_grad=False)
         self.func_names = list(graph_modules.keys())
     
     def to(self, *args, **kwargs):
@@ -92,7 +100,12 @@ class vLLMGraphModel(torch.nn.Module):
             
         return self
 
-    
+    def compute_logits(self, hidden_states):
+        #TODO: check if activation also needs to be applied
+        transpose = self.embeddings.t()
+        hidden_states = torch.matmul(hidden_states, transpose)
+        return hidden_states
+        
     def forward(self,
                 input_ids,
                 positions,

@@ -99,12 +99,6 @@ class vLLMGraphModel(torch.nn.Module):
             module.device = self.device
             
         return self
-
-    def compute_logits(self, hidden_states):
-        #TODO: check if activation also needs to be applied
-        transpose = self.embeddings.t()
-        hidden_states = torch.matmul(hidden_states, transpose)
-        return hidden_states
         
     def forward(self,
                 input_ids,

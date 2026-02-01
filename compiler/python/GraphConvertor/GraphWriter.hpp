@@ -7,6 +7,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/DenseMap.h"
+#include "mlir/IR/DialectResourceBlobManager.h"
 #include "weightBuffers.pb.h"
 
 using NestedValueType = std::variant<std::string, 
@@ -41,7 +42,8 @@ private:
 
 public:
     
-    void build(mlir::OwningOpRef<mlir::ModuleOp> &module);
+    void build(mlir::OwningOpRef<mlir::ModuleOp> &module, 
+               llvm::DenseMap<mlir::StringRef, mlir::ArrayRef<char>> &dialectResourcesMap);
     GraphWriter(std::string weightsPath);
     void closeFile();
     std::unordered_map<std::string, SubGraphMap> getGraph(){ return graph; }

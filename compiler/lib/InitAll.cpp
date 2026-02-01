@@ -8,6 +8,7 @@
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 #include "vllm_graph/Dialect/Transform/Passes.hpp"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/IR/BuiltinDialect.h"
 
 void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
 {
@@ -15,6 +16,7 @@ void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
     registry.insert<mlir::vllm_graph::vLLMGraphIRDialect>();
     registry.insert<mlir::torch::Torch::TorchDialect>();
     registry.insert<arith::ArithDialect>();
+    registry.insert<mlir::BuiltinDialect>();
 }
 
 void mlir::vllm_graph::registerAllPasses() {

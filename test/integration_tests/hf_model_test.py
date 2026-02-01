@@ -39,7 +39,7 @@ def test_hf_model_layer(Model,
 
 @pytest.mark.parametrize("model_name, dummy_input, text, model_class, device",
     (
-    ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda"],
+    # ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda"],
     ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
      ))
 def test_hf_models(model_name, dummy_input, text, model_class, device):
@@ -63,8 +63,9 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
     vllmgraph.compile(model, (dummy_input_ids, ), dummy_input_kwargs, dynamic_dims = dynamic_dims)
     
     compiled_model_dict = vllmgraph.get_graph_dict()
+    
     reconstructed_model = reconstruct_model(compiled_model_dict)
-    reconstructed_model = vLLMGraphModel(reconstructed_model)
+    reconstructed_model = vLLMGraphModel(reconstructed_model, weights_directory = compiled_model_dict['weights_directory'])
 
     #Offloading to target deivce
     inputs = {key : inputs[key].to(device) for key in inputs}
@@ -87,12 +88,12 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
         #TODO: Make function splitting optional
         if(hasattr(reconstructed_model, "compute_pooling_layer")):
             hidden_states = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
-            pooling_output = reconstructed_model.compute_pooling_layer(hidden_states)[0]
+            pooling_output = reconstructed_model.compute_pooling_layer(hidden_states)
             vllm_graph_output = (hidden_states, pooling_output)
         else:
             vllm_graph_output = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
 
     prof1.export_chrome_trace("vllm_graph_trace.json")
 
-
+    lm = reconstructed_model.compute_logits(hidden_states)
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

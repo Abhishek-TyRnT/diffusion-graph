@@ -30,7 +30,6 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
         return torch.allclose(vllm_graph_output[0], regular_output.last_hidden_state, atol = 1e-3)
     
     else:
-        #print(vllm_graph_output[0].shape, regular_output.shape)
         return torch.allclose(vllm_graph_output, regular_output, atol = 1e-3)
 
     

@@ -35,7 +35,7 @@ class ParameterModel(torch.nn.Module):
                 setattr(self, var_name, None)
                 continue
 
-            data_name = f"weight_datasets{constant}"
+            data_name = f"weight_datasets{constant}" if self.graph_dict[constant].get("resource", None) is None else self.graph_dict[constant]["resource"]
             data = self.weights[data_name]
             dtype = self.graph_dict[constant]['dtype']
 
@@ -71,7 +71,7 @@ class ParameterModel(torch.nn.Module):
         return next(self.parameters()).device
 
 class vLLMGraphModel(torch.nn.Module):
-    def __init__(self, graph_modules: dict[str, torch.fx.GraphModule]):
+    def __init__(self, graph_modules: dict[str, torch.fx.GraphModule], weights_directory: str):
         super().__init__()
 
         if graph_modules.get("main", None) is None:
@@ -80,6 +80,14 @@ class vLLMGraphModel(torch.nn.Module):
         for func_name, graph_module in graph_modules.items():
             setattr(self, func_name, graph_module)
         
+        self.weights = read_pb(weights_directory)
+        vocab_size = self.main.config.vocab_size
+        embedding_size = self.main.config.embedding_size
+        weight_name = f"torch_tensor_{vocab_size}_{embedding_size}_torch.float32"
+        data = self.weights[weight_name]
+        tensor = torch.tensor(data, dtype = torch.float32)
+        tensor = torch.reshape(tensor, (vocab_size, embedding_size))
+        self.embeddings = torch.nn.Parameter(tensor, requires_grad=False)
         self.func_names = list(graph_modules.keys())
     
     def to(self, *args, **kwargs):
@@ -91,15 +99,14 @@ class vLLMGraphModel(torch.nn.Module):
             module.device = self.device
             
         return self
-
-    
+        
     def forward(self,
                 input_ids,
                 positions,
                 intermediate_tensors=None,
                 inputs_embeds=None,
                 ):
-        return self.main(input_ids, positions)[0]
+        return self.main(input_ids, positions)
 
 class vLLMGraph:
     def __init__(self, model_name: str, temp_directory: str | None = None, debug: bool = False):
@@ -177,7 +184,7 @@ class vLLMGraph:
     
     def store_graph_dict(self):
         """Stores the graph dict for debugging purposes"""
-    
+
         assert len(self.graph_dict) != 0, "Model not compiled"
         with open(f"{self.temp_directory}/model.json",'w') as f:
             f.write(json.dumps(self.graph_dict, indent = 2))
@@ -295,6 +302,14 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
                 input_args.append(graph_nodes[inp])
             
             graph_nodes[node] = graph.call_function(op_func, args=tuple(input_args))
+        
+        #Keep this code snippet for future debugging
+        # func = lambda name, exp_shape, x : print(f"Op Name :- {name}, Expected Shape :- {exp_shape}, Actual Shape :- {x.shape if hasattr(x, 'shape') else x}")
+        # graph.call_function(
+        #             func,
+        #             args=(node, graph_dict[node].get("output_shape", None), graph_nodes[node])
+        #         )
+        
     
     if len(results) == 1:
         graph.output(graph_nodes[results[0]])

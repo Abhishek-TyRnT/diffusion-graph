@@ -700,3 +700,30 @@ def vllm_ArangeOp : vLLMGraph_Op<"vllm.arange", [
     }
   }];
 }
+
+def vllm_Conv2DOp : vLLMGraph_Op<"vllm.conv2d", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::conv2d : (Tensor, Tensor, Tensor, int[], int[]) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      AnyTorchTensorType:$weight,
+      AnyTorchTensorType:$bias,
+      Torch_ListType:$stride,
+      Torch_ListType:$padding
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult Conv2DOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 5, 1);
+      }
+      void Conv2DOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 5, 1);
+      }
+    }];
+}

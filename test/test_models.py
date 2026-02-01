@@ -225,3 +225,11 @@ class PoolingLayer(Module):
         y = self.pooler_activation(self.pooler(x[:, 0]))
 
         return x, y
+
+class Conv2D(Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+    
+    def forward(self, input):
+        return self.conv(input)

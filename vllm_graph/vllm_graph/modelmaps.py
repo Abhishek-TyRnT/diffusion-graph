@@ -34,5 +34,6 @@ OP_MAP = {
     "vllm_graph.vllm.scaled_dot_product_attention": torch.nn.functional.scaled_dot_product_attention,
     "vllm_graph.vllm.ones": torch.ones,
     "vllm_graph.vllm.arange": torch.arange,
-    "vllm_graph.vllm.size": funcs.size_func
+    "vllm_graph.vllm.size": funcs.size_func,
+    "vllm_graph.vllm.conv2d": torch.nn.functional.conv2d
 }

@@ -39,7 +39,7 @@ def test_hf_model_layer(Model,
 
 @pytest.mark.parametrize("model_name, dummy_input, text, model_class, device",
     (
-    # ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda"],
+    ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda"],
     ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
      ))
 def test_hf_models(model_name, dummy_input, text, model_class, device):
@@ -95,5 +95,4 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
 
     prof1.export_chrome_trace("vllm_graph_trace.json")
 
-    lm = reconstructed_model.compute_logits(hidden_states)
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

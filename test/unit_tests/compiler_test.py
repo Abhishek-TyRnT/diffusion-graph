@@ -116,6 +116,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [Cast, (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)],
      [Cast, (torch.float,), (torch.rand(2, 5, dtype=torch.double),)],
      [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+     [Conv2D, (3, 128, 3, 1, 1), (torch.randn(1, 3, 256, 256),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

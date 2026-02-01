@@ -54,6 +54,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.)), {}],
     [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256)), {}],
     [PoolingLayer, (8, ), (torch.randn(3, 8, 8), ), { "inputs" : { 1 : Dim("hidden_size", min = 1, max = 100)}}],
+    [Conv2D, (3, 128, 3, 1, 1), (torch.randn(1, 3, 256, 256),), {}],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -91,6 +92,7 @@ def test_graph_compiler_python_to_dict(model,
      [SqueezeOp, (1,), (torch.randn(2, 8),)],
      [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
      [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+     [Conv2D, (3, 128, 3, 1, 1), (torch.randn(1, 3, 256, 256),)],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,

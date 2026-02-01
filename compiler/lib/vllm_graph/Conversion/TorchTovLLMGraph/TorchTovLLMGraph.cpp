@@ -151,6 +151,25 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantNoneOp>::matchAndRewrite
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenConvolutionOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenConvolutionOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = adaptor.getInput();
+    Value weight = adaptor.getWeight();
+    Value bias = adaptor.getBias();
+    Value stride = adaptor.getStride();
+    Value padding = adaptor.getPadding();
+
+    const TypeConverter *convertor = getTypeConverter();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::Conv2DOp>(
+        op, resultType, input, weight, bias, stride, padding);
+    return success();
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantFloatOp>::matchAndRewrite(
     mlir::torch::Torch::ConstantFloatOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -1003,6 +1022,10 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>>(typeConverter,        
                                                          context);
         
+        target.addIllegalOp<mlir::torch::Torch::AtenConvolutionOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenConvolutionOp>>(typeConverter,        
+                                                         context);
+                                                         
         target.addIllegalOp<mlir::torch::Torch::ValueTensorLiteralOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>>(typeConverter,        
                                                          context);

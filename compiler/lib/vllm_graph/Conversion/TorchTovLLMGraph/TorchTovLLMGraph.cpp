@@ -170,6 +170,26 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenConvolutionOp>::matchAndRewr
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenGroupNormOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenGroupNormOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+  Value input = adaptor.getInput();
+  Value numGroups = adaptor.getNumGroups();
+  Value weight = adaptor.getWeight();
+  Value bias = adaptor.getBias();
+  Value eps = adaptor.getEps();
+
+  const TypeConverter *convertor = getTypeConverter();
+  Type resultType = convertor->convertType(op.getResult().getType());
+
+  rewriter.replaceOpWithNewOp<vllm_graph::GroupNormOp>(
+      op, resultType, input, numGroups, weight, bias, eps);
+  return success();
+}
+
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantFloatOp>::matchAndRewrite(
     mlir::torch::Torch::ConstantFloatOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -1062,6 +1082,9 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::Aten_SoftmaxOp>>(typeConverter,        
                                                          context);
 
+        target.addIllegalOp<mlir::torch::Torch::AtenGroupNormOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenGroupNormOp>>(typeConverter,        
+                                                         context);
 
         target.addIllegalOp<mlir::torch::Torch::PrimListConstructOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>>(typeConverter,        

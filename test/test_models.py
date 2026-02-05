@@ -233,3 +233,11 @@ class Conv2D(Module):
     
     def forward(self, input):
         return self.conv(input)
+
+class GroupNorm(Module):
+    def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
+        super().__init__()
+        self.layer = nn.GroupNorm(num_groups, num_channels, eps, affine)
+    
+    def forward(self, x):
+        return self.layer(x)

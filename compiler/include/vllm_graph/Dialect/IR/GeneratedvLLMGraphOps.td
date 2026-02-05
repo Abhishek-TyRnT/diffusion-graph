@@ -727,3 +727,30 @@ def vllm_Conv2DOp : vLLMGraph_Op<"vllm.conv2d", [
       }
     }];
 }
+
+def vllm_GroupNormOp : vLLMGraph_Op<"vllm.group_norm", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::group_norm : (Tensor, int, Tensor, Tensor, float) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      I32:$num_groups,
+      AnyTorchTensorType:$weight,
+      AnyTorchTensorType:$bias,
+      F32:$epsilon    
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult GroupNormOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 5, 1);
+      }
+      void GroupNormOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 5, 1);
+      }
+    }];
+}

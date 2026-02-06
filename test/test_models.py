@@ -241,3 +241,11 @@ class GroupNorm(Module):
     
     def forward(self, x):
         return self.layer(x)
+
+class SiLU(Module):
+    def __init__(self):
+        super().__init__()
+        self.layer = nn.SiLU()
+    
+    def forward(self, x):
+        return self.layer(x)

@@ -72,6 +72,29 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenReluOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSiluOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSiluOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value self = adaptor.getSelf();
+    MLIRContext *context = op.getContext();
+    auto selfTy = cast<TensorType>(self.getType());
+    if (!selfTy) {
+        return rewriter.notifyMatchFailure(op,
+                                       "Only Tensor types supported in vllm_graph");
+    }
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::SiLUOp>(op, resultType, self);
+    return success();
+
+}
+
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>::matchAndRewrite(
     mlir::torch::Torch::AtenTanhOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -975,6 +998,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenReluOp>();                                               
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenReluOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenSiluOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSiluOp>>(typeConverter,        
                                                          context);
         
         target.addIllegalOp<mlir::torch::Torch::ConstantIntOp>();

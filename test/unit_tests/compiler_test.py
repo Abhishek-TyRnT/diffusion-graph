@@ -118,6 +118,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
      [Conv2D, (3, 128, 3, 1, 1), (torch.randn(1, 3, 256, 256),)],
      [GroupNorm, (4, 16, 1e-5, True), (torch.randn(2, 16, 32, 32),)],
+     [SiLU, (), (torch.randn(2, 16, 32, 32),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

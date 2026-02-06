@@ -754,3 +754,26 @@ def vllm_GroupNormOp : vLLMGraph_Op<"vllm.group_norm", [
       }
     }];
 }
+
+def vllm_SiLUOp : vLLMGraph_Op<"vllm.silu", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::silu : (Tensor) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult SiLUOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+      }
+      void SiLUOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+      }
+    }];
+}

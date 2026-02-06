@@ -36,5 +36,6 @@ OP_MAP = {
     "vllm_graph.vllm.arange": torch.arange,
     "vllm_graph.vllm.size": funcs.size_func,
     "vllm_graph.vllm.conv2d": torch.nn.functional.conv2d,
-    "vllm_graph.vllm.group_norm": torch.nn.functional.group_norm
+    "vllm_graph.vllm.group_norm": torch.nn.functional.group_norm,
+    "vllm_graph.vllm.silu": torch.nn.functional.silu
 }

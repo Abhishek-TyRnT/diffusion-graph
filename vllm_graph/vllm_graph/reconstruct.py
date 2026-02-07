@@ -35,6 +35,12 @@ class ParameterModel(torch.nn.Module):
                 setattr(self, var_name, None)
                 continue
 
+            if(self.graph_dict[constant]["dtype"] == "!vllm_graph.str"):
+                ssa_id = constant.replace(".","_")
+                var_name = f"weight_{ssa_id}"
+                setattr(self, var_name, self.graph_dict[constant]["value"])
+                continue
+
             data_name = f"weight_datasets{constant}" if self.graph_dict[constant].get("resource", None) is None else self.graph_dict[constant]["resource"]
             data = self.weights[data_name]
             dtype = self.graph_dict[constant]['dtype']
@@ -44,8 +50,6 @@ class ParameterModel(torch.nn.Module):
                 var_name = f"weight_{ssa_id}"
                 setattr(self, var_name, tuple(data))
                 continue
-
-            
 
             if(self.graph_dict[constant].get("output_shape", None) is None):
                 ssa_id = constant.replace(".","_")
@@ -217,7 +221,8 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
         elif node_type == "arith.constant" or \
                 node_type == "vllm_graph.vllm.const_tuple" or \
                 node_type == "vllm_graph.constant.tensor" or \
-                node_type == "vllm_graph.constant.none":
+                node_type == "vllm_graph.constant.none" or \
+                node_type == "vllm_graph.constant.string":
             ssa_id = node.replace(".","_")
             graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
         
@@ -267,7 +272,16 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
                 input_kwargs[kwarg_id[i]] = graph_nodes[inp]
                 i+=1
             graph_nodes[node] = graph.call_function(attn_func, args=tuple(input_args), kwargs = input_kwargs)
-        
+
+        elif node_type == "vllm_graph.vllm.gelu":
+            gelu_func = OP_MAP.get(node_type, None)
+            input_args = []
+            for inp in graph_dict[node]['input_nodes'][:1]:
+                input_args.append(graph_nodes[inp])
+            
+            input_kwargs = {"approximate":graph_nodes[graph_dict[node]['input_nodes'][1]]}
+            graph_nodes[node] = graph.call_function(gelu_func, args=tuple(input_args), kwargs = input_kwargs)
+            
         elif node_type == "vllm_graph.vllm.ones":
             ones_func = OP_MAP.get(node_type, None)
             i = 0

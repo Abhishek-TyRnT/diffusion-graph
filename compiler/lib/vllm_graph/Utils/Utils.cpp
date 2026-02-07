@@ -9,7 +9,7 @@ Type mlir::vllm_graph::convertTorchvTypeTovLLMvType(Type type, MLIRContext *cont
     if(torchvTensor){
         Type opType;
         Type elemType = torchvTensor.getOptionalDtype();
-        if(elemType.isF64())
+        if(elemType && elemType.isF64())
             elemType = Float32Type::get(context);
         
         vllm_graph::ValueTensorType vLLMvTensor;

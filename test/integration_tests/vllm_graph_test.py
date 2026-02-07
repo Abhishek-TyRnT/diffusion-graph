@@ -57,6 +57,8 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [Conv2D, (3, 128, 3, 1, 1), (torch.randn(1, 3, 256, 256),), {}],
     [GroupNorm, (4, 16, 1e-5, True), (torch.randn(2, 16, 32, 32),), {}],
     [SiLU, (), (torch.randn(3, 256, 1024),), {}],
+    [GeGeLU, (16, 32), (torch.randn(1, 32, 16),), {}],
+
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -97,6 +99,7 @@ def test_graph_compiler_python_to_dict(model,
      [Conv2D, (3, 128, 3, 1, 1), (torch.randn(1, 3, 256, 256),)],
      [GroupNorm, (4, 16, 1e-5, True), (torch.randn(2, 16, 32, 32),)],
      [SiLU, (), (torch.randn(3, 256, 1024),)],
+     [GeGeLU, (16, 32), (torch.randn(1, 32, 16),)],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,
@@ -108,10 +111,11 @@ def test_graph_compiler_to_model(model,
     else:
         torch_model = model(*model_args)
     
-    tmp_folder = f"/tmp"
+    tmp_folder = f"./temp_files"
 
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs)
+    vllmgraph.store_graph_dict()
     IRdict = vllmgraph.get_graph_dict()
     reconstructed_model = reconstruct_model(IRdict)
     vllm_graph_output = reconstructed_model["main"](*inputs)

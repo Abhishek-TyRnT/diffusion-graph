@@ -76,7 +76,6 @@ void GraphWriter::storeWeights<mlir::FloatAttr>(mlir::FloatAttr val, std::string
     floatconst_proto->set_values(value);
 }
 
-
 void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
 
     if(mlir::isa<func::ReturnOp>(*op)){
@@ -126,6 +125,12 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
         } else if(mlir::isa<vllm_graph::ConstantNoneOp>(op))
         {
+            std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
+        } else if(mlir::isa<vllm_graph::ConstantStringOp>(op))
+        {
+            auto constOp = mlir::cast<vllm_graph::ConstantStringOp>(op);
+            mlir::StringAttr attr = constOp.getValueAttr();
+            map["value"] = attr.getValue().str();
             std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
         }
         

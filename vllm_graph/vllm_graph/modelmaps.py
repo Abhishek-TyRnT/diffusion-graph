@@ -1,11 +1,14 @@
 import torch
 from vllm_graph import funcs
+import operator
+
 TYPE_MAP = {
     "f32": torch.float32,
     "i32" : torch.int32,
     "i64" : torch.int64,
     "i1" : torch.bool,
-    "si64" : torch.int64
+    "si64" : torch.int64,
+    "vllm_graph.str": str,
 }
 
 OP_MAP = {
@@ -37,5 +40,8 @@ OP_MAP = {
     "vllm_graph.vllm.size": funcs.size_func,
     "vllm_graph.vllm.conv2d": torch.nn.functional.conv2d,
     "vllm_graph.vllm.group_norm": torch.nn.functional.group_norm,
-    "vllm_graph.vllm.silu": torch.nn.functional.silu
+    "vllm_graph.vllm.silu": torch.nn.functional.silu,
+    "vllm_graph.vllm.gelu": torch.nn.functional.gelu,
+    "vllm_graph.vllm.split": torch.split,
+    "vllm_graph.indexAt": operator.getitem,
 }

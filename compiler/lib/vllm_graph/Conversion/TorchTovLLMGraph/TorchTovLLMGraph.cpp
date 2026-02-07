@@ -117,6 +117,28 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenGeluOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenGeluOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value self = adaptor.getSelf();
+    Value approxMode = adaptor.getApproximate();
+    MLIRContext *context = op.getContext();
+    auto selfTy = cast<TensorType>(self.getType());
+    if (!selfTy) {
+        return rewriter.notifyMatchFailure(op,
+                                       "Only Tensor types supported in vllm_graph");
+    }
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::GeluOp>(op, resultType, self, approxMode);
+    return success();
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantDeviceOp>::matchAndRewrite(
     mlir::torch::Torch::ConstantDeviceOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -126,6 +148,21 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantDeviceOp>::matchAndRewri
     MLIRContext *context = getContext();
     auto device_type = vllm_graph::DeviceType::get(context);
     rewriter.replaceOpWithNewOp<vllm_graph::ConstantDeviceOp>(op, device_type, device);
+    return success();
+
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantStrOp>::matchAndRewrite(
+    mlir::torch::Torch::ConstantStrOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    llvm::StringRef str = op.getValue();
+
+    MLIRContext *context = getContext();
+    // Lower to arith.constant with StringAttr - output is generic string
+    auto stringAttr = rewriter.getStringAttr(str);
+    rewriter.replaceOpWithNewOp<vllm_graph::ConstantStringOp>(op, stringAttr);
     return success();
 
 }
@@ -633,6 +670,22 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSplitTensorOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSplitTensorOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+        Value input = adaptor.getOperands()[0];
+        Value splitSizes = adaptor.getOperands()[1];
+        Value dim = adaptor.getOperands()[2];
+
+        const TypeConverter *convertor = getTypeConverter();
+        Type resultType = convertor->convertType(op.getResult().getType());
+        rewriter.replaceOpWithNewOp<vllm_graph::SplitOp>(op, resultType, input, splitSizes, dim);
+        return success();
+}
+
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenScaledDotProductAttentionOp>::matchAndRewrite(
     mlir::torch::Torch::AtenScaledDotProductAttentionOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -695,6 +748,29 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
     rewriter.replaceOpWithNewOp<vllm_graph::ListOp>(op, resultType, operandRange);
+    return success();
+
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListUnpackOp>::matchAndRewrite(
+    mlir::torch::Torch::PrimListUnpackOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    mlir::Value List = adaptor.getOperand();
+
+    const TypeConverter *convertor = getTypeConverter();
+    ValueRange results = op.getResults();
+    Location loc = op.getLoc();
+
+    for (int i = 0; i < results.size(); i++) {
+        Value result = results[i];
+        Type resultType = convertor->convertType(result.getType());
+        Value index = rewriter.create<arith::ConstantIntOp>(loc, i, rewriter.getI32Type());
+        Value newResult = rewriter.create<vllm_graph::GetIndexAtOp>(loc, resultType, List, index);
+        result.replaceAllUsesWith(newResult);
+    }
+    rewriter.eraseOp(cast<Operation*>(op));
     return success();
 
 }
@@ -948,6 +1024,10 @@ public:
             return IntegerType::get(context, 32);
         });
 
+        addConversion([context](torch::Torch::StringType type) -> std::optional<Type> {
+            return vllm_graph::StringType::get(context);
+        });
+
         addConversion([context](torch::Torch::BoolType type) -> std::optional<Type> {
             return IntegerType::get(context, 1);
         });
@@ -1004,12 +1084,20 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSiluOp>>(typeConverter,        
                                                          context);
         
+        target.addIllegalOp<mlir::torch::Torch::AtenGeluOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenGeluOp>>(typeConverter,        
+                                                         context);
+        
         target.addIllegalOp<mlir::torch::Torch::ConstantIntOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantIntOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::ConstantNoneOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantNoneOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::ConstantStrOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantStrOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::ConstantFloatOp>();
@@ -1117,6 +1205,10 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>>(typeConverter,        
                                                          context);
 
+        target.addIllegalOp<mlir::torch::Torch::PrimListUnpackOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::PrimListUnpackOp>>(typeConverter,        
+                                                         context);
+
         target.addIllegalOp<mlir::torch::Torch::AtenNativeLayerNormOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>>(typeConverter,        
                                                          context);
@@ -1143,6 +1235,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenViewOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenViewOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenSplitTensorOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSplitTensorOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddmmOp>();

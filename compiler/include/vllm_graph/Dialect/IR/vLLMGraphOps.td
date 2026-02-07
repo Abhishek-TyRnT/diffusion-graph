@@ -117,6 +117,50 @@ def vllm_ConstantNoneOp : vLLMGraph_Op<"constant.none", [
   let hasFolder = 1;
 }
 
+def vllm_GetIndexAtOp : vLLMGraph_Op<"indexAt", [
+  Pure,
+  vLLMAllowsTypeRefinement
+]> {
+  let summary = "Generated op for `vllm::GetIndexAt : (List, int) -> (Tensor)`";
+  let arguments = (ins
+    Torch_ListType:$input,
+    I32:$index
+  );
+  let results = (outs
+    AnyTorchTensorType:$result
+  );
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDefinition = [{
+    ParseResult GetIndexAtOp::parse(OpAsmParser &parser, OperationState &result) {
+      return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+    }
+    void GetIndexAtOp::print(OpAsmPrinter &printer) {
+      printDefaultvLLMGraphOp(printer, *this, 2, 1);
+    }
+  }];
+}
+
+def vllm_ConstantStringOp : vLLMGraph_Op<"constant.string", [
+    ConstantLike,
+    Pure,
+  ]> {
+  let summary = "Create a value of !vllm_graph.constant.string type from a literal";
+  let description = [{
+    Example:
+    ```
+    Constant string storage for parameters
+    ```
+  }];
+  let arguments = (ins StrAttr:$value);
+  let results = (outs Torch_StringType:$result);
+
+  let assemblyFormat = [{
+    `(` $value `)` attr-dict `:` qualified(type($result))
+  }];
+
+  let hasFolder = 1;
+}
+
 
 
 #endif // VLLMGRAPH_OPS

@@ -777,3 +777,52 @@ def vllm_SiLUOp : vLLMGraph_Op<"vllm.silu", [
       }
     }];
 }
+
+def vllm_SplitOp : vLLMGraph_Op<"vllm.split", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::split : (Tensor, int, int) -> (List<Tensor>)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      I32:$split_size_or_sections,
+      I32:$dim
+    );
+    let results = (outs
+      Torch_ListType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult SplitOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 3, 1);
+      }
+      void SplitOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 3, 1);
+      }
+    }];
+}
+
+def vllm_GeluOp : vLLMGraph_Op<"vllm.gelu", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::gelu : (Tensor, str) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      Torch_StringType:$approximation_mode
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult GeluOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+      }
+      void GeluOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 2, 1);
+      }
+    }];
+}

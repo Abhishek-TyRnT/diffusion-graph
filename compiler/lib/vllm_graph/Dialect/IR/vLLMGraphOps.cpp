@@ -39,6 +39,10 @@ OpFoldResult ConstantDeviceOp::fold(FoldAdaptor adaptor){
     return getValueAttr();
 }
 
+OpFoldResult ConstantStringOp::fold(FoldAdaptor adaptor){
+    return getValueAttr();
+}
+
 OpFoldResult SizeOp::fold(FoldAdaptor adaptor){
 
     ArrayRef<Attribute> operands = adaptor.getOperands();

@@ -249,3 +249,14 @@ class SiLU(Module):
     
     def forward(self, x):
         return self.layer(x)
+
+class GeGeLU(Module):
+    def __init__(self, dim_in, dim_out, bias=True):
+        super().__init__()
+        self.activation = nn.GELU()
+        self.proj = nn.Linear(dim_in, dim_out * 2, bias=bias)
+    
+    def forward(self, x):
+        hidden_state = self.proj(x)
+        hidden_state, gate = hidden_state.chunk(2, dim=-1)
+        return self.activation(gate) * hidden_state

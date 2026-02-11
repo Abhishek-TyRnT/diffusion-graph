@@ -4,38 +4,43 @@ import torch
 from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel, reconstruct_model
 from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM
 from test_utils import validate_outputs
-from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
+# from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
 from transformers import AlbertConfig
 from torch.profiler import profile, record_function, ProfilerActivity
 from torch_mlir.compiler_utils import (
     TensorPlaceholder,
 )
+from diffusers.models.embeddings import TimestepEmbedding, Timesteps
+
 from torch.export import Dim
 
 
-@pytest.mark.parametrize("Model, inputs, input_kwargs", (
-    [AlbertEmbeddings, (torch.randint(0, 100, (8, 512)),), {}],
-    [AlbertSdpaAttention, (torch.randn(1, 8, 4096),), {}],
-    [AlbertLayer, (torch.randn(1, 8, 4096),), {}],
-    [AlbertTransformer, (torch.randn(1, 8, 128),), {"return_dict": False}],
-))
-def test_hf_model_layer(Model,
-                        inputs,
-                        input_kwargs):
-    config = AlbertConfig()
-    model = Model(config)
-    model.eval()
-    tmp_folder = f"/tmp"
 
-    vllmgraph = vLLMGraph(model.__class__.__name__, tmp_folder, )
-    vllmgraph.compile(model, inputs, input_kwargs)
-    compiled_model_dict = vllmgraph.get_graph_dict()
-    reconstructed_model = reconstruct_model(compiled_model_dict)
-    normal_output = model(*inputs)
+@pytest.mark.parametrize("model, model_args, inputs, dynamic_dims",(
+    [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}],
+    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}],
+))
+def test_diffusers_submodule_layers(model,
+                                model_args,
+                                inputs,
+                                dynamic_dims):
+
+    if len(model_args) == 0:
+        torch_model = model()
+    else:
+        torch_model = model(*model_args)
+    
+    torch_model.eval()
+
+    tmp_folder = f"/tmp"
+    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
+    vllmgraph.compile(torch_model, inputs)
+    IRdict = vllmgraph.get_graph_dict()
+    reconstructed_model = reconstruct_model(IRdict)
     vllm_graph_output = reconstructed_model["main"](*inputs)
+    normal_output = torch_model(*inputs)
 
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
-
 
 @pytest.mark.parametrize("model_name, dummy_input, text, model_class, device",
     (

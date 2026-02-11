@@ -101,3 +101,31 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor){
     
 }
 
+OpFoldResult DtypeCastOp::fold(FoldAdaptor adaptor){
+    if (getResult().use_empty())
+      return getOperand(0);
+    return {};
+    
+}
+
+void BroadCastOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
+                                       MLIRContext *context) {
+  // Pattern to eliminate BroadCastOp if its result has no uses
+  struct EliminateUnusedBroadCast : public OpRewritePattern<BroadCastOp> {
+    using OpRewritePattern<BroadCastOp>::OpRewritePattern;
+    
+    LogicalResult matchAndRewrite(BroadCastOp op,
+                                  PatternRewriter &rewriter) const override {
+      // Check if the operation result has any uses
+      if (op.getResult().use_empty()) {
+        // No uses found, eliminate the operation
+        rewriter.eraseOp(op);
+        return success();
+      }
+      // Operation has uses, don't eliminate
+      return failure();
+    }
+  };  
+  
+  patterns.add<EliminateUnusedBroadCast>(context);
+}

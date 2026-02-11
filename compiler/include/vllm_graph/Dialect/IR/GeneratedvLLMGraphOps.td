@@ -308,10 +308,10 @@ def vllm_DivScalarOp : vLLMGraph_Op<"vllm.div.scalar", [
     let hasCustomAssemblyFormat = 1;
     let extraClassDefinition = [{
     ParseResult DivScalarOp::parse(OpAsmParser &parser, OperationState &result) {
-        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+        return parseDefaultvLLMGraphOp(parser, result, 2, 1);
     }
     void DivScalarOp::print(OpAsmPrinter &printer) {
-        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+        printDefaultvLLMGraphOp(printer, *this, 2, 1);
     }
     }];
 }
@@ -433,6 +433,8 @@ def vllm_BroadCastOp : vLLMGraph_Op<"vllm.broadcast_to", [
     let results = (outs
         AnyTorchTensorType:$result
     );
+
+    let hasCanonicalizer = 1;
     let hasCustomAssemblyFormat = 1;
     let extraClassDefinition = [{
         ParseResult BroadCastOp::parse(OpAsmParser &parser, OperationState &result) {
@@ -582,6 +584,8 @@ def vllm_DtypeCastOp : vLLMGraph_Op<"vllm.cast_dtype",[
     let results = (outs
         AnyTorchTensorType: $result
     );
+
+    let hasFolder = 1;
 
     let hasCustomAssemblyFormat = 1;
     let extraClassDefinition = [{
@@ -822,6 +826,99 @@ def vllm_GeluOp : vLLMGraph_Op<"vllm.gelu", [
         return parseDefaultvLLMGraphOp(parser, result, 2, 1);
       }
       void GeluOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 2, 1);
+      }
+    }];
+}
+
+def vllm_ExpOp : vLLMGraph_Op<"vllm.exp", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::exp : (Tensor) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult ExpOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+      }
+      void ExpOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+      }
+    }];
+}
+
+def vllm_SinOp : vLLMGraph_Op<"vllm.sin", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::sin : (Tensor) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult SinOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+      }
+      void SinOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+      }
+    }];
+}
+
+def vllm_CosOp : vLLMGraph_Op<"vllm.cos", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::cos : (Tensor) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult CosOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+      }
+      void CosOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+      }
+    }];
+}
+
+def vllm_ConcatenateOp : vLLMGraph_Op<"vllm.concatenate", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::concatenate : (List<Tensor>, int) -> (Tensor)`";
+    let arguments = (ins
+      Torch_ListType:$inputs,
+      I32:$dim
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult ConcatenateOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+      }
+      void ConcatenateOp::print(OpAsmPrinter &printer) {
         printDefaultvLLMGraphOp(printer, *this, 2, 1);
       }
     }];

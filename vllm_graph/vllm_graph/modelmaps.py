@@ -44,4 +44,8 @@ OP_MAP = {
     "vllm_graph.vllm.gelu": torch.nn.functional.gelu,
     "vllm_graph.vllm.split": torch.split,
     "vllm_graph.indexAt": operator.getitem,
+    "vllm_graph.vllm.exp": torch.exp,
+    "vllm_graph.vllm.sin": torch.sin,
+    "vllm_graph.vllm.cos": torch.cos,
+    "vllm_graph.vllm.concatenate": torch.cat,
 }

@@ -111,11 +111,11 @@ def test_graph_compiler_to_model(model,
     else:
         torch_model = model(*model_args)
     
-    tmp_folder = f"./temp_files"
+    tmp_folder = f"/tmp"
 
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs)
-    vllmgraph.store_graph_dict()
+    # vllmgraph.store_graph_dict()
     IRdict = vllmgraph.get_graph_dict()
     reconstructed_model = reconstruct_model(IRdict)
     vllm_graph_output = reconstructed_model["main"](*inputs)

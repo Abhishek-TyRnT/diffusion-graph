@@ -300,6 +300,34 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrit
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSinOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSinOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = adaptor.getOperands()[0];
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::SinOp>(op, resultType, input);
+    return mlir::success();
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenCosOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenCosOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = adaptor.getOperands()[0];
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::CosOp>(op, resultType, input);
+    return mlir::success();
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSizeIntOp>::matchAndRewrite(
     mlir::torch::Torch::AtenSizeIntOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -567,9 +595,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>::matchAndRewrite(
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    // result.setType(resultType);
-    // input.setType(convertor->convertType(input.getType()));
-    // weight.setType(convertor->convertType(weight.getType()));
 
     rewriter.replaceOpWithNewOp<vllm_graph::MatmulOp>(op, resultType, input, weight);
     return mlir::success();
@@ -592,6 +617,20 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMmOp>::matchAndRewrite(
     rewriter.replaceOpWithNewOp<vllm_graph::MatmulOp>(op, resultType, input, weight);
     return mlir::success();
 
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenExpOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenExpOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = adaptor.getOperands()[0];
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::ExpOp>(op, resultType, input);
+    return mlir::success();
 }
 
 template <>
@@ -795,6 +834,80 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenEmbeddingOp>::matchAndRewrit
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenCatOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenCatOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value inputs = adaptor.getOperands()[0];
+    Value dim = adaptor.getOperands()[1];
+    MLIRContext *context = getContext();
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::ConcatenateOp>(op, resultType, inputs, dim);
+    return success();
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenArangeStartStepOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value start = adaptor.getOperands()[0];
+    Value end = adaptor.getOperands()[1];
+    Value step = adaptor.getOperands()[2];
+    Value dtype = adaptor.getOperands()[3];
+    MLIRContext *context = getContext();
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    
+    if(start.getDefiningOp<arith::ConstantIntOp>() && 
+       end.getDefiningOp<arith::ConstantIntOp>() && 
+       step.getDefiningOp<arith::ConstantIntOp>() 
+    ){
+        int64_t start_index = start.getDefiningOp<arith::ConstantIntOp>().value();
+        int64_t end_index = end.getDefiningOp<arith::ConstantIntOp>().value();
+        int64_t step_size = step.getDefiningOp<arith::ConstantIntOp>().value();
+        
+        if(!dtype.getDefiningOp<arith::ConstantIntOp>())
+            return rewriter.notifyMatchFailure(op, "dtype isn't mentioned\n");
+
+        int64_t dtype_val = dtype.getDefiningOp<arith::ConstantIntOp>().value();
+
+        if(dtype_val == 6){
+            float start_val = static_cast<float>(start_index);
+            float end_val = static_cast<float>(end_index);
+            float step_val = static_cast<float>(step_size);
+            std::vector<float> rangeVal;
+            for(float i = start_val; i - end_val < 0.0f; i+=step_val){
+                rangeVal.push_back(i);
+            }
+
+            ArrayRef<float> range_array(rangeVal.data(), rangeVal.size());
+            int64_t size_arr[] = {static_cast<int64_t>(rangeVal.size())};
+            auto RangeType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(size_arr, 1), rewriter.getF32Type());
+        
+            ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(size_arr, 1), rewriter.getF32Type());
+            auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
+
+            rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
+            
+        } else {
+            return rewriter.notifyMatchFailure(op, "dtypes other than float32 not supported yet\n");
+        }
+        
+    } else {
+        return rewriter.notifyMatchFailure(op, "start, end, step, dtype must be constant\n");
+    }
+    return success();
+
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewrite(
     mlir::torch::Torch::AtenSliceTensorOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -819,6 +932,19 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
         int64_t start_index = start.getDefiningOp<arith::ConstantIntOp>().value();
         int64_t end_index = end.getDefiningOp<arith::ConstantIntOp>().value();
         int64_t step_size = step.getDefiningOp<arith::ConstantIntOp>().value();
+        
+        // end_index = -1, means there is bit overflow while conversion int64 to int32
+        // Since we only support int32 shape, that means this case is not taken care of
+        // TODO: Add support for int64 shape
+        if (end_index == -1){
+            Type inputType = self.getType();
+            ArrayRef<int64_t> inputShape = cast<RankedTensorType>(inputType).getShape();
+            int64_t dim_size = inputShape[dim.getDefiningOp<arith::ConstantIntOp>().value()];
+            if(dim_size == -1){
+                return rewriter.notifyMatchFailure(op, "dim_size is unknown\n");
+            }
+            end_index = dim_size;
+        }
 
         std::vector<int32_t> range;
         for(int32_t i = start_index; i < end_index; i+=step_size)
@@ -1080,6 +1206,19 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenReluOp>>(typeConverter,        
                                                          context);
         
+
+        target.addIllegalOp<mlir::torch::Torch::AtenExpOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenExpOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenCosOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenCosOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenSinOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSinOp>>(typeConverter,        
+                                                         context);
+        
         target.addIllegalOp<mlir::torch::Torch::AtenSiluOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSiluOp>>(typeConverter,        
                                                          context);
@@ -1110,6 +1249,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenArangeStartStepOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenRsubScalarOp>();
@@ -1155,6 +1298,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenTransposeIntOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenCatOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenCatOp>>(typeConverter,        
                                                          context);
         
         target.addIllegalOp<mlir::torch::Torch::AtenConvolutionOp>();

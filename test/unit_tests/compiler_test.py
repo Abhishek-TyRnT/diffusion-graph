@@ -4,6 +4,7 @@ import os
 import sys
 from torch_mlir.fx import export_and_import
 from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS
+from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from torch._decomp import get_decompositions
 from torch.export import Dim
 
@@ -155,6 +156,46 @@ def test_vllm_graph_compiler_from_models(model,
     [PoolingLayer, (8, ), (torch.randn(3, 8, 8), ), { "inputs" : { 1 : Dim("hidden_size", min = 1, max = 100)}}],
 ))
 def test_vllm_graph_compiler_partioning(model,
+                                        model_args,
+                                        inputs,
+                                        dynamic_dims):
+
+
+    backend_legal_ops = BACKEND_END_LEGAL_OPS
+    if len(model_args) == 0:
+        torch_model = model()
+    else:
+        torch_model = model(*model_args)
+    
+    torch_model.eval()
+    
+    dynamo_model = torch.export.export(torch_model, inputs, dynamic_shapes = dynamic_dims)
+    torchIR = export_and_import(dynamo_model, 
+                                *inputs, 
+                                output_type="torch", 
+                                backend_legal_ops=backend_legal_ops, 
+                                decomposition_table = get_decompositions(DECOMPOSITION_OPS))
+
+    filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
+    with open(filename , "w") as f:
+        f.write(str(torchIR))
+    
+    cmd = ["vllm-graph" ,filename]
+    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    exit_code = process.returncode
+
+    stderr = process.stderr.decode("utf-8")
+    stdout = process.stdout.decode("utf-8")
+    print(stdout)
+
+    assert exit_code == 0, f"The test failed with response \n{stderr}"
+
+
+@pytest.mark.parametrize("model, model_args, inputs, dynamic_dims",(
+    # [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}],
+    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}],
+))
+def test_diffusion_graph_submodules(model,
                                         model_args,
                                         inputs,
                                         dynamic_dims):

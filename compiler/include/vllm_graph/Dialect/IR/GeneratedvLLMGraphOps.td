@@ -60,7 +60,7 @@ def vllm_SubOp : vLLMGraph_Op<"vllm.sub", [
     let arguments = (ins 
         TensorOrScalarType:$input1, 
         TensorOrScalarType:$input2,  
-        I32:$alpha);
+        ScalarType:$alpha);
     
     let results = (outs
                 AnyTorchTensorType:$result);
@@ -299,7 +299,7 @@ def vllm_DivScalarOp : vLLMGraph_Op<"vllm.div.scalar", [
     let summary = "Generated op for `vllm:div.scalar : (Tensor, int) -> Tensor";
     let arguments = (ins
         TorchTypeOrTensorType:$input,
-        F32:$scalar
+        ScalarType:$scalar
         );
 
     let results = (outs
@@ -585,7 +585,7 @@ def vllm_DtypeCastOp : vLLMGraph_Op<"vllm.cast_dtype",[
         AnyTorchTensorType: $result
     );
 
-    let hasFolder = 1;
+    let hasCanonicalizer = 1;
 
     let hasCustomAssemblyFormat = 1;
     let extraClassDefinition = [{
@@ -666,6 +666,8 @@ def vllm_SizeOp : vLLMGraph_Op<"vllm.size", [
   let results = (outs
     I32:$result
   );
+
+  let hasCanonicalizer = 1;
   let hasCustomAssemblyFormat = 1;
   let extraClassDefinition = [{
     ParseResult SizeOp::parse(OpAsmParser &parser, OperationState &result) {
@@ -920,6 +922,54 @@ def vllm_ConcatenateOp : vLLMGraph_Op<"vllm.concatenate", [
       }
       void ConcatenateOp::print(OpAsmPrinter &printer) {
         printDefaultvLLMGraphOp(printer, *this, 2, 1);
+      }
+    }];
+}
+
+def vllm_SumOp : vLLMGraph_Op<"vllm.sum", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::sum : (Tensor, list[int], bool) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      Torch_ListType:$dim,
+      I1:$keepdim
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult SumOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 3, 1);
+      }
+      void SumOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 3, 1);
+      }
+    }];
+}
+
+def vllm_RSqrtOp : vLLMGraph_Op<"vllm.rsqrt", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::rsqrt : (Tensor) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult RSqrtOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+      }
+      void RSqrtOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
       }
     }];
 }

@@ -51,6 +51,9 @@ def vllm_CastOp : vLLMGraph_Op<"vllm.cast_op",[Pure]> {
     let results = (outs
         AnyType:$result
     );
+
+    let hasCanonicalizer = 1;
+    
     let hasCustomAssemblyFormat = 1;
     let extraClassDefinition = [{
         ParseResult CastOp::parse(OpAsmParser &parser, OperationState &result) {

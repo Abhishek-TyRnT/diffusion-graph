@@ -139,6 +139,27 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenGeluOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenRsqrtOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenRsqrtOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value self = adaptor.getSelf();
+    MLIRContext *context = op.getContext();
+    auto selfTy = cast<TensorType>(self.getType());
+    if (!selfTy) {
+        return rewriter.notifyMatchFailure(op,
+                                       "Only Tensor types supported in vllm_graph");
+    }
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::RSqrtOp>(op, resultType, self);
+    return success();
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantDeviceOp>::matchAndRewrite(
     mlir::torch::Torch::ConstantDeviceOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -230,21 +251,26 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenConvolutionOp>::matchAndRewr
 }
 
 template <>
-LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenGroupNormOp>::matchAndRewrite(
-    mlir::torch::Torch::AtenGroupNormOp op, OpAdaptor adaptor,
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeGroupNormOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenNativeGroupNormOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
 
-  Value input = adaptor.getInput();
-  Value numGroups = adaptor.getNumGroups();
-  Value weight = adaptor.getWeight();
-  Value bias = adaptor.getBias();
-  Value eps = adaptor.getEps();
+    Value input = adaptor.getInput();
+    Value numGroups = adaptor.getGroup();
+    Value weight = adaptor.getWeight();
+    Value bias = adaptor.getBias();
+    Value eps = adaptor.getEps();
+    Location loc = op.getLoc();
 
-  const TypeConverter *convertor = getTypeConverter();
-  Type resultType = convertor->convertType(op.getResult().getType());
+    Value OldResult = op.getResult(0);
+    const TypeConverter *convertor = getTypeConverter();
+    Type resultType = convertor->convertType(op.getResult(0).getType());
 
-  rewriter.replaceOpWithNewOp<vllm_graph::GroupNormOp>(
-      op, resultType, input, numGroups, weight, bias, eps);
+    vllm_graph::GroupNormOp groupNormOp = rewriter.create<vllm_graph::GroupNormOp>(
+        loc, resultType, input, numGroups, weight, bias, eps);
+    
+    OldResult.replaceAllUsesWith(groupNormOp.getResult());
+    rewriter.eraseOp(op);
   return success();
 }
 
@@ -343,6 +369,23 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSizeIntOp>::matchAndRewrite(
     rewriter.replaceOpWithNewOp<vllm_graph::SizeOp>(op, resultType, input, dim);
     return mlir::success();
 
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSumDimIntListOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSumDimIntListOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = adaptor.getOperands()[0];
+    Value dim = adaptor.getOperands()[1];
+    Value keepdim = adaptor.getOperands()[2];
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::SumOp>(op, resultType, input, dim, keepdim);
+    return mlir::success();
 }
 
 //TODO: Replace the current decomposition with constOp and viewOp 
@@ -477,6 +520,24 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenRsubScalarOp>::matchAndRewri
     rewriter.replaceOpWithNewOp<vllm_graph::SubOp>(op, resultType, Operand2, Operand1, Alpha);
     return mlir::success();
     
+}
+
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSubTensorOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSubTensorOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = adaptor.getOperands()[0];
+    Value subtrahend = adaptor.getOperands()[1];
+    Value alpha = adaptor.getOperands()[2];
+
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::SubOp>(op, resultType, input, subtrahend, alpha);
+    return mlir::success();
 }
 
 template <>
@@ -1206,7 +1267,10 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenReluOp>>(typeConverter,        
                                                          context);
         
-
+        target.addIllegalOp<mlir::torch::Torch::AtenRsqrtOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenRsqrtOp>>(typeConverter,        
+                                                         context);
+        
         target.addIllegalOp<mlir::torch::Torch::AtenExpOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenExpOp>>(typeConverter,        
                                                          context);
@@ -1249,6 +1313,14 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenSubTensorOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSubTensorOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenSumDimIntListOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSumDimIntListOp>>(typeConverter,        
                                                          context);
         
         target.addIllegalOp<mlir::torch::Torch::AtenArangeStartStepOp>();
@@ -1344,8 +1416,8 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::Aten_SoftmaxOp>>(typeConverter,        
                                                          context);
 
-        target.addIllegalOp<mlir::torch::Torch::AtenGroupNormOp>();
-        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenGroupNormOp>>(typeConverter,        
+        target.addIllegalOp<mlir::torch::Torch::AtenNativeGroupNormOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenNativeGroupNormOp>>(typeConverter,        
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::PrimListConstructOp>();
@@ -1404,6 +1476,7 @@ public:
         if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))
             return signalPassFailure();
+        
     }
 };
 } // namespace

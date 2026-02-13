@@ -101,16 +101,72 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor){
     
 }
 
-OpFoldResult DtypeCastOp::fold(FoldAdaptor adaptor){
-    if (getResult().use_empty())
-      return getOperand(0);
-    return {};
+void CastOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
+                                       MLIRContext *context) {
+    struct EliminateCast : public OpRewritePattern<CastOp> {
+        using OpRewritePattern<CastOp>::OpRewritePattern;
+        
+        LogicalResult matchAndRewrite(CastOp op,
+                                      PatternRewriter &rewriter) const override {
+            Value result = op.getResult();
+            Value input = op.getOperand();
+            result.replaceAllUsesWith(input);
+            rewriter.eraseOp(op);
+            return success();
+        }
+    };  
     
+    patterns.add<EliminateCast>(context);
 }
+
+void SizeOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
+                                       MLIRContext *context) {
+    struct EliminateSizeOp : public OpRewritePattern<SizeOp> {
+        using OpRewritePattern<SizeOp>::OpRewritePattern;
+        
+        LogicalResult matchAndRewrite(SizeOp op,
+                                      PatternRewriter &rewriter) const override {
+      // Check if the operation result has any uses
+          if (op.getResult().use_empty()) {
+            // No uses found, eliminate the operation
+            rewriter.eraseOp(op);
+            return success();
+          }
+          // Operation has uses, don't eliminate
+          return failure();
+            }
+    };    
+    
+    patterns.add<EliminateSizeOp>(context);
+}
+
+void DtypeCastOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
+                                       MLIRContext *context) {
+  // Pattern to eliminate BroadCastOp if its result has no uses
+  struct EliminateUnusedDtypeCast : public OpRewritePattern<DtypeCastOp> {
+    using OpRewritePattern<DtypeCastOp>::OpRewritePattern;
+    
+    LogicalResult matchAndRewrite(DtypeCastOp op,
+                                  PatternRewriter &rewriter) const override {
+      // Check if the operation result has any uses
+      if (op.getResult().use_empty()) {
+        // No uses found, eliminate the operation
+        rewriter.eraseOp(op);
+        return success();
+      }
+      // Operation has uses, don't eliminate
+      return failure();
+    }
+  };  
+  
+  patterns.add<EliminateUnusedDtypeCast>(context);
+}
+
 
 void BroadCastOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
                                        MLIRContext *context) {
   // Pattern to eliminate BroadCastOp if its result has no uses
+  //TODO: Make it common struct to be used for all canocialization pattern with no uses
   struct EliminateUnusedBroadCast : public OpRewritePattern<BroadCastOp> {
     using OpRewritePattern<BroadCastOp>::OpRewritePattern;
     

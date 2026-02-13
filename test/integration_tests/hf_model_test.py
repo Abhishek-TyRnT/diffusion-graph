@@ -4,6 +4,10 @@ import torch
 from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel, reconstruct_model
 from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM
 from test_utils import validate_outputs
+from diffusers.models.embeddings import TimestepEmbedding, Timesteps
+from diffusers.models.attention_processor import Attention
+from diffusers.models.attention import FeedForward, BasicTransformerBlock
+from diffusers.models.transformers.transformer_2d import Transformer2DModel
 # from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
 from transformers import AlbertConfig
 from torch.profiler import profile, record_function, ProfilerActivity
@@ -16,13 +20,18 @@ from torch.export import Dim
 
 
 
-@pytest.mark.parametrize("model, model_args, inputs, dynamic_dims",(
-    [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}],
-    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}],
+@pytest.mark.parametrize("model, model_args, inputs, input_kwargs, dynamic_dims",(
+    [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}, {}],
+    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}, {}],
+    [Attention, (16,), (torch.randn(1, 32, 16), ), {}, {}],
+    [FeedForward, (16,), (torch.randn(1, 32, 16), ), {}, {}],
+    [BasicTransformerBlock, (16, 8, 16,), (torch.randn(1, 32, 16), ), {}, {}],
+    [Transformer2DModel, (16, 88, 32, 32), (torch.randn(1, 32, 16, 16), ), {'return_dict': False}, {}],
 ))
 def test_diffusers_submodule_layers(model,
                                 model_args,
                                 inputs,
+                                input_kwargs,
                                 dynamic_dims):
 
     if len(model_args) == 0:
@@ -34,11 +43,11 @@ def test_diffusers_submodule_layers(model,
 
     tmp_folder = f"/tmp"
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
-    vllmgraph.compile(torch_model, inputs)
+    vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
     IRdict = vllmgraph.get_graph_dict()
     reconstructed_model = reconstruct_model(IRdict)
     vllm_graph_output = reconstructed_model["main"](*inputs)
-    normal_output = torch_model(*inputs)
+    normal_output = torch_model(*inputs, **input_kwargs)
 
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
 
@@ -55,7 +64,7 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
     dummy_position_ids = dummy_input[1]
     inputs = tokenizer(text, return_tensors="pt")
     #model(**inputs)
-    tmp_folder = f"./temp_files"
+    tmp_folder = f"/tmp"
 
     seq_dim = Dim("seq_len", min = 1, max = model.config.max_position_embeddings - 1)
     dynamic_dims = {
@@ -63,7 +72,7 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
         "position_ids": {1 : seq_dim},
         "return_dict": None
     }
-    vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = True)
+    vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = False)
     dummy_input_kwargs = {"return_dict" : False, 'position_ids': dummy_position_ids, }
     vllmgraph.compile(model, (dummy_input_ids, ), dummy_input_kwargs, dynamic_dims = dynamic_dims)
     

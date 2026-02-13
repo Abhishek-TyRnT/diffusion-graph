@@ -3,8 +3,12 @@ import subprocess
 import os
 import sys
 from torch_mlir.fx import export_and_import
+# from torch.utils._pytree import register_dataclass_as_pytree_node
 from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
+from diffusers.models.attention_processor import Attention
+from diffusers.models.attention import FeedForward, BasicTransformerBlock
+from diffusers.models.transformers.transformer_2d import Transformer2DModel
 from torch._decomp import get_decompositions
 from torch.export import Dim
 
@@ -63,7 +67,7 @@ def test_vllm_graph_compiler_from_mlir(filename):
     [AttentionHead,  ["convert-global-function-pass","inline-dialect-resource-dict-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
         (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
     [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)],
-    [Cast, ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, vllm-canonicalizer-pass, vllm-canonicalizer-pass, recompose-simple-ops-to-complex)" ], (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)]
+    [Cast, ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, cse, recompose-simple-ops-to-complex)" ], (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)]
      ))
 def test_vllm_graph_compiler_passes_from_models(model,
                                                 pass_list,
@@ -191,13 +195,18 @@ def test_vllm_graph_compiler_partioning(model,
     assert exit_code == 0, f"The test failed with response \n{stderr}"
 
 
-@pytest.mark.parametrize("model, model_args, inputs, dynamic_dims",(
-    # [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}],
-    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}],
+@pytest.mark.parametrize("model, model_args, inputs, input_kwargs, dynamic_dims",(
+    [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}, {}],
+    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}, {}],
+    [Attention, (16,), (torch.randn(1, 32, 16), ), {}, {}],
+    [FeedForward, (16,), (torch.randn(1, 32, 16), ), {}, {}],
+    [BasicTransformerBlock, (16, 8, 16,), (torch.randn(1, 32, 16), ), {}, {}],
+    [Transformer2DModel, (16, 88, 32, 32), (torch.randn(1, 32, 16, 16), ), {'return_dict': False}, {}],
 ))
 def test_diffusion_graph_submodules(model,
                                         model_args,
                                         inputs,
+                                        input_kwargs,
                                         dynamic_dims):
 
 
@@ -209,7 +218,8 @@ def test_diffusion_graph_submodules(model,
     
     torch_model.eval()
     
-    dynamo_model = torch.export.export(torch_model, inputs, dynamic_shapes = dynamic_dims)
+    torch_model(*inputs)
+    dynamo_model = torch.export.export(torch_model, inputs, input_kwargs, dynamic_shapes = dynamic_dims)
     torchIR = export_and_import(dynamo_model, 
                                 *inputs, 
                                 output_type="torch", 

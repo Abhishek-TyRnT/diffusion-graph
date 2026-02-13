@@ -3,7 +3,6 @@ add_mlir_library(vLLMGraphTransformPasses
   TransformPasses.cpp
   recompositionPass.cpp
   InlineDialectResourcesDictPass.cpp
-  vLLMCanonicalizerPass.cpp
   FunctionPartitionPass.cpp
 
   ADDITIONAL_HEADER_DIRS

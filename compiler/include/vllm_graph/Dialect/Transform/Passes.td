@@ -32,16 +32,16 @@ def InlineDialectResourcesDictPass : Pass<"inline-dialect-resource-dict-pass", "
     }];
 }
 
-def vLLMCanonicalizerPass : Pass<"vllm-canonicalizer-pass", "func::FuncOp"> {
-    let summary = "CanonicalizerPass for eliminating dead code and remove cast Ops.";
-    let description = [{
-        Eliminating unnecessary cast ops created during function signature change
-        and eliminating dead code
-    }];
+// def vLLMCanonicalizerPass : Pass<"vllm-canonicalizer-pass", "func::FuncOp"> {
+//     let summary = "CanonicalizerPass for eliminating dead code and remove cast Ops.";
+//     let description = [{
+//         Eliminating unnecessary cast ops created during function signature change
+//         and eliminating dead code
+//     }];
 
-    let constructor = "mlir::vllm_graph::createvLLMCanonicalizerPass()";
+//     let constructor = "mlir::vllm_graph::createvLLMCanonicalizerPass()";
 
-}
+// }
 
 def vLLMFunctionPartitioningPass : Pass<"function-partioning-pass", "ModuleOp"> {
     let summary = "FunctionPartitionPass for partioning forward function.";

@@ -14,6 +14,9 @@ set(LinkedLibs
    vLLMGraphConversionPasses
    vLLMGraphTransformPasses
 
+   # MLIR Transforms
+   MLIRTransforms
+
    #Utils
    TorchMLIRTorchUtils
    )

@@ -9,6 +9,7 @@
 #include "vllm_graph/Dialect/Transform/Passes.hpp"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/Transforms/Passes.h"
 
 void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
 {
@@ -22,5 +23,6 @@ void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
 void mlir::vllm_graph::registerAllPasses() {
     mlir::vllm_graph::registervLLMGraphPasses();
     mlir::vllm_graph::registerConversionPasses();
+    mlir::registerTransformsPasses();
 }
 

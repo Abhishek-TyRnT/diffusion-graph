@@ -67,7 +67,7 @@ def test_vllm_graph_compiler_from_mlir(filename):
     [AttentionHead,  ["convert-global-function-pass","inline-dialect-resource-dict-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
         (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
     [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)],
-    [Cast, ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, vllm-canonicalizer-pass, vllm-canonicalizer-pass, recompose-simple-ops-to-complex)" ], (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)]
+    [Cast, ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, cse, recompose-simple-ops-to-complex)" ], (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)]
      ))
 def test_vllm_graph_compiler_passes_from_models(model,
                                                 pass_list,

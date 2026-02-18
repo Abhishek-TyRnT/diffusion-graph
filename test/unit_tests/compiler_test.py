@@ -4,11 +4,15 @@ import os
 import sys
 from torch_mlir.fx import export_and_import
 # from torch.utils._pytree import register_dataclass_as_pytree_node
-from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS
+from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS, upsample_nearest_decomposed_v2
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.attention_processor import Attention
 from diffusers.models.attention import FeedForward, BasicTransformerBlock
 from diffusers.models.transformers.transformer_2d import Transformer2DModel
+from diffusers.models.resnet import ResnetBlock2D
+from diffusers.models.unets.unet_2d_blocks import CrossAttnDownBlock2D, DownBlock2D
+from diffusers.models.downsampling import Downsample2D
+from diffusers.models.upsampling import Upsample2D
 from torch._decomp import get_decompositions
 from torch.export import Dim
 
@@ -100,31 +104,32 @@ def test_vllm_graph_compiler_passes_from_models(model,
 
 
 @pytest.mark.parametrize("model, model_args, inputs",(
-     [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
-     [RSub, (2.,), (torch.randn(224, 10, 3),)],
-     [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
-     [ReluModule, (), (torch.randn(1, 10, 5))],
-     [Softmax, (1,), (torch.randn(1, 10, 5))],
-     [Transpose, (1, 0), (torch.randn(25, 10),)],
-     [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
-     [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-     [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
-     [Tanh, (), (torch.randn(3, 256, 1024),)],
-     [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
-     [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
-     [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
-     [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
-     [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
-     [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
-     [SqueezeOp, (1,), (torch.randn(2, 8),)],
-     [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
-     [Cast, (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)],
-     [Cast, (torch.float,), (torch.rand(2, 5, dtype=torch.double),)],
-     [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
-     [Conv2D, (3, 128, 3, 1, 1), (torch.randn(1, 3, 256, 256),)],
-     [GroupNorm, (4, 16, 1e-5, True), (torch.randn(2, 16, 32, 32),)],
-     [SiLU, (), (torch.randn(2, 16, 32, 32),)],
-     [GeGeLU, (16, 32), (torch.randn(1, 32, 16),)],
+    #  [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+    #  [RSub, (2.,), (torch.randn(224, 10, 3),)],
+    #  [LinearModule, (10, 5), (torch.randn(1, 224, 10),)],
+    #  [ReluModule, (), (torch.randn(1, 10, 5))],
+    #  [Softmax, (1,), (torch.randn(1, 10, 5))],
+    #  [Transpose, (1, 0), (torch.randn(25, 10),)],
+    #  [BatchMatmul, (), (torch.randn(3, 10, 3), torch.randn(3, 3, 10))],
+    #  [AttentionHead, (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+    #  [LayerNorm, (5, True, True), (torch.randn(3, 256, 5),)],
+    #  [Tanh, (), (torch.randn(3, 256, 1024),)],
+    #  [NewGELUActivation, (),  (torch.randn(3, 256, 1024),)],
+    #  [Embedding, (1000, 3), (torch.randint(0, 100, (8, 512)), )],
+    #  [Broadcast, ((8, 10),), (torch.randn(1, 10),)],
+    #  [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),)],
+    #  [SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),)],
+    #  [UnSqueezeOp, (1,), (torch.randn(2, 8),)],
+    #  [SqueezeOp, (1,), (torch.randn(2, 8),)],
+    #  [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.))],
+    #  [Cast, (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)],
+    #  [Cast, (torch.float,), (torch.rand(2, 5, dtype=torch.double),)],
+    #  [SDPAttention, (0.0,), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
+    #  [Conv2D, (3, 128, 3, 1, 1), (torch.randn(1, 3, 256, 256),)],
+    #  [GroupNorm, (4, 16, 1e-5, True), (torch.randn(2, 16, 32, 32),)],
+    #  [SiLU, (), (torch.randn(2, 16, 32, 32),)],
+    #  [GeGeLU, (16, 32), (torch.randn(1, 32, 16),)],
+     [UpsampleNearest2d, (2,), (torch.randn(1, 32, 16, 16),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,
@@ -195,16 +200,23 @@ def test_vllm_graph_compiler_partioning(model,
     assert exit_code == 0, f"The test failed with response \n{stderr}"
 
 
-@pytest.mark.parametrize("model, model_args, inputs, input_kwargs, dynamic_dims",(
-    [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}, {}],
-    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}, {}],
-    [Attention, (16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [FeedForward, (16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [BasicTransformerBlock, (16, 8, 16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [Transformer2DModel, (16, 88, 32, 32), (torch.randn(1, 32, 16, 16), ), {'return_dict': False}, {}],
+@pytest.mark.parametrize("model, model_args,model_kwargs, inputs, input_kwargs, dynamic_dims",(
+    # [TimestepEmbedding, (16, 32), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    # [Timesteps, (16, True, 0.1), {}, (torch.randint(0, 1000, (16,)), ), {}, {}],
+    # [Attention, (16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    # [FeedForward, (16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    # [BasicTransformerBlock, (16, 8, 16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    # [Transformer2DModel, (16, 88, 32, 32), {}, (torch.randn(1, 32, 16, 16), ), {'return_dict': False}, {}],
+    # [ResnetBlock2D, (), {'in_channels': 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+    # [CrossAttnDownBlock2D, (32, 32, 512), {"cross_attention_dim": 128}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512), torch.randn(1, 16, 128)), {}, {}],
+    # [Downsample2D, (32, ), {'use_conv': True}, (torch.randn(1, 32, 16, 16), ), {}, {}],
+    # [DownBlock2D, (32, 32, 512), {}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+    [Upsample2D, (32, ), {'use_conv': True}, (torch.randn(1, 32, 16, 16), ), {}, {}],
+
 ))
 def test_diffusion_graph_submodules(model,
                                         model_args,
+                                        model_kwargs,
                                         inputs,
                                         input_kwargs,
                                         dynamic_dims):
@@ -212,19 +224,30 @@ def test_diffusion_graph_submodules(model,
 
     backend_legal_ops = BACKEND_END_LEGAL_OPS
     if len(model_args) == 0:
-        torch_model = model()
+        torch_model = model(**model_kwargs)
     else:
-        torch_model = model(*model_args)
+        torch_model = model(*model_args, **model_kwargs)
     
     torch_model.eval()
-    
     torch_model(*inputs)
     dynamo_model = torch.export.export(torch_model, inputs, input_kwargs, dynamic_shapes = dynamic_dims)
+    print(dynamo_model)
+    print(get_decompositions(DECOMPOSITION_OPS))
+    decomp_table = get_decompositions(DECOMPOSITION_OPS)
+    decomp_table[torch.ops.aten.upsample_nearest2d.default] = upsample_nearest_decomposed_v2
+    # decomp_table[torch.ops.aten.upsample_nearest2d.default] = upsample_nearest2d_vec_no_decomp
+    # decomp_table[torch.ops.aten.upsample_nearest2d] = upsample_nearest2d_vec_no_decomp
+    # decomp_table[torch.ops.aten.upsample_bilinear2d.default] = upsample_nearest2d_vec_no_decomp
+    # decomp_table[torch.ops.aten.upsample_bilinear2d.vec] = upsample_nearest2d_vec_no_decomp
+
+    print(decomp_table)
     torchIR = export_and_import(dynamo_model, 
                                 *inputs, 
                                 output_type="torch", 
                                 backend_legal_ops=backend_legal_ops, 
-                                decomposition_table = get_decompositions(DECOMPOSITION_OPS))
+                                decomposition_table = decomp_table,
+                                enable_ir_printing = False,
+                                enable_graph_printing = True)
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:

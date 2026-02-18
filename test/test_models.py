@@ -260,3 +260,11 @@ class GeGeLU(Module):
         hidden_state = self.proj(x)
         hidden_state, gate = hidden_state.chunk(2, dim=-1)
         return self.activation(gate) * hidden_state
+
+class UpsampleNearest2d(Module):
+    def __init__(self, scale_factor=2):
+        super().__init__()
+        self.scale_factor = scale_factor
+    
+    def forward(self, x):
+        return torch.nn.functional.interpolate(x, scale_factor=self.scale_factor, mode='nearest')

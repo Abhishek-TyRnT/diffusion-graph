@@ -916,6 +916,8 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>::matchAnd
     mlir::torch::Torch::AtenArangeStartStepOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
     
+    //TODO: Instead of folding the op, lower it to rangeOp, and fold it another pass. 
+    // This is done for pattern matching
     Value start = adaptor.getOperands()[0];
     Value end = adaptor.getOperands()[1];
     Value step = adaptor.getOperands()[2];
@@ -957,8 +959,23 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>::matchAnd
 
             rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
             
+        } else if(dtype_val == 4) {
+
+            std::vector<int32_t> rangeVal;
+            for(int32_t i = start_index; i < end_index; i+=step_size){
+                rangeVal.push_back(i);
+            }
+
+            ArrayRef<int32_t> range_array(rangeVal.data(), rangeVal.size());
+            int64_t size_arr[] = {static_cast<int64_t>(rangeVal.size())};
+            auto RangeType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(size_arr, 1), rewriter.getIntegerType(32));
+        
+            ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(size_arr, 1),rewriter.getIntegerType(32));
+            auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
+
+            rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
         } else {
-            return rewriter.notifyMatchFailure(op, "dtypes other than float32 not supported yet\n");
+            return rewriter.notifyMatchFailure(op, "dtypes other than float32 or int32, not supported yet\n");
         }
         
     } else {
@@ -1042,6 +1059,24 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     
 
 }
+
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenIndexTensorHackedTwinOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenIndexTensorHackedTwinOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value inputArg = adaptor.getOperands()[0];
+    Value indicesArg = adaptor.getOperands()[1];
+
+    const TypeConverter *convertor = getTypeConverter();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::BroadCastIndexOp>(op, resultType, inputArg, indicesArg);
+    return success();
+}
+
+
 template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>::matchAndRewrite(
     mlir::torch::Torch::AtenNativeLayerNormOp op, OpAdaptor adaptor,
@@ -1337,6 +1372,10 @@ public:
 
         target.addIllegalOp<mlir::torch::Torch::AtenAddScalarOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenAddScalarOp>>(typeConverter,        
+                                                         context);
+
+        target.addIllegalOp<mlir::torch::Torch::AtenIndexTensorHackedTwinOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenIndexTensorHackedTwinOp>>(typeConverter,
                                                          context);
 
         target.addIllegalOp<mlir::torch::Torch::AtenScaledDotProductAttentionOp>();

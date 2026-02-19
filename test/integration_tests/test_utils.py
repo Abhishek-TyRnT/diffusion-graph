@@ -4,7 +4,16 @@ import torch
 
 def validate_outputs(vllm_graph_output, regular_output) -> bool:
     if(isinstance(regular_output, tuple)):
-        assert len(vllm_graph_output) == len(vllm_graph_output), "No of outputs donot match"
+        if (len(vllm_graph_output) != len(regular_output)):
+            new_regular_output = []
+            for tensor in regular_output:
+                if(isinstance(tensor, tuple)):
+                    new_regular_output.extend(tensor)
+                else:
+                    new_regular_output.append(tensor)
+            regular_output = new_regular_output
+        
+        assert len(vllm_graph_output) == len(regular_output), "No of outputs donot match"
         for (vllm_tensor, tensor) in zip(vllm_graph_output, regular_output):
             if not torch.allclose(vllm_tensor, tensor, atol = 1e-3):
                 return False

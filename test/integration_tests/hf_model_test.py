@@ -8,6 +8,12 @@ from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.attention_processor import Attention
 from diffusers.models.attention import FeedForward, BasicTransformerBlock
 from diffusers.models.transformers.transformer_2d import Transformer2DModel
+from diffusers.models.resnet import ResnetBlock2D
+from diffusers.models.unets.unet_2d_blocks import (CrossAttnDownBlock2D, 
+                                        CrossAttnUpBlock2D, DownBlock2D, 
+                                        UpBlock2D, UNetMidBlock2D)
+from diffusers.models.downsampling import Downsample2D
+from diffusers.models.upsampling import Upsample2D
 # from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
 from transformers import AlbertConfig
 from torch.profiler import profile, record_function, ProfilerActivity
@@ -20,24 +26,34 @@ from torch.export import Dim
 
 
 
-@pytest.mark.parametrize("model, model_args, inputs, input_kwargs, dynamic_dims",(
-    [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}, {}],
-    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}, {}],
-    [Attention, (16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [FeedForward, (16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [BasicTransformerBlock, (16, 8, 16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [Transformer2DModel, (16, 88, 32, 32), (torch.randn(1, 32, 16, 16), ), {'return_dict': False}, {}],
+@pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, dynamic_dims",(
+    [TimestepEmbedding, (16, 32), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    [Timesteps, (16, True, 0.1), {}, (torch.randint(0, 1000, (16,)), ), {}, {}],
+    [Attention, (16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    [FeedForward, (16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    [BasicTransformerBlock, (16, 8, 16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    [Transformer2DModel, (16, 88, 32, 32), {}, (torch.randn(1, 32, 16, 16), ), {'return_dict': False}, {}],
+    [ResnetBlock2D, (), {'in_channels': 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+    [CrossAttnDownBlock2D, (32, 32, 512), {"cross_attention_dim": 128}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512), torch.randn(1, 16, 128)), {}, {}],
+    [Downsample2D, (32, ), {'use_conv': True}, (torch.randn(1, 32, 16, 16), ), {}, {}],
+    [DownBlock2D, (32, 32, 512), {}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+    [Upsample2D, (32, ), {'use_conv': True}, (torch.randn(1, 32, 16, 16), ), {}, {}],
+    [UpBlock2D, (32, 32, 32, 512), {}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512)), {}, {}],
+    [CrossAttnUpBlock2D, (32, 32, 32, 512), {"cross_attention_dim": 32}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512),), {}, {}],
+    [UNetMidBlock2D, (32, 512), {"attention_head_dim": 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+
 ))
 def test_diffusers_submodule_layers(model,
                                 model_args,
+                                model_kwargs,
                                 inputs,
                                 input_kwargs,
                                 dynamic_dims):
 
     if len(model_args) == 0:
-        torch_model = model()
+        torch_model = model(**model_kwargs)
     else:
-        torch_model = model(*model_args)
+        torch_model = model(*model_args, **model_kwargs)
     
     torch_model.eval()
 
@@ -45,8 +61,17 @@ def test_diffusers_submodule_layers(model,
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
     IRdict = vllmgraph.get_graph_dict()
+    new_input = []
+
+    #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
+    for tensor in inputs:
+        if(isinstance(tensor, tuple) or isinstance(tensor, list)):
+            new_input.extend(tensor)
+        else:
+            new_input.append(tensor)
+
     reconstructed_model = reconstruct_model(IRdict)
-    vllm_graph_output = reconstructed_model["main"](*inputs)
+    vllm_graph_output = reconstructed_model["main"](*new_input)
     normal_output = torch_model(*inputs, **input_kwargs)
 
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

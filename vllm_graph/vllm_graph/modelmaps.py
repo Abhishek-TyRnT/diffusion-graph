@@ -48,4 +48,5 @@ OP_MAP = {
     "vllm_graph.vllm.sin": torch.sin,
     "vllm_graph.vllm.cos": torch.cos,
     "vllm_graph.vllm.concatenate": torch.cat,
+    "vllm_graph.temp.broadcast_index": funcs.index_with_tensors_broadcast,
 }

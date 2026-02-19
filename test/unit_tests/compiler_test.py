@@ -4,11 +4,17 @@ import os
 import sys
 from torch_mlir.fx import export_and_import
 # from torch.utils._pytree import register_dataclass_as_pytree_node
-from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS
+from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS, upsample_nearest_decomposed_v2
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.attention_processor import Attention
 from diffusers.models.attention import FeedForward, BasicTransformerBlock
 from diffusers.models.transformers.transformer_2d import Transformer2DModel
+from diffusers.models.resnet import ResnetBlock2D
+from diffusers.models.unets.unet_2d_blocks import (CrossAttnDownBlock2D, 
+                                        CrossAttnUpBlock2D, DownBlock2D, 
+                                        UpBlock2D, UNetMidBlock2D)
+from diffusers.models.downsampling import Downsample2D
+from diffusers.models.upsampling import Upsample2D
 from torch._decomp import get_decompositions
 from torch.export import Dim
 
@@ -125,6 +131,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [GroupNorm, (4, 16, 1e-5, True), (torch.randn(2, 16, 32, 32),)],
      [SiLU, (), (torch.randn(2, 16, 32, 32),)],
      [GeGeLU, (16, 32), (torch.randn(1, 32, 16),)],
+     [UpsampleNearest2d, (2,), (torch.randn(1, 32, 16, 16),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,
@@ -195,16 +202,26 @@ def test_vllm_graph_compiler_partioning(model,
     assert exit_code == 0, f"The test failed with response \n{stderr}"
 
 
-@pytest.mark.parametrize("model, model_args, inputs, input_kwargs, dynamic_dims",(
-    [TimestepEmbedding, (16, 32), (torch.randn(1, 32, 16), ), {}, {}],
-    [Timesteps, (16, True, 0.1), (torch.randint(0, 1000, (16,)), ), {}, {}],
-    [Attention, (16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [FeedForward, (16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [BasicTransformerBlock, (16, 8, 16,), (torch.randn(1, 32, 16), ), {}, {}],
-    [Transformer2DModel, (16, 88, 32, 32), (torch.randn(1, 32, 16, 16), ), {'return_dict': False}, {}],
+@pytest.mark.parametrize("model, model_args,model_kwargs, inputs, input_kwargs, dynamic_dims",(
+    # [TimestepEmbedding, (16, 32), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    # [Timesteps, (16, True, 0.1), {}, (torch.randint(0, 1000, (16,)), ), {}, {}],
+    # [Attention, (16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    # [FeedForward, (16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    # [BasicTransformerBlock, (16, 8, 16,), {}, (torch.randn(1, 32, 16), ), {}, {}],
+    # [Transformer2DModel, (16, 88, 32, 32), {}, (torch.randn(1, 32, 16, 16), ), {'return_dict': False}, {}],
+    # [ResnetBlock2D, (), {'in_channels': 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+    # [CrossAttnDownBlock2D, (32, 32, 512), {"cross_attention_dim": 128}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512), torch.randn(1, 16, 128)), {}, {}],
+    # [Downsample2D, (32, ), {'use_conv': True}, (torch.randn(1, 32, 16, 16), ), {}, {}],
+    # [DownBlock2D, (32, 32, 512), {}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+    # [Upsample2D, (32, ), {'use_conv': True}, (torch.randn(1, 32, 16, 16), ), {}, {}],
+    [UpBlock2D, (32, 32, 32, 512), {}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512)), {}, {}],
+    # [CrossAttnUpBlock2D, (32, 32, 32, 512), {"cross_attention_dim": 32}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512),), {}, {}],
+    # [UNetMidBlock2D, (32, 512), {"attention_head_dim": 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+
 ))
 def test_diffusion_graph_submodules(model,
                                         model_args,
+                                        model_kwargs,
                                         inputs,
                                         input_kwargs,
                                         dynamic_dims):
@@ -212,19 +229,21 @@ def test_diffusion_graph_submodules(model,
 
     backend_legal_ops = BACKEND_END_LEGAL_OPS
     if len(model_args) == 0:
-        torch_model = model()
+        torch_model = model(**model_kwargs)
     else:
-        torch_model = model(*model_args)
+        torch_model = model(*model_args, **model_kwargs)
     
     torch_model.eval()
-    
     torch_model(*inputs)
     dynamo_model = torch.export.export(torch_model, inputs, input_kwargs, dynamic_shapes = dynamic_dims)
+
     torchIR = export_and_import(dynamo_model, 
                                 *inputs, 
                                 output_type="torch", 
                                 backend_legal_ops=backend_legal_ops, 
-                                decomposition_table = get_decompositions(DECOMPOSITION_OPS))
+                                decomposition_table = get_decompositions(DECOMPOSITION_OPS),
+                                enable_ir_printing = False,
+                                enable_graph_printing = False)
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:

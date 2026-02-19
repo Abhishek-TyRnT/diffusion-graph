@@ -973,3 +973,28 @@ def vllm_RSqrtOp : vLLMGraph_Op<"vllm.rsqrt", [
       }
     }];
 }
+
+def vllm_BroadCastIndexOp : vLLMGraph_Op<"temp.broadcast_index", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::broadcast_index : (Tensor, list[Tensor]) -> (Tensor)`. This is a temporary op for hacked_twin_index.";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      Torch_ListType:$indices
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult BroadCastIndexOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+      }
+      void BroadCastIndexOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 2, 1);
+      }
+    }];
+}
+

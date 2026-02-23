@@ -373,8 +373,8 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>::matchAndRewrite(
     auto constantStringOp = rewriter.create<vllm_graph::ConstantStringOp>(loc, stringAttr);
     
     ArrayRef<int64_t> resizeDimsSize(resizeDims.data(), 2);
-    auto resizeDimsType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
-    auto DenseInputType = RankedTensorType::get({2}, rewriter.getIntegerType(64));
+    auto resizeDimsType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(32));
+    auto DenseInputType = RankedTensorType::get({2}, rewriter.getIntegerType(32));
     auto denseAttr = DenseElementsAttr::get(DenseInputType, resizeDimsSize);
     auto resizeDimsTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(loc, resizeDimsType, denseAttr);
 

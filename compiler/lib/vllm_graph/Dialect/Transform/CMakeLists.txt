@@ -4,6 +4,7 @@ add_mlir_library(vLLMGraphTransformPasses
   recompositionPass.cpp
   InlineDialectResourcesDictPass.cpp
   FunctionPartitionPass.cpp
+  staticMaterializationPass.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${PROJECT_SOURCE_DIR}/include/vllm_graph/Dialect/Transform

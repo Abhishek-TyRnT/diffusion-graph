@@ -12,14 +12,13 @@ void mlir::vllm_graph::registervLLMGraphPasses(){
 
 void mlir::vllm_graph::createTorchTovLLMGraphPipeline(PassManager &pm){
 
-    // pm.addPass(createInlineDialectResourcesDictPass());
     pm.addPass(createConvertGlobalFunctionPass());
     mlir::OpPassManager &FuncOpPM = pm.nest<mlir::func::FuncOp>();
     FuncOpPM.addPass(createTorchTovLLMGraph());
-    // FuncOpPM.addPass(createvLLMCanonicalizerPass());
+
     pm.addPass(createCanonicalizerPass());
-    // FuncOpPM.addPass(createvLLMCanonicalizerPass());
-    // FuncOpPM.addPass(createvLLMCanonicalizerPass());
     FuncOpPM.addPass(createRecomposeSimpleOpsToComplexOps());
+    FuncOpPM.addPass(createStaticOpMaterializationPass());
+
     pm.addPass(createvLLMFunctionPartitionPass());
 }

@@ -922,66 +922,12 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>::matchAnd
     Value end = adaptor.getOperands()[1];
     Value step = adaptor.getOperands()[2];
     Value dtype = adaptor.getOperands()[3];
-    MLIRContext *context = getContext();
 
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
     
     rewriter.replaceOpWithNewOp<vllm_graph::ArangeOp>(op, resultType, start, end, step, dtype);
-    // if(start.getDefiningOp<arith::ConstantIntOp>() && 
-    //    end.getDefiningOp<arith::ConstantIntOp>() && 
-    //    step.getDefiningOp<arith::ConstantIntOp>() 
-    // ){
-    //     int64_t start_index = start.getDefiningOp<arith::ConstantIntOp>().value();
-    //     int64_t end_index = end.getDefiningOp<arith::ConstantIntOp>().value();
-    //     int64_t step_size = step.getDefiningOp<arith::ConstantIntOp>().value();
-        
-    //     if(!dtype.getDefiningOp<arith::ConstantIntOp>())
-    //         return rewriter.notifyMatchFailure(op, "dtype isn't mentioned\n");
-
-    //     int64_t dtype_val = dtype.getDefiningOp<arith::ConstantIntOp>().value();
-
-    //     if(dtype_val == 6){
-    //         float start_val = static_cast<float>(start_index);
-    //         float end_val = static_cast<float>(end_index);
-    //         float step_val = static_cast<float>(step_size);
-    //         std::vector<float> rangeVal;
-    //         for(float i = start_val; i - end_val < 0.0f; i+=step_val){
-    //             rangeVal.push_back(i);
-    //         }
-
-    //         ArrayRef<float> range_array(rangeVal.data(), rangeVal.size());
-    //         int64_t size_arr[] = {static_cast<int64_t>(rangeVal.size())};
-    //         auto RangeType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(size_arr, 1), rewriter.getF32Type());
-        
-    //         ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(size_arr, 1), rewriter.getF32Type());
-    //         auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
-
-    //         rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
-            
-    //     } else if(dtype_val == 4) {
-
-    //         std::vector<int32_t> rangeVal;
-    //         for(int32_t i = start_index; i < end_index; i+=step_size){
-    //             rangeVal.push_back(i);
-    //         }
-
-    //         ArrayRef<int32_t> range_array(rangeVal.data(), rangeVal.size());
-    //         int64_t size_arr[] = {static_cast<int64_t>(rangeVal.size())};
-    //         auto RangeType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(size_arr, 1), rewriter.getIntegerType(32));
-        
-    //         ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(size_arr, 1),rewriter.getIntegerType(32));
-    //         auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
-
-    //         rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
-    //     } else {
-    //         return rewriter.notifyMatchFailure(op, "dtypes other than float32 or int32, not supported yet\n");
-    //     }
-        
-    // } else {
-    //     return rewriter.notifyMatchFailure(op, "start, end, step, dtype must be constant\n");
-    // }
     return success();
 
 }

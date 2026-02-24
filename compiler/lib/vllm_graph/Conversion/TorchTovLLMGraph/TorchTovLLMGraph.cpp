@@ -991,7 +991,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
                         ArrayRef<int64_t>({-1}), 
                         elemType);
         
-        Value arithOp = rewriter.replaceOpWithNewOp<arith::ConstantIntOp>(op, 4, elemType);
+        Value arithOp = rewriter.create<arith::ConstantIntOp>(loc, 4, elemType);
         RangeValOp = rewriter.create<vllm_graph::ArangeOp>(loc, RangeTypeOp, start, end, step, arithOp);
         
     }
@@ -1002,7 +1002,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, self, dim, RangeValOp);
     result.replaceAllUsesWith(indexSelectResult);
     rewriter.eraseOp(cast<Operation*>(op));
-
     return mlir::success();
     
 
@@ -1156,7 +1155,6 @@ LogicalResult EraseOp<mlir::torch::Torch::AtenDropoutOp>::matchAndRewrite(
         Value operand = adaptor.getOperands()[0];
 
         const TypeConverter *convertor = getTypeConverter();
-        operand.setType(convertor->convertType(operand.getType()));
         Value result = op.getResult();
 
         result.replaceAllUsesWith(operand);

@@ -215,6 +215,12 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
         if(node_type is None):
             raise ValueError(f"op name for {node} is invalid")
         
+        if node_type != "input_arg":
+            node_category = node_type.split(".")[1]
+
+            if(node_category == "temp"):
+                raise NotImplementedError(f"Temporary op {node_type} not supported!")
+        
         if node_type == "input_arg":
             graph_nodes[node] = graph.placeholder(node)
         
@@ -297,15 +303,31 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             input_kwargs['device'] = graph.get_attr("device")
             graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
         
-        elif node_type == "vllm_graph.vllm.arange":
-            arange_func = OP_MAP.get(node_type, None)
-            input_args = []
-            for inp in graph_dict[node]['input_nodes']:
-                input_args.append(graph_nodes[inp])
+        # elif node_type == "vllm_graph.vllm.arange":
+        #     arange_func = OP_MAP.get(node_type, None)
+        #     input_args = []
+        #     for inp in graph_dict[node]['input_nodes']:
+        #         input_args.append(graph_nodes[inp])
             
-            input_kwargs = { "device" : graph.get_attr("device")}
+        #     input_kwargs = { "device" : graph.get_attr("device")}
 
-            graph_nodes[node] = graph.call_function(arange_func, args=tuple(input_args), kwargs = input_kwargs)
+        #     graph_nodes[node] = graph.call_function(arange_func, args=tuple(input_args), kwargs = input_kwargs)
+        
+        elif node_type == "vllm_graph.vllm.upsample":
+            upsample_func = OP_MAP.get(node_type, None)
+            i = 0
+            input_kwargs = {}
+            input_args = []
+            kwarg_id = ["mode"]
+            for inp in graph_dict[node]['input_nodes'][:2]:
+                input_args.append(graph_nodes[inp])
+
+            for inp in graph_dict[node]['input_nodes'][2:]:
+                input_kwargs[kwarg_id[i]] = graph_nodes[inp]
+                i+=1
+
+            graph_nodes[node] = graph.call_function(upsample_func, args=tuple(input_args), kwargs = input_kwargs)
+
 
         else:
             op_func = OP_MAP.get(node_type, None)

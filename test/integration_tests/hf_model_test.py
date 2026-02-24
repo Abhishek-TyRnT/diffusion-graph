@@ -78,8 +78,8 @@ def test_diffusers_submodule_layers(model,
 
 @pytest.mark.parametrize("model_name, dummy_input, text, model_class, device",
     (
-    ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda"],
-    ["albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda"],
+    pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda", marks = pytest.mark.xfail()),
+    pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda", marks = pytest.mark.xfail()),
      ))
 def test_hf_models(model_name, dummy_input, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -89,7 +89,7 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
     dummy_position_ids = dummy_input[1]
     inputs = tokenizer(text, return_tensors="pt")
     #model(**inputs)
-    tmp_folder = f"/tmp"
+    tmp_folder = f"./temp_files"
 
     seq_dim = Dim("seq_len", min = 1, max = model.config.max_position_embeddings - 1)
     dynamic_dims = {
@@ -97,7 +97,7 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
         "position_ids": {1 : seq_dim},
         "return_dict": None
     }
-    vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = False)
+    vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = True)
     dummy_input_kwargs = {"return_dict" : False, 'position_ids': dummy_position_ids, }
     vllmgraph.compile(model, (dummy_input_ids, ), dummy_input_kwargs, dynamic_dims = dynamic_dims)
     

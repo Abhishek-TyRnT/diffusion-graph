@@ -32,16 +32,18 @@ def InlineDialectResourcesDictPass : Pass<"inline-dialect-resource-dict-pass", "
     }];
 }
 
-// def vLLMCanonicalizerPass : Pass<"vllm-canonicalizer-pass", "func::FuncOp"> {
-//     let summary = "CanonicalizerPass for eliminating dead code and remove cast Ops.";
-//     let description = [{
-//         Eliminating unnecessary cast ops created during function signature change
-//         and eliminating dead code
-//     }];
+def StaticOpMaterializationPass : Pass<"static-op-materialization-pass", "func::FuncOp"> {
+    let summary = "This pass materializes ops to constant tensor literals whose all inputs are static.";
+    let description = [{
+        This pass identifies operations where all input operands are static constant tensors.
+        It evaluates these operations during compilation and replaces them with constant
+        tensor literals, effectively performing constant folding for tensor operations.
+        This reduces runtime overhead by pre-calculating values that are invariant.
+    }];
 
-//     let constructor = "mlir::vllm_graph::createvLLMCanonicalizerPass()";
+    let constructor = "mlir::vllm_graph::createStaticOpMaterializationPass()";
 
-// }
+}
 
 def vLLMFunctionPartitioningPass : Pass<"function-partioning-pass", "ModuleOp"> {
     let summary = "FunctionPartitionPass for partioning forward function.";

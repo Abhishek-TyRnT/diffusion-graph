@@ -681,28 +681,30 @@ def vllm_SizeOp : vLLMGraph_Op<"vllm.size", [
   let hasFolder = 1;
 }
 
-def vllm_ArangeOp : vLLMGraph_Op<"vllm.arange", [
+def vllm_ArangeOp : vLLMGraph_Op<"temp.arange", [
     vLLMAllowsTypeRefinement,
     vLLMHasValueSemantics,
     vLLMReadOnly
   ]> {
   
-  let summary = "Generated op for `vllm::arange : (int, int, int) -> (Tensor)`";
+  let summary = "Generated op for `vllm::arange : (int, int, int, int) -> (Tensor)`";
   let arguments = (ins
     I32:$start_index,
     I32:$end_index,
-    I32:$step
+    I32:$step,
+    I32:$dtype
   );
+
   let results = (outs
     AnyTorchTensorType:$result
   );
   let hasCustomAssemblyFormat = 1;
   let extraClassDefinition = [{
     ParseResult ArangeOp::parse(OpAsmParser &parser, OperationState &result) {
-      return parseDefaultvLLMGraphOp(parser, result, 3, 1);
+      return parseDefaultvLLMGraphOp(parser, result, 4, 1);
     }
     void ArangeOp::print(OpAsmPrinter &printer) {
-      printDefaultvLLMGraphOp(printer, *this, 3, 1);
+      printDefaultvLLMGraphOp(printer, *this, 4, 1);
     }
   }];
 }
@@ -997,4 +999,30 @@ def vllm_BroadCastIndexOp : vLLMGraph_Op<"temp.broadcast_index", [
       }
     }];
 }
+
+def vllm_UpsampleOp : vLLMGraph_Op<"vllm.upsample", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::upsample : (Tensor, tuple[int], string) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      Torch_TupleType:$size,
+      Torch_StringType:$interpolateStyle
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult UpsampleOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 3, 1);
+      }
+      void UpsampleOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 3, 1);
+      }
+    }];
+}
+
 

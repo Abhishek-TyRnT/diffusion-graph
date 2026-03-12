@@ -12,6 +12,9 @@ from diffusers.models.resnet import ResnetBlock2D
 from diffusers.models.unets.unet_2d_blocks import (CrossAttnDownBlock2D, 
                                         CrossAttnUpBlock2D, DownBlock2D, 
                                         UpBlock2D, UNetMidBlock2D)
+
+from diffusers.models.unets.unet_2d import UNet2DModel
+from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
 from diffusers.models.downsampling import Downsample2D
 from diffusers.models.upsampling import Upsample2D
 # from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
@@ -41,7 +44,6 @@ from torch.export import Dim
     [UpBlock2D, (32, 32, 32, 512), {}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512)), {}, {}],
     [CrossAttnUpBlock2D, (32, 32, 32, 512), {"cross_attention_dim": 32}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512),), {}, {}],
     [UNetMidBlock2D, (32, 512), {"attention_head_dim": 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
-
 ))
 def test_diffusers_submodule_layers(model,
                                 model_args,
@@ -56,10 +58,12 @@ def test_diffusers_submodule_layers(model,
         torch_model = model(*model_args, **model_kwargs)
     
     torch_model.eval()
-
+    print("Model eval finished!")
+    # breakpoint()
     tmp_folder = f"/tmp"
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
+    print("Model compiled!")
     IRdict = vllmgraph.get_graph_dict()
     new_input = []
 
@@ -71,9 +75,10 @@ def test_diffusers_submodule_layers(model,
             new_input.append(tensor)
 
     reconstructed_model = reconstruct_model(IRdict)
+    print("Model reconstructed!")
     vllm_graph_output = reconstructed_model["main"](*new_input)
     normal_output = torch_model(*inputs, **input_kwargs)
-
+    print("Outputs validated!")
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
 
 @pytest.mark.parametrize("model_name, dummy_input, text, model_class, device",
@@ -134,4 +139,56 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
 
     prof1.export_chrome_trace("vllm_graph_trace.json")
 
+    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+
+
+@pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, dynamic_dims, device",(
+    # [UNet2DModel, (64,), {}, (torch.randn(1, 3, 64, 64), torch.randint(0, 100, (1,))), {'return_dict': False}, {}, "cuda"],
+    [UNet2DConditionModel, (64,), {}, (torch.randn(1, 4, 64, 64), torch.randint(0, 100, (1,)), torch.randn(1, 16, 1280)), {'return_dict': False}, {}, "cuda"],
+))
+def test_full_diffusers_model(model, 
+                    model_args, 
+                    model_kwargs, 
+                    inputs, 
+                    input_kwargs, 
+                    dynamic_dims, 
+                    device):
+    
+    if len(model_args) == 0:
+        torch_model = model(**model_kwargs)
+    else:
+        torch_model = model(*model_args, **model_kwargs)
+    
+    torch_model.eval()
+    # torch_model(*inputs)
+    # breakpoint()
+    print("Model eval finished!")
+
+    tmp_folder = f"./temp_files"
+    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder, debug = True)
+    vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
+    print("Model compiled!")
+    IRdict = vllmgraph.get_graph_dict()
+    vllmgraph.store_graph_dict()
+    new_input = []
+    breakpoint()
+    #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
+    for tensor in inputs:
+        if(isinstance(tensor, tuple) or isinstance(tensor, list)):
+            new_input.extend(tensor.to(device))
+        else:
+            new_input.append(tensor.to(device))
+
+    reconstructed_model = reconstruct_model(IRdict)
+    print("Model reconstructed!")
+
+    reconstructed_model = {key: model.to(device) for key, model in reconstructed_model.items()}
+    
+    
+    torch_model = torch_model.to(device)
+
+    vllm_graph_output = reconstructed_model["main"](*new_input)
+    normal_output = torch_model(*new_input, **input_kwargs)
+    
+    print("Outputs validated!")
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"

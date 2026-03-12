@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <variant>
 #include <any>
+#include <fstream>
+
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/DenseMap.h"
@@ -25,10 +27,43 @@ class GraphWriter{
 
 private:
     
-    std::unordered_map<std::string, SubGraphMap> graph;
+    struct WeightShard {
+        DenseWeights::WeightsData data;
+        std::string shard_path;
+        size_t space_occupied = 0;
+
+        WeightShard(std::string shard_path) : 
+            shard_path(shard_path) {}
+        
+        bool isSpaceAvailable(size_t requested_space){
+            return (space_occupied + requested_space) < 2e+9;
+        }
+
+        void updateSpaceOccupied(size_t requested_space){
+            space_occupied += requested_space;
+        }
+
+        std::string getShardPath(){
+            return shard_path;
+        }
+
+        DenseWeights::WeightsData& getWeightsData(){
+            return data;
+        }
+        void saveShard(){
+            std::ofstream output(shard_path, std::ios::binary);
+            data.SerializeToOstream(&output);
+            output.close();
+        }
+    };
+    std::unordered_map<std::string, std::variant<SubGraphMap, std::string>> graph;
     llvm::DenseMap<mlir::Value, std::string> opMap;
     
+    //This one is kept to store other Dense Elements and Scalars
     DenseWeights::WeightsData constData;
+    std::vector<WeightShard> DenseResourceData;
+    //Counter to keep number of shards
+    int shard_index = 0;
     std::string weightsPath;
     //Counter to keep number of ops
     uint64_t opCount = 0;
@@ -46,7 +81,7 @@ public:
                llvm::DenseMap<mlir::StringRef, mlir::ArrayRef<char>> &dialectResourcesMap);
     GraphWriter(std::string weightsPath);
     void closeFile();
-    std::unordered_map<std::string, SubGraphMap> getGraph(){ return graph; }
+    std::unordered_map<std::string, std::variant<SubGraphMap, std::string>> getGraph(){ return graph; }
 };
 #endif
 

@@ -20,9 +20,9 @@ class ModelDict(dict):
         return f"<{self.name}>"
 
 class ParameterModel(torch.nn.Module):
-    def __init__(self, graph_dict: dict, weight_path: str, arg_dict: dict):
+    def __init__(self, graph_dict: dict, weightPathMap: dict, arg_dict: dict):
         super().__init__()
-        self.weights = read_pb(weight_path)
+        self.weight_dict = {"DenseElementsAndScalars" : read_pb(weightPathMap["DenseAndScalarWeights"])}
         self.graph_dict = graph_dict
         for buffer in arg_dict:
             if arg_dict[buffer]["kind"] == "buffer":
@@ -41,8 +41,15 @@ class ParameterModel(torch.nn.Module):
                 setattr(self, var_name, self.graph_dict[constant]["value"])
                 continue
 
-            data_name = f"weight_datasets{constant}" if self.graph_dict[constant].get("resource", None) is None else self.graph_dict[constant]["resource"]
-            data = self.weights[data_name]
+            if self.graph_dict[constant].get("resource", None) is None:
+                data_name = f"weight_datasets{constant}"
+                data = self.weight_dict["DenseElementsAndScalars"][data_name]
+            else:
+                data_name = self.graph_dict[constant]["resource"]
+                if weightPathMap[data_name] not in self.weight_dict:
+                    self.weight_dict[weightPathMap[data_name]] = read_pb(weightPathMap[data_name])
+                data = self.weight_dict[weightPathMap[data_name]][data_name]
+            
             dtype = self.graph_dict[constant]['dtype']
 
             if(self.graph_dict[constant]["vllm_graph_type"] == "tuple"):
@@ -118,10 +125,10 @@ class vLLMGraph:
         if temp_directory is None:
             root_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             self.temp_directory = f"{root_folder}/temp_files/{model_name}"
-            self.weights_directory = f"{root_folder}/temp_files/{model_name}/weights.pb"
+            self.weights_directory = f"{root_folder}/temp_files/{model_name}"
         else:
             self.temp_directory = f"{temp_directory}/{model_name}"
-            self.weights_directory = f"{temp_directory}/{model_name}/weights.pb"
+            self.weights_directory = f"{temp_directory}/{model_name}"
         
         if not os.path.exists(self.temp_directory):
             os.makedirs(self.temp_directory)
@@ -135,6 +142,8 @@ class vLLMGraph:
         """
         
         dynamo_model = torch.export.export(model, inputs, input_kwargs, dynamic_shapes = dynamic_dims)
+
+        print("Completed Dynamo Export!")
         #TODO: Figure out a way to calculate this
         if hasattr(model, "config"):
             self.config = model.config
@@ -145,6 +154,7 @@ class vLLMGraph:
         input_specs = graph_signature.input_specs
         index = 0
         self.arg_dict = {}
+        print("Processing Input Specs!")
         for spec in input_specs:
             kind = spec.kind
             #Buffers
@@ -164,6 +174,7 @@ class vLLMGraph:
                 index += 1
 
         self.graph_dict = self.graph_compiler.compile(dynamo_model, inputs)
+        print("Completed Graph Compilation!")
         input_args = self.graph_dict['main']["entrypoint"]
         new_args = []
         for arg in input_args:
@@ -182,7 +193,7 @@ class vLLMGraph:
 
         self.graph_dict["main"]["entrypoint"] = new_args
         self.graph_dict["main"]["arg_dict"] = self.arg_dict
-        self.graph_dict["weights_directory"] = self.weights_directory
+        # self.graph_dict["weights_directory"] = self.weights_directory
         self.graph_dict["model_name"] = self.name
         self.graph_dict["config"] = self.config
     
@@ -389,15 +400,16 @@ def topological_sort(graph_dict: dict, Nodes: list)->list:
 def reconstruct_model(graph_dict: ModelDict) -> dict[str, torch.fx.GraphModule]:
 
     assert len(graph_dict) != 0, "Model not compiled"
-    weights_directory = graph_dict["weights_directory"]
+    weightPathMap = graph_dict.get("resources_path", {})
+    weightPathMap.update({"DenseAndScalarWeights" : graph_dict["DenseAndScalarWeights"]})
 
     graph_models = {}
     for func_name in graph_dict:
-        if func_name in ['weights_directory', 'config', 'model_name']:
+        if func_name in ['resources_path', 'DenseAndScalarWeights', 'config', 'model_name']:
             continue
         
         arg_dict = graph_dict[func_name].get("arg_dict", {})
-        model = ParameterModel(graph_dict[func_name], weights_directory, arg_dict)
+        model = ParameterModel(graph_dict[func_name], weightPathMap, arg_dict)
         Nodes = []
         for node in graph_dict[func_name]:
             if node in ['entrypoint', 
@@ -406,6 +418,8 @@ def reconstruct_model(graph_dict: ModelDict) -> dict[str, torch.fx.GraphModule]:
                         'weights_directory', 
                         'arg_dict',
                         'model_name',
+                        'DenseAndScalarWeights',
+                        'resource_path',
                         'config']:
                 continue
             Nodes.append(node)

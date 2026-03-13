@@ -7,6 +7,7 @@ import torch
 import json
 import os
 from collections import deque
+import gc
 
 class ModelDict(dict):
     def __init__(self, *args, **kwargs):
@@ -44,11 +45,17 @@ class ParameterModel(torch.nn.Module):
             if self.graph_dict[constant].get("resource", None) is None:
                 data_name = f"weight_datasets{constant}"
                 data = self.weight_dict["DenseElementsAndScalars"][data_name]
+                key = "DenseElementsAndScalars"
+                
             else:
                 data_name = self.graph_dict[constant]["resource"]
                 if weightPathMap[data_name] not in self.weight_dict:
                     self.weight_dict[weightPathMap[data_name]] = read_pb(weightPathMap[data_name])
+                    # import sys
+                    # print(sys.getsizeof(self.weight_dict))
+                    # breakpoint()
                 data = self.weight_dict[weightPathMap[data_name]][data_name]
+                key = weightPathMap[data_name]
             
             dtype = self.graph_dict[constant]['dtype']
 
@@ -73,8 +80,11 @@ class ParameterModel(torch.nn.Module):
             ssa_id = constant.replace(".","_")
             var_name = f"weight_{ssa_id}"
             weight = torch.nn.Parameter(tensor, requires_grad=False)
-            del data
+            del self.weight_dict[key][data_name]
             setattr(self, var_name, weight)
+
+        del self.weight_dict
+        gc.collect()
 
     @property
     def device(self):

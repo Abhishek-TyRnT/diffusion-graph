@@ -26,6 +26,7 @@ from torch_mlir.compiler_utils import (
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 
 from torch.export import Dim
+import gc
 
 
 
@@ -143,8 +144,8 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
 
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, dynamic_dims, device",(
-    # [UNet2DModel, (64,), {}, (torch.randn(1, 3, 64, 64), torch.randint(0, 100, (1,))), {'return_dict': False}, {}, "cuda"],
-    [UNet2DConditionModel, (64,), {}, (torch.randn(1, 4, 64, 64), torch.randint(0, 100, (1,)), torch.randn(1, 16, 1280)), {'return_dict': False}, {}, "cuda"],
+    [UNet2DModel, (64,), {}, (torch.randn(1, 3, 64, 64), torch.randint(0, 100, (1,))), {'return_dict': False}, {}, "cuda"],
+    # [UNet2DConditionModel, (64,), {}, (torch.randn(1, 4, 64, 64), torch.randint(0, 100, (1,)), torch.randn(1, 16, 1280)), {'return_dict': False}, {}, "cuda"],
 ))
 def test_full_diffusers_model(model, 
                     model_args, 
@@ -171,7 +172,7 @@ def test_full_diffusers_model(model,
     IRdict = vllmgraph.get_graph_dict()
     vllmgraph.store_graph_dict()
     new_input = []
-    breakpoint()
+    # breakpoint()
     #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
     for tensor in inputs:
         if(isinstance(tensor, tuple) or isinstance(tensor, list)):
@@ -179,15 +180,17 @@ def test_full_diffusers_model(model,
         else:
             new_input.append(tensor.to(device))
 
+    del vllmgraph
+    gc.collect()
     reconstructed_model = reconstruct_model(IRdict)
     print("Model reconstructed!")
 
     reconstructed_model = {key: model.to(device) for key, model in reconstructed_model.items()}
-    
-    
-    torch_model = torch_model.to(device)
 
     vllm_graph_output = reconstructed_model["main"](*new_input)
+    del reconstructed_model
+    gc.collect()
+    torch_model = torch_model.to(device)
     normal_output = torch_model(*new_input, **input_kwargs)
     
     print("Outputs validated!")

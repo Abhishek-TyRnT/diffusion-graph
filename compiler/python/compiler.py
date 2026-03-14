@@ -41,43 +41,10 @@ class GraphCompiler:
             with open(f"{self.weight_path}/model_debug.mlir", 'w') as f:
                 f.write(torchIR.operation.get_asm(large_elements_limit=64))
 
-        #TODO: Converting it to string and parsing the string in C++ is slow 
-        # and memory intensive. Need to bypass parsing for end2end flow
-        print("Converting TorchIRModule to string!")
-        # torchIRstring = torchIR.operation.get_asm()
         torchIR.operation.write_bytecode(self.ir_path)
-        # import sys
-        # print(sys.getsizeof(str(torchIR)))
-        # print(sys.getsizeof(torchIRstring))
-        print("TorchIRModule converted to string!")
         del torchIR
         gc.collect()
-        # def walk(op):
-        #     print(str(op.get_asm()))
-        #     if op.operation.name == "torch.vtensor.literal":
-        #         for at in op.operation.attributes:
-        #             print(at)
-        #         attr = op.operation.attributes["value"]
-        #         match = re.search(r'dense_resource<([^>]+)>\s*:\s*tensor<(\d+)x(\w+)>', str(attr))
-        #         resource = match.group(1)
-        #         shape = match.group(2)
-        #         dtype = match.group(3)
-        #         shape = [int(x) for x in shape.split("x")]
-        #         attr = DenseResourceElementsAttr(attr)
-        #         print(dir(attr))
-        #         # print(op.operation.attributes[str(attr)])
-        #         # x = torch.zeros(*shape)
-        #         # if isinstance(attr, DenseResourceElementsAttr):
-        #         #     print(dir(attr))
-        #         #     attr.get_from_buffer(x, resource)
-        #         # print(x)
-        #     # for name in op.attributes:
-        #     #     if(hasattr(name.attr, 'value')):
-        #     #         print(name.attr.value)
-            
-        #     return WalkResult.ADVANCE
-        # torchIR.operation.walk(walk)
-        # del torchIR
+
         print("Starting diffusion graph compilation!")
         IRDict = self.compiler.compile(self.ir_path)
         print("Completed graph compilation!")

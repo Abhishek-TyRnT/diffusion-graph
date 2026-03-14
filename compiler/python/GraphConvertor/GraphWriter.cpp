@@ -1,6 +1,5 @@
 
 #include "GraphWriter.hpp"
-#include <fstream>
 #include "mlir/IR/AsmState.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Block.h"
@@ -29,7 +28,6 @@ void GraphWriter::storeWeights<mlir::DenseElementsAttr>(mlir::DenseElementsAttr 
             std::vector<int32_t> denseVal(val.getValues<int32_t>().begin(), val.getValues<int32_t>().end());
             auto* int_proto = constData.add_integerweights();
             int_proto->set_name("weight_datasets" + ssa_id);
-            
             // Add entire vector at once
             auto* values_field = int_proto->mutable_values();
             values_field->Reserve(denseVal.size());
@@ -240,6 +238,9 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
     // Print the module with resources
     mlir::OpPrintingFlags flags;
     
+    SubGraphMap resourcePathMap;
+    DenseResourceData.push_back(WeightShard(weightsPath + "/weights_" + std::to_string(shard_index) + ".pb"));
+   
     // Storing the float weights from the Dialect Resources Map into protobuf
     for (const auto& entry : dialectResourcesMap) {
         //TODO: Handle other dtypes of weights
@@ -247,18 +248,37 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
         const float* floatData = reinterpret_cast<const float*>(blobData.data());
         size_t numFloats = blobData.size() / sizeof(float);
         std::vector<float> floatVector(floatData, floatData + numFloats);
-        auto* float_proto = constData.add_floatweights();
+        
+        if(!DenseResourceData[shard_index].isSpaceAvailable(blobData.size())){
+            shard_index++;
+            DenseResourceData.push_back(WeightShard(weightsPath + "/weights_" + std::to_string(shard_index) + ".pb"));
+        }
+       
+
+        DenseResourceData[shard_index].updateSpaceOccupied(blobData.size());
+        DenseWeights::WeightsData& weightsData = DenseResourceData[shard_index].getWeightsData();
+        
+        auto* float_proto = weightsData.add_floatweights();
         float_proto->set_name(entry.first.str());
         
         // Add entire vector at once
         auto* values_field = float_proto->mutable_values();
         values_field->Reserve(floatVector.size());
         values_field->Add(floatVector.begin(), floatVector.end());
-        
+       
+        resourcePathMap[entry.first.str()] = DenseResourceData[shard_index].getShardPath();
     }
 
-    for(func::FuncOp funcOp : module->getOps<func::FuncOp>()){
+    // SubGraphMap resourcesPathSubGraph;
+    // for (const auto& entry : resourcePathMap)
+    //     resourcesPathSubGraph[entry.first] = entry.second;
+    graph["resources_path"] = resourcePathMap;
+    // WeightShard DenseWeightShard(weightsPath + "/DenseAndScalarWeights.pb");
+    graph["DenseAndScalarWeights"] = weightsPath + "/DenseAndScalarWeights.pb";//DenseWeightShard.getShardPath();
+    // constData = DenseWeightShard.getWeightsData();
+    // DenseResourceData.push_back(DenseWeightShard);
 
+    for(func::FuncOp funcOp : module->getOps<func::FuncOp>()){
         argCount = 0;
         opCount = 0;
         SubGraphMap subGraph;
@@ -308,9 +328,14 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
 }
 
 void GraphWriter::closeFile(){
-    std::ofstream output(weightsPath, std::ios::binary);
-    constData.SerializeToOstream(&output);
     
+    for(WeightShard &weightShard : DenseResourceData){
+        weightShard.saveShard();
+    }
+    
+    std::ofstream output(weightsPath + "/DenseAndScalarWeights.pb", std::ios::binary);
+    constData.SerializeToOstream(&output);
+    output.close();
     // Clean up protobuf library
     google::protobuf::ShutdownProtobufLibrary();
 

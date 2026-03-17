@@ -2,6 +2,7 @@ import pytest
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel, reconstruct_model
+from vllm_graph.model_wrappers import MethodWrapper
 from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM
 from test_utils import validate_outputs
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
@@ -11,8 +12,10 @@ from diffusers.models.transformers.transformer_2d import Transformer2DModel
 from diffusers.models.resnet import ResnetBlock2D
 from diffusers.models.unets.unet_2d_blocks import (CrossAttnDownBlock2D, 
                                         CrossAttnUpBlock2D, DownBlock2D, 
-                                        UpBlock2D, UNetMidBlock2D)
-
+                                        UpBlock2D, UNetMidBlock2D, UpDecoderBlock2D,
+                                        DownEncoderBlock2D)
+from diffusers.models.autoencoders.autoencoder_kl import AutoencoderKL
+from diffusers.models.autoencoders.vae import Decoder, Encoder
 from diffusers.models.unets.unet_2d import UNet2DModel
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
 from diffusers.models.downsampling import Downsample2D
@@ -45,7 +48,11 @@ import gc
     [UpBlock2D, (32, 32, 32, 512), {}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512)), {}, {}],
     [CrossAttnUpBlock2D, (32, 32, 32, 512), {"cross_attention_dim": 32}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512),), {}, {}],
     [UNetMidBlock2D, (32, 512), {"attention_head_dim": 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
-))
+    [UpDecoderBlock2D, (32, 32), {"temb_channels": 512}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}, {}],
+    [Decoder, (), {}, (torch.randn(1, 3, 64, 64), ), {}, {}],
+    [DownEncoderBlock2D, (32, 32), {}, (torch.randn(1, 32, 16, 16), ), {}, {}],
+    [Encoder, (), {}, (torch.randn(1, 3, 64, 64), ), {}, {}],
+))  
 def test_diffusers_submodule_layers(model,
                                 model_args,
                                 model_kwargs,
@@ -64,6 +71,51 @@ def test_diffusers_submodule_layers(model,
     tmp_folder = f"/tmp"
     vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
+    print("Model compiled!")
+    IRdict = vllmgraph.get_graph_dict()
+    new_input = []
+
+    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
+
+    #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
+    for tensor in inputs:
+        if(isinstance(tensor, tuple) or isinstance(tensor, list)):
+            new_input.extend(tensor)
+        else:
+            new_input.append(tensor)
+
+    reconstructed_model = reconstruct_model(IRdict)
+    print("Model reconstructed!")
+    
+    vllm_graph_output = reconstructed_model["main"](*new_input)
+    normal_output = torch_model(*inputs, **input_kwargs)
+    print("Outputs validated!")
+    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+
+
+@pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, method",
+    (
+        [AutoencoderKL, (), {}, (torch.randn(1, 4, 64, 64), ), {'return_dict': False}, "decode"],
+        [AutoencoderKL, (), {}, (torch.randn(1, 3, 64, 64), ), {}, "_encode"],
+    ))
+def test_diffusers_vae(model, 
+                model_args, 
+                model_kwargs, 
+                inputs, 
+                input_kwargs, 
+                method):
+    if len(model_args) == 0:
+        torch_model = model(**model_kwargs)
+    else:
+        torch_model = model(*model_args, **model_kwargs)
+
+    torch_model = MethodWrapper(torch_model, method)
+    torch_model.eval()
+    print("Model eval finished!")
+    # breakpoint()
+    tmp_folder = f"/tmp"
+    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
+    vllmgraph.compile(torch_model, inputs, input_kwargs)
     print("Model compiled!")
     IRdict = vllmgraph.get_graph_dict()
     new_input = []

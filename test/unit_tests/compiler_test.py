@@ -135,6 +135,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [SiLU, (), (torch.randn(2, 16, 32, 32),)],
      [GeGeLU, (16, 32), (torch.randn(1, 32, 16),)],
      [UpsampleNearest2d, (2,), (torch.randn(1, 32, 16, 16),)],
+     [Sigmoid, (), (torch.randn(1, 32, 16, 16),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

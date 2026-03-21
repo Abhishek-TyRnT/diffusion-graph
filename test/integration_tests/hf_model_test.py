@@ -98,7 +98,7 @@ def test_diffusers_submodule_layers(model,
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs",(
         (CLIPTextEmbeddings, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)),), {}),
         (CLIPAttention, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
-        # (CLIPMLP, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
+        (CLIPMLP, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
         # (CLIPEncoderLayer, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
         # (CLIPEncoder, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)), ), {}),
     ))

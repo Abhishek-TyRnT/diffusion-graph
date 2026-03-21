@@ -695,6 +695,21 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenExpOp>::matchAndRewrite(
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSigmoidOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenSigmoidOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+
+    Value input = adaptor.getOperands()[0];
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<vllm_graph::SigmoidOp>(op, resultType, input);
+    return mlir::success();
+}
+
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBmmOp>::matchAndRewrite(
     mlir::torch::Torch::AtenBmmOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -1266,6 +1281,10 @@ public:
         
         target.addIllegalOp<mlir::torch::Torch::AtenSiluOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSiluOp>>(typeConverter,        
+                                                         context);
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenSigmoidOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSigmoidOp>>(typeConverter,        
                                                          context);
         
         target.addIllegalOp<mlir::torch::Torch::AtenGeluOp>();

@@ -59,6 +59,7 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [SiLU, (), (torch.randn(3, 256, 1024),), {}],
     [GeGeLU, (16, 32), (torch.randn(1, 32, 16),), {}],
     [UpsampleNearest2d, (2,), (torch.randn(1, 32, 16, 16),), {}],
+    [Sigmoid, (), (torch.randn(1, 32, 16, 16),), {}],
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -101,6 +102,7 @@ def test_graph_compiler_python_to_dict(model,
      [SiLU, (), (torch.randn(3, 256, 1024),)],
      [GeGeLU, (16, 32), (torch.randn(1, 32, 16),)],
      [UpsampleNearest2d, (2,), (torch.randn(1, 32, 16, 16),)],
+     [Sigmoid, (), (torch.randn(1, 32, 16, 16),)],
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,

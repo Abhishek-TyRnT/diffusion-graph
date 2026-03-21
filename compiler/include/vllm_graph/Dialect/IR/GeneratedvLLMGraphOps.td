@@ -1025,4 +1025,25 @@ def vllm_UpsampleOp : vLLMGraph_Op<"vllm.upsample", [
     }];
 }
 
-
+def vllm_SigmoidOp : vLLMGraph_Op<"vllm.sigmoid", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::sigmoid : (Tensor) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult SigmoidOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+      }
+      void SigmoidOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
+      }
+    }];
+}

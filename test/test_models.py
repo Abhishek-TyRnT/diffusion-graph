@@ -268,3 +268,11 @@ class UpsampleNearest2d(Module):
     
     def forward(self, x):
         return torch.nn.functional.interpolate(x, scale_factor=self.scale_factor, mode='nearest')
+
+class Sigmoid(Module):
+    def __init__(self):
+        super().__init__()
+        self.layer = nn.Sigmoid()
+    
+    def forward(self, x):
+        return self.layer(x)

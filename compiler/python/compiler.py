@@ -26,7 +26,7 @@ class GraphCompiler:
     def __init__(self, weight_path: str, debug: bool = False):
         self.compiler = vLLMGraph(weight_path)
         self.debug = debug
-        self.weight_path = os.path.dirname(weight_path)
+        self.weight_path = weight_path
         self.backend_legal_ops = BACKEND_END_LEGAL_OPS
         self.decomposition_table = get_decompositions(DECOMPOSITION_OPS)
         self.ir_path = os.path.join(self.weight_path, "model.mlirbc")

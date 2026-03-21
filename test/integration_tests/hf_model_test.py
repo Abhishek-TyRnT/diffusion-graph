@@ -3,7 +3,7 @@ import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel, reconstruct_model
 from vllm_graph.model_wrappers import MethodWrapper
-from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM
+from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM, CLIPTextModel
 from test_utils import validate_outputs
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.attention_processor import Attention
@@ -20,8 +20,13 @@ from diffusers.models.unets.unet_2d import UNet2DModel
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
 from diffusers.models.downsampling import Downsample2D
 from diffusers.models.upsampling import Upsample2D
+from transformers.models.clip.modeling_clip import (CLIPTextEmbeddings,
+                                        CLIPAttention, 
+                                        CLIPMLP, 
+                                        CLIPEncoderLayer, 
+                                        CLIPEncoder)
 # from transformers.models.albert.modeling_albert import AlbertEmbeddings, AlbertSdpaAttention, AlbertLayer, AlbertTransformer
-from transformers import AlbertConfig
+from transformers import AlbertConfig, CLIPTextConfig
 from torch.profiler import profile, record_function, ProfilerActivity
 from torch_mlir.compiler_utils import (
     TensorPlaceholder,
@@ -75,8 +80,6 @@ def test_diffusers_submodule_layers(model,
     IRdict = vllmgraph.get_graph_dict()
     new_input = []
 
-    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
-
     #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
     for tensor in inputs:
         if(isinstance(tensor, tuple) or isinstance(tensor, list)):
@@ -92,6 +95,43 @@ def test_diffusers_submodule_layers(model,
     print("Outputs validated!")
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
 
+@pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs",(
+        (CLIPTextEmbeddings, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)),), {}),
+        (CLIPAttention, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
+        # (CLIPMLP, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
+        # (CLIPEncoderLayer, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
+        # (CLIPEncoder, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)), ), {}),
+    ))
+def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
+    if len(model_args) == 0:
+        torch_model = model(**model_kwargs)
+    else:
+        torch_model = model(*model_args, **model_kwargs)
+    
+    torch_model.eval()
+    print("Model eval finished!")
+    # breakpoint()
+    tmp_folder = f"./temp_files"
+    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder, debug = True)
+    vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = {}, )
+    print("Model compiled!")
+    IRdict = vllmgraph.get_graph_dict()
+    new_input = []
+
+    #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
+    for tensor in inputs:
+        if(isinstance(tensor, tuple) or isinstance(tensor, list)):
+            new_input.extend(tensor)
+        else:
+            new_input.append(tensor)
+
+    reconstructed_model = reconstruct_model(IRdict)
+    print("Model reconstructed!")
+    
+    vllm_graph_output = reconstructed_model["main"](*new_input)
+    normal_output = torch_model(*inputs, **input_kwargs)
+    print("Outputs validated!")
+    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, method",
     (
@@ -134,45 +174,36 @@ def test_diffusers_vae(model,
     print("Outputs validated!")
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
 
-@pytest.mark.parametrize("model_name, dummy_input, text, model_class, device",
+@pytest.mark.parametrize("model_name, text, model_class, device",
     (
-    pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda", marks = pytest.mark.xfail()),
-    pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda", marks = pytest.mark.xfail()),
-     ))
-def test_hf_models(model_name, dummy_input, text, model_class, device):
+    # pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda", marks = pytest.mark.xfail()),
+    # pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda", marks = pytest.mark.xfail()),
+    ["openai/clip-vit-large-patch14", "Hello, my dog is cute", CLIPTextModel, "cuda"],
+    ))
+def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)
-    
-    dummy_input_ids = dummy_input[0]
-    dummy_position_ids = dummy_input[1]
-    inputs = tokenizer(text, return_tensors="pt")
+    print(model)
+    max_length = model.config.max_position_embeddings
+    inputs = tokenizer(text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
     #model(**inputs)
     tmp_folder = f"./temp_files"
 
-    seq_dim = Dim("seq_len", min = 1, max = model.config.max_position_embeddings - 1)
-    dynamic_dims = {
-        "input_ids": {1 : seq_dim},
-        "position_ids": {1 : seq_dim},
-        "return_dict": None
-    }
     vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = True)
-    dummy_input_kwargs = {"return_dict" : False, 'position_ids': dummy_position_ids, }
-    vllmgraph.compile(model, (dummy_input_ids, ), dummy_input_kwargs, dynamic_dims = dynamic_dims)
+    input_kwargs = {"return_dict" : False, "attention_mask" : inputs['attention_mask']}
+    vllmgraph.compile(model, (inputs['input_ids'], ), input_kwargs)
     
     compiled_model_dict = vllmgraph.get_graph_dict()
     
     reconstructed_model = reconstruct_model(compiled_model_dict)
-    reconstructed_model = vLLMGraphModel(reconstructed_model, weights_directory = compiled_model_dict['weights_directory'])
-
-    #Offloading to target deivce
+    #Offloading to target device
     inputs = {key : inputs[key].to(device) for key in inputs}
    
     reconstructed_model.to(device)
     
     model = model.to(device)
-    input_kwargs = {"position_ids" : torch.zeros_like(inputs['input_ids']).to(device), "return_dict" : False}
-    reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
-    model(inputs["input_ids"], position_ids = input_kwargs['position_ids'])
+    reconstructed_model(inputs['input_ids'])
+    model(inputs["input_ids"], **input_kwargs)
     #Profiling
     activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
     inputs.update(input_kwargs)
@@ -184,11 +215,11 @@ def test_hf_models(model_name, dummy_input, text, model_class, device):
     with profile(activities=activities) as prof1:
         #TODO: Make function splitting optional
         if(hasattr(reconstructed_model, "compute_pooling_layer")):
-            hidden_states = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
-            pooling_output = reconstructed_model.compute_pooling_layer(hidden_states)
+            hidden_states = reconstructed_model["main"](inputs['input_ids'], input_kwargs['attention_mask'])
+            # pooling_output = reconstructed_model.compute_pooling_layer(hidden_states)
             vllm_graph_output = (hidden_states, pooling_output)
         else:
-            vllm_graph_output = reconstructed_model(inputs['input_ids'], input_kwargs['position_ids'])
+            vllm_graph_output = reconstructed_model["main"](inputs['input_ids'], input_kwargs['attention_mask'])
 
     prof1.export_chrome_trace("vllm_graph_trace.json")
 

@@ -8,14 +8,61 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
+#include "vllm_graph/Utils/Utils.hpp"
+
 #include <vector>
 
 using namespace mlir;
 using namespace mlir::vllm_graph;
 
+//TODO: Unify type conversion across all passes
+class vLLMGraphConversion : public TypeConverter {
+private:
 
+public:
+    vLLMGraphConversion(MLIRContext *context) {
+        // Add conversions for primitive types
+        
+        addConversion([](Type type) -> std::optional<Type> {
+            // Pass-through unchanged types
+            return type;
+        });
 
-void replaceFuncDtypes(func::FuncOp &op)
+        // Convert f32 to f64
+        addConversion([this, context](torch::Torch::ValueTensorType type) -> std::optional<Type> {
+            return convertTorchvTypeTovLLMvType(type, context);      
+        });
+
+        addConversion([context](torch::Torch::FloatType type) -> std::optional<Type> {
+            return Float32Type::get(context);
+        });
+
+        addConversion([context](torch::Torch::IntType type) -> std::optional<Type> {
+            return IntegerType::get(context, 32);
+        });
+
+        addConversion([context](torch::Torch::StringType type) -> std::optional<Type> {
+            return vllm_graph::StringType::get(context);
+        });
+
+        addConversion([context](torch::Torch::BoolType type) -> std::optional<Type> {
+            return IntegerType::get(context, 1);
+        });
+
+        addConversion([context](torch::Torch::ListType type) -> std::optional<Type> {
+            auto containedType = convertvLLMContainedType(type, context);
+            return vllm_graph::ListType::get(context, containedType);
+        });
+
+        addConversion([context](torch::Torch::NoneType type) -> std::optional<Type> {
+            return vllm_graph::NoneType::get(context);
+        });
+
+    }
+
+};
+
+void replaceFuncDtypes(func::FuncOp &op, vLLMGraphConversion &typeConverter)
 {
     /*
     The function replaces the torch.dtypes vllm_graph dtypes. It also adds a
@@ -51,27 +98,13 @@ void replaceFuncDtypes(func::FuncOp &op)
 
 
     //Making a list of dtype conversions from old torch dtypes to new vllm_graph_dtypes.
-    auto typeConverter_fn = [context](Type type) {
-    Type opType;
-    if(auto torchvTensor = cast<mlir::torch::Torch::ValueTensorType>(type)){
-        vllm_graph::ValueTensorType vLLMvTensor;
-        vLLMvTensor = vLLMvTensor.get(context, 
-                        torchvTensor.getOptionalSizes(), 
-                        torchvTensor.getOptionalDtype(), 
-                        torchvTensor.getOptionalSparsity());
-        opType = cast<Type>(vLLMvTensor);
-        return opType;
-        }
-    else
-        return opType;
-    };
     uint32_t arg_index = 0;
     for (mlir::Type argType : oldArgTypes) {
         if(std::find(removedArgIndices.begin(), removedArgIndices.end(), arg_index) != removedArgIndices.end()){
             arg_index++;            
             continue;
         }
-        auto newargType = typeConverter_fn(argType);
+        auto newargType = typeConverter.convertType(argType);
 
         if(newargType)
             newArgTypes.push_back(newargType);
@@ -82,7 +115,7 @@ void replaceFuncDtypes(func::FuncOp &op)
 
     llvm::SmallVector<mlir::Type, 4> newResultTypes;
     for (mlir::Type argType : oldResultTypes) {
-        auto newargType = typeConverter_fn(argType);
+        auto newargType = typeConverter.convertType(argType);
         if(newargType)
             newResultTypes.push_back(newargType);
         else
@@ -136,10 +169,11 @@ void replaceFuncDtypes(func::FuncOp &op)
     }
 }
 LogicalResult convertFuncOp(ModuleOp &moduleOp){
+    vLLMGraphConversion typeConverter(moduleOp.getContext());
     for (auto &op : moduleOp.getBody()->getOperations()) {
         if(auto funcOp = dyn_cast<func::FuncOp>(op))
         {
-            replaceFuncDtypes(funcOp);
+            replaceFuncDtypes(funcOp, typeConverter);
             
             return mlir::success();
         }

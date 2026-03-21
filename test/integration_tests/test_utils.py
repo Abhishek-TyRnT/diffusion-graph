@@ -15,6 +15,8 @@ def validate_outputs(vllm_graph_output, regular_output, atol = 1e-3) -> bool:
         
         assert len(vllm_graph_output) == len(regular_output), "No of outputs donot match"
         for (vllm_tensor, tensor) in zip(vllm_graph_output, regular_output):
+            if(vllm_tensor is None and tensor is None):
+                continue
             if not torch.allclose(vllm_tensor, tensor, atol = atol):
                 return False
         

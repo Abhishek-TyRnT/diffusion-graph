@@ -4,7 +4,7 @@ import os
 import sys
 from torch_mlir.fx import export_and_import
 # from torch.utils._pytree import register_dataclass_as_pytree_node
-from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS, upsample_nearest_decomposed_v2
+from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.attention_processor import Attention
 from diffusers.models.attention import FeedForward, BasicTransformerBlock

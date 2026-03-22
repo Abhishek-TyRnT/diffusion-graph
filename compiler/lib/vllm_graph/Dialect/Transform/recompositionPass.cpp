@@ -422,7 +422,6 @@ LogicalResult RecomposeSimpleOps<vllm_graph::LayerNormOp>::matchAndRewrite(vllm_
     Value dim = rewriter.create<arith::ConstantIntOp>(loc, -1, rewriter.getIntegerType(32));
     Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, input, dim, indices);
 
-    llvm::outs() << indexSelectResult << "\n";
     result.replaceAllUsesWith(indexSelectResult);
     
     rewriter.eraseOp(BroadCastOp);
@@ -462,7 +461,6 @@ public:
             return signalPassFailure();
         }
 
-        llvm::outs() << getOperation() << "\n";
     }
 };
 } //namespace

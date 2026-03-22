@@ -11,30 +11,30 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include <unistd.h>
 #include <string>
+#include <dlfcn.h>
 #include <filesystem>
 
 using namespace mlir;
 using namespace mlir::vllm_graph;
 
 std::string getRootPath() {
-    char buffer[1024];
-    ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-    if (len != -1) {
-        buffer[len] = '\0';
-        std::filesystem::path exePath(buffer);
-        return exePath.parent_path().parent_path().string();
-    }
-    return "";
+    Dl_info info;
+    // Pass a symbol from your own .so
+    dladdr((void*)&getRootPath, &info);
+    
+    auto so_dir = std::filesystem::canonical(info.dli_fname).parent_path();
+    so_dir = so_dir.parent_path();
+    return so_dir.string();
 
 }
 
 class PoolingLayerSplit : public RewritePattern {
     //TODO: Remove the hardcoding and take the input from the user
-    std::string pattern_path = "/home/abhishek/vllm-project/build/Patterns/poolingLayer.pdl_interp.mlir";
+    // std::string pattern_path = "/home/abhishek/vllm-project/build/Patterns/poolingLayer.pdl_interp.mlir";
     const PDLInterpMatcher pattern_interpreter;
 
 public:
-    PoolingLayerSplit(MLIRContext *context)
+    PoolingLayerSplit(MLIRContext *context, std::string pattern_path)
       : RewritePattern(func::FuncOp::getOperationName(), 1, context), pattern_interpreter(context, pattern_path) {
         ;
         // pattern_interpreter.loadPDLInterpFile(pattern_path);

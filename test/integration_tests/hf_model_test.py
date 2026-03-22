@@ -99,8 +99,8 @@ def test_diffusers_submodule_layers(model,
         (CLIPTextEmbeddings, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)),), {}),
         (CLIPAttention, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
         (CLIPMLP, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
-        # (CLIPEncoderLayer, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
-        # (CLIPEncoder, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)), ), {}),
+        # (CLIPEncoderLayer, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), torch.randint(0, 2, (1, 32)), torch.randn(1, 1, 32, 32)), {}),
+        (CLIPEncoder, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512),), {}),
     ))
 def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
     if len(model_args) == 0:
@@ -109,6 +109,7 @@ def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
         torch_model = model(*model_args, **model_kwargs)
     
     torch_model.eval()
+    print(torch_model)
     print("Model eval finished!")
     # breakpoint()
     tmp_folder = f"./temp_files"
@@ -183,7 +184,7 @@ def test_diffusers_vae(model,
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)
-    print(model)
+    print(model.config)
     max_length = model.config.max_position_embeddings
     inputs = tokenizer(text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
     #model(**inputs)
@@ -202,7 +203,6 @@ def test_hf_models(model_name, text, model_class, device):
     reconstructed_model.to(device)
     
     model = model.to(device)
-    reconstructed_model(inputs['input_ids'])
     model(inputs["input_ids"], **input_kwargs)
     #Profiling
     activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]

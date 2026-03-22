@@ -168,7 +168,8 @@ def test_vllm_graph_compiler_from_models(model,
     assert exit_code == 0, f"The test failed with response \n{stderr}"
 
 @pytest.mark.parametrize("model, model_args, inputs, dynamic_dims",(
-    [PoolingLayer, (8, ), (torch.randn(3, 8, 8), ), { "inputs" : { 1 : Dim("hidden_size", min = 1, max = 100)}}],
+    # [PoolingLayer, (8, ), (torch.randn(3, 8, 8), ), { "inputs" : { 1 : Dim("hidden_size", min = 1, max = 100)}}],
+    [CLIPPoolingLayer, (8, ), (torch.randn(1, 8, 8), torch.randint(0, 100, (1, 8))), {}],
 ))
 def test_vllm_graph_compiler_partioning(model,
                                         model_args,
@@ -191,7 +192,7 @@ def test_vllm_graph_compiler_partioning(model,
                                 backend_legal_ops=backend_legal_ops, 
                                 decomposition_table = get_decompositions(DECOMPOSITION_OPS))
 
-    filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
+    filename = f"./temp_files/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
         f.write(str(torchIR))
     

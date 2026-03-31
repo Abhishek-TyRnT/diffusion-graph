@@ -276,3 +276,18 @@ class Sigmoid(Module):
     
     def forward(self, x):
         return self.layer(x)
+
+class CLIPPoolingLayer(Module):
+    def __init__(self, hidden_size: int):
+        super().__init__()
+
+        self.layerNorm = nn.LayerNorm((hidden_size, ))
+
+    def forward(self, inputs, input_ids):
+        x = self.layerNorm(inputs)
+        pooled_output = x[
+            torch.arange(x.shape[0], device=x.device),
+            input_ids.to(dtype=torch.int, device=x.device).argmax(dim=-1),
+        ]
+
+        return x, pooled_output

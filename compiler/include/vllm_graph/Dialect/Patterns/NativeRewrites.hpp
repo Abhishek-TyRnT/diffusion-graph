@@ -17,6 +17,7 @@ namespace vllm_graph{
 
 bool createPoolingFunc(Value rootOpResult, PatternRewriter& rewriter);
 
+bool createCLIPPoolingFunc(Value rootOpResult, PatternRewriter& rewriter);
 
 } //vllm_graph
 } //mlir

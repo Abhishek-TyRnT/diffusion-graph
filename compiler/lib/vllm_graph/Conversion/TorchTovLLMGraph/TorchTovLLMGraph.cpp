@@ -938,6 +938,10 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>::matchAnd
     Value step = adaptor.getOperands()[2];
     Value dtype = adaptor.getOperands()[3];
 
+    if(dtype.getDefiningOp<vllm_graph::ConstantNoneOp>()){
+        dtype = rewriter.create<arith::ConstantIntOp>(op.getLoc(), 4, rewriter.getI32Type());
+    }
+
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
@@ -945,6 +949,21 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>::matchAnd
     rewriter.replaceOpWithNewOp<vllm_graph::ArangeOp>(op, resultType, start, end, step, dtype);
     return success();
 
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLtTensorOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenLtTensorOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value self = adaptor.getOperands()[0];
+    Value other = adaptor.getOperands()[1];
+    
+    const TypeConverter *convertor = getTypeConverter();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    
+    rewriter.replaceOpWithNewOp<vllm_graph::LessThanOp>(op, resultType, self, other);
+    return success();
 }
 
 template <>
@@ -1061,6 +1080,26 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>::matchAnd
     vllm_graph::LayerNormOp layerNormOp = rewriter.create<vllm_graph::LayerNormOp>(loc, resultType, inputArg, normalisedShape, weight, bias, epsilon);
     OldResult.replaceAllUsesWith(layerNormOp.getResult());
     rewriter.eraseOp(cast<Operation*>(op));
+    return success();
+}
+
+template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMaxDimOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenMaxDimOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value inputArg = adaptor.getOperands()[0];
+    Value dimArg = adaptor.getOperands()[1];
+    Value keepdimArg = adaptor.getOperands()[2];
+
+    Location loc = op.getLoc();
+
+    const TypeConverter *convertor = getTypeConverter();
+    Type resultType1 = convertor->convertType(op.getResult(0).getType());
+    Type resultType2 = convertor->convertType(op.getResult(1).getType());
+    
+    TypeRange resultTypes = {resultType1, resultType2};
+    rewriter.replaceOpWithNewOp<vllm_graph::MaxDimOp>(op, resultTypes, inputArg, dimArg, keepdimArg);
     return success();
 }
 
@@ -1287,6 +1326,10 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenSigmoidOp>>(typeConverter,        
                                                          context);
         
+        target.addIllegalOp<mlir::torch::Torch::AtenLtTensorOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenLtTensorOp>>(typeConverter,        
+                                                         context);
+        
         target.addIllegalOp<mlir::torch::Torch::AtenGeluOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenGeluOp>>(typeConverter,        
                                                          context);
@@ -1376,6 +1419,10 @@ public:
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>>(typeConverter,        
                                                          context);
         
+        target.addIllegalOp<mlir::torch::Torch::AtenMaxDimOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMaxDimOp>>(typeConverter,        
+                                                         context);
+
         target.addIllegalOp<mlir::torch::Torch::AtenCatOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenCatOp>>(typeConverter,        
                                                          context);

@@ -393,6 +393,42 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>::matchAndRewrite(
 
     
 }
+
+template<> 
+LogicalResult RecomposeSimpleOps<vllm_graph::LayerNormOp>::matchAndRewrite(vllm_graph::LayerNormOp op, PatternRewriter &rewriter) const{
+    Operation* BroadCastOp = nullptr;
+    for(auto* user_op : op->getUsers()){
+        if(auto user_op_cast = dyn_cast<vllm_graph::BroadCastIndexOp>(user_op)){
+            BroadCastOp = user_op;
+            break;
+        }
+    }
+    if(!BroadCastOp){
+        return failure();
+    }
+
+    Value result = BroadCastOp->getResult(0);
+    Type resultType = result.getType();
+
+    Value listOperand = BroadCastOp->getOperand(1);
+    Value input = BroadCastOp->getOperand(0);
+    Operation* listOp = listOperand.getDefiningOp<vllm_graph::ListOp>();
+    Value indices = listOp->getOperand(1);
+
+    Location loc = BroadCastOp->getLoc();
+    // Move the insertion point to just before BroadCastOp so that 'input'
+    // (the LayerNormOp result) and 'indices' dominate the newly created ops.
+    rewriter.setInsertionPoint(BroadCastOp);
+    Value dim = rewriter.create<arith::ConstantIntOp>(loc, -1, rewriter.getIntegerType(32));
+    Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, input, dim, indices);
+
+    result.replaceAllUsesWith(indexSelectResult);
+    
+    rewriter.eraseOp(BroadCastOp);
+    rewriter.eraseOp(listOp);
+    
+    return success();
+}
 } //namespace
 
 
@@ -414,6 +450,7 @@ public:
 
         patterns.add<RecomposeSimpleOps<vllm_graph::MatmulOp>>(context);
         patterns.add<RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>>(context);
+        patterns.add<RecomposeSimpleOps<vllm_graph::LayerNormOp>>(context);
 
         GreedyRewriteConfig config;
         config.useTopDownTraversal = true;
@@ -423,6 +460,7 @@ public:
                                             config))) {
             return signalPassFailure();
         }
+
     }
 };
 } //namespace

@@ -158,7 +158,6 @@ bool PDLInterpMatcher::executeGetResult(GetResultOp op, InterpreterState& state)
     
     // Store the result value mapping
     Value result = inputOp->getResult(index);
-    
     state.valueToValue[op.getResult()] = result;
     
     return true;
@@ -170,9 +169,17 @@ bool PDLInterpMatcher::executeGetResults(GetResultsOp op, InterpreterState& stat
     if(!inputOp)
         return false;
 
+    Type type = op.getValue().getType();
     ValueRange results = inputOp->getResults();
-
-    state.valueToValueRanges[op.getResult()] = results;
+    
+    if(isa<RangeType>(type)){
+        state.valueToValueRanges[op.getResult()] = results;
+    } else {
+        uint32_t index = op.getIndex().value();
+        if (index >= results.size()) return false;
+        Value result = results[index];
+        state.valueToValue[op.getResult()] = result;
+    }
     return true;
 }
 
@@ -418,7 +425,6 @@ bool PDLInterpMatcher::matchPattern(Operation* rootOp) const {
     // Initialize interpreter state
     
     state.currentOp = rootOp;
-    
     // Find the main matching function (typically the first function)
     auto funcs = pdlModule->getOps<pdl_interp::FuncOp>();
     if (funcs.empty()) {
@@ -525,5 +531,6 @@ LogicalResult PDLInterpMatcher::rewriteModule(PatternRewriter& rewriter) const {
 void PDLInterpMatcher::registerNativeRewrites() {
     //Register more native rewrites as and when they are required
     functionMap["CreatePoolingFunc"] = std::function<bool(Value, PatternRewriter&)>(createPoolingFunc);
+    functionMap["CreateCLIPPoolingFunc"] = std::function<bool(Value, PatternRewriter&)>(createCLIPPoolingFunc);
 }
 

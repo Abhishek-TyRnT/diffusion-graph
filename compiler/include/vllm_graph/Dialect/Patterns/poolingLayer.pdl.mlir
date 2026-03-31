@@ -53,11 +53,6 @@ Pattern ExtractPoolingLayer with benefit(1) {
     erase TransposeOp;
     erase SqueezeOp;
     erase IndexSelectOp;
-    
-    
-    
-    
-
   };
 
 }

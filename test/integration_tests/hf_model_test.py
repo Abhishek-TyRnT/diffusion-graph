@@ -99,8 +99,7 @@ def test_diffusers_submodule_layers(model,
         (CLIPTextEmbeddings, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)),), {}),
         (CLIPAttention, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
         (CLIPMLP, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
-        # (CLIPEncoderLayer, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
-        # (CLIPEncoder, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)), ), {}),
+        (CLIPEncoder, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512),), {}),
     ))
 def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
     if len(model_args) == 0:
@@ -109,6 +108,7 @@ def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
         torch_model = model(*model_args, **model_kwargs)
     
     torch_model.eval()
+    print(torch_model)
     print("Model eval finished!")
     # breakpoint()
     tmp_folder = f"./temp_files"
@@ -183,7 +183,7 @@ def test_diffusers_vae(model,
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)
-    print(model)
+    print(model.config)
     max_length = model.config.max_position_embeddings
     inputs = tokenizer(text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
     #model(**inputs)
@@ -195,21 +195,23 @@ def test_hf_models(model_name, text, model_class, device):
     
     compiled_model_dict = vllmgraph.get_graph_dict()
     
+    if("compute_pooling_layer" in compiled_model_dict):
+        compiled_model_dict.pop("compute_pooling_layer")
+
     reconstructed_model = reconstruct_model(compiled_model_dict)
     #Offloading to target device
     inputs = {key : inputs[key].to(device) for key in inputs}
-   
-    reconstructed_model.to(device)
+    input_kwargs["attention_mask"] = input_kwargs["attention_mask"].to(device)
+    reconstructed_model["main"].to(device)
     
     model = model.to(device)
-    reconstructed_model(inputs['input_ids'])
     model(inputs["input_ids"], **input_kwargs)
     #Profiling
     activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
     inputs.update(input_kwargs)
     
     with profile(activities=activities) as prof2:
-        normal_output = model(inputs["input_ids"], **input_kwargs)
+        normal_output = model(inputs["input_ids"], **input_kwargs)[0]
     prof2.export_chrome_trace("torch_trace.json")
     
     with profile(activities=activities) as prof1:

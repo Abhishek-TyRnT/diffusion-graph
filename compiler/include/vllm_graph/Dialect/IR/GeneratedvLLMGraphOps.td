@@ -1047,3 +1047,53 @@ def vllm_SigmoidOp : vLLMGraph_Op<"vllm.sigmoid", [
       }
     }];
 }
+
+def vllm_LessThanOp : vLLMGraph_Op<"vllm.less_than", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::less_than : (Tensor, Tensor) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      AnyTorchTensorType:$other
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult LessThanOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+      }
+      void LessThanOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 2, 1);
+      }
+    }];
+}
+
+def vllm_MaxDimOp : vLLMGraph_Op<"temp.max_dim", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::max_dim : (Tensor, int, bool) -> (Tensor, Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      I32:$dim,
+      I1:$keepdim
+    );
+    let results = (outs
+      AnyTorchTensorType:$result,
+      AnyTorchTensorType:$indices
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult MaxDimOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 3, 2);
+      }
+      void MaxDimOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 3, 2);
+      }
+    }];
+}

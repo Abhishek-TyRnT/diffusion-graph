@@ -2,7 +2,8 @@
 # Input PDLL file
 
 set(PatternsDir ${CMAKE_SOURCE_DIR}/include/vllm_graph/Dialect/Patterns)
-set(PDLL_FILES ${PatternsDir}/poolingLayer.pdl.mlir)
+set(PDLL_FILES ${PatternsDir}/poolingLayer.pdl.mlir
+               ${PatternsDir}/CLIPPoolingLayer.pdl.mlir)
 
 # Generated intermediate and final outputs
 set(PDL_FILE "")
@@ -27,25 +28,27 @@ foreach(PDLL_FILE ${PDLL_FILES})
     DEPENDS ${PDLL_FILE}
     COMMENT "Lowering ${PDLL_FILE} to PDL dialect"
   )
-  
 
-  # Step 2: Lower PDL -> PDLInterp dialect
+  # Step 2: Lower PDL -> PDLInterp dialect (runtime metadata)
   add_custom_command(
     OUTPUT ${PDL_INTERP_FILE}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/Patterns
     COMMAND ${MLIR_BIN_PATH}/mlir-opt ${PDL_FILE} --convert-pdl-to-pdl-interp -o ${PDL_INTERP_FILE}
     DEPENDS ${PDL_FILE}
     COMMENT "Lowering ${PDL_FILE} to PDLInterp dialect"
   )
 
-  #Step 3: delete the PDL file
-  add_custom_command(
-    OUTPUT ""
-    COMMAND rm ${PDL_FILE}
-    DEPENDS ${PDL_FILE}
-    COMMENT "Deleting ${PDL_FILE} after conversion"
-  )
 endforeach()
 
 add_custom_target(GeneratePDLInterp ALL
   DEPENDS ${PDL_INTERP_FILES}
+)
+
+# Install pdl_interp.mlir files as runtime metadata.
+# FunctionPartitionPass.cpp resolves them at runtime via:
+#   getRootPath() + "/Patterns/<name>.pdl_interp.mlir"
+# where getRootPath() returns the parent of the directory containing the .so,
+# so the files must live at <install-prefix>/lib/Patterns/.
+install(FILES ${PDL_INTERP_FILES}
+  DESTINATION "Patterns"
 )

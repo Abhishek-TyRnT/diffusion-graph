@@ -50,4 +50,5 @@ OP_MAP = {
     "vllm_graph.vllm.concatenate": torch.cat,
     "vllm_graph.vllm.upsample": torch.nn.functional.interpolate,
     "vllm_graph.vllm.sigmoid": torch.nn.functional.sigmoid,
+    "vllm_graph.vllm.less_than": torch.lt,
 }

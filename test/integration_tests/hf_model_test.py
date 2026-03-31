@@ -99,7 +99,6 @@ def test_diffusers_submodule_layers(model,
         (CLIPTextEmbeddings, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)),), {}),
         (CLIPAttention, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
         (CLIPMLP, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
-        # (CLIPEncoderLayer, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), torch.randint(0, 2, (1, 32)), torch.randn(1, 1, 32, 32)), {}),
         (CLIPEncoder, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512),), {}),
     ))
 def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
@@ -196,11 +195,14 @@ def test_hf_models(model_name, text, model_class, device):
     
     compiled_model_dict = vllmgraph.get_graph_dict()
     
+    if("compute_pooling_layer" in compiled_model_dict):
+        compiled_model_dict.pop("compute_pooling_layer")
+
     reconstructed_model = reconstruct_model(compiled_model_dict)
     #Offloading to target device
     inputs = {key : inputs[key].to(device) for key in inputs}
-   
-    reconstructed_model.to(device)
+    input_kwargs["attention_mask"] = input_kwargs["attention_mask"].to(device)
+    reconstructed_model["main"].to(device)
     
     model = model.to(device)
     model(inputs["input_ids"], **input_kwargs)
@@ -209,7 +211,7 @@ def test_hf_models(model_name, text, model_class, device):
     inputs.update(input_kwargs)
     
     with profile(activities=activities) as prof2:
-        normal_output = model(inputs["input_ids"], **input_kwargs)
+        normal_output = model(inputs["input_ids"], **input_kwargs)[0]
     prof2.export_chrome_trace("torch_trace.json")
     
     with profile(activities=activities) as prof1:

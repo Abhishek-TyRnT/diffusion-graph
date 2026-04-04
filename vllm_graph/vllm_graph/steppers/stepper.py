@@ -19,7 +19,13 @@ class PNDMStepper:
         self.ets = []
         self.counter = 0
 
-        self.scheduler = scheduler
+    def to(self, device):
+        self.alphas = self.alphas.to(device)
+        self.alphas_cumprod = self.alphas_cumprod.to(device)
+        self.final_alpha_cumprod = self.final_alpha_cumprod.to(device)
+        self.betas = self.betas.to(device)
+        self.ets = [e.to(device) for e in self.ets]
+        return self
 
     def step(self, model_output, timestep, sample,):
 

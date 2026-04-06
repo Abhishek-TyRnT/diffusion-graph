@@ -76,5 +76,5 @@ class PNDMStepper:
         )        
         self.counter += 1
 
-        return (prev_sample,)        
+        return prev_sample        
         

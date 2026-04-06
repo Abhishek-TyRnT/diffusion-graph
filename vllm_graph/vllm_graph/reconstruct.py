@@ -4,6 +4,7 @@ from compiler import GraphCompiler
 from vllm_graph.modelmaps import TYPE_MAP, OP_MAP
 from vllm_graph.utils import read_pb
 import torch
+import numpy as np
 import json
 import os
 from collections import deque
@@ -25,9 +26,19 @@ class ParameterModel(torch.nn.Module):
         super().__init__()
         self.weight_dict = {"DenseElementsAndScalars" : read_pb(weightPathMap["DenseAndScalarWeights"])}
         self.graph_dict = graph_dict
+        buffer_dict = None
         for buffer in arg_dict:
             if arg_dict[buffer]["kind"] == "buffer":
-                self.register_buffer(arg_dict[buffer]["target"], arg_dict[buffer]["value"], persistent = True)
+                #This is done to store register buffers during compilation
+                if(isinstance(arg_dict[buffer]["value"], str)):
+                    if(buffer_dict is None):
+                        buffer_dict = np.load(arg_dict[buffer]["value"])
+                    
+                    value = buffer_dict[arg_dict[buffer]["target"]]
+                    value = torch.tensor(value)
+                else:
+                    value = arg_dict[buffer]["value"]
+                self.register_buffer(arg_dict[buffer]["target"], value, persistent = True)
 
         for constant in self.graph_dict["constants"]:
             if(self.graph_dict[constant]["dtype"] == "!vllm_graph.none"):

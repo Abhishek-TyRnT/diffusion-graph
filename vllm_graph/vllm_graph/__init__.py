@@ -7,5 +7,6 @@ from vllm_graph.model_wrappers import *
 
 from vllm_graph.pipeline.model_compiler import *
 from vllm_graph.pipeline.pipeline_compiler import *
+from vllm_graph.pipeline.pipeline_runner import *
 
 from vllm_graph.steppers.stepper import *

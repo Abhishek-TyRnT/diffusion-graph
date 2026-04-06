@@ -97,7 +97,6 @@ class DiffusionGraphCompiler:
                 buffers[self.arg_dict[key]["target"]] = value.cpu().numpy()
                 self.graph_dict["main"]["arg_dict"][key]["value"] = path
 
-        print(buffers)
         if(len(buffers) != 0):
             np.savez(path, **buffers)
     

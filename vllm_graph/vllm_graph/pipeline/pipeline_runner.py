@@ -91,9 +91,8 @@ class DiffusionGraphRunner:
     def run(self, sample, text_embeddings):
 
         print("Starting denoising process")
-        print(sample.shape, text_embeddings.shape)
         #TODO: Convert this function into async generator
-        for timestep in range(self.num_inference_steps):
+        for timestep in self.stepper.timesteps:
             print(f"Denoising at timestep {timestep}")
             timestep = torch.tensor([timestep], device=self.device)
             model_output = self.unet(sample, timestep, text_embeddings)
@@ -113,6 +112,6 @@ class DiffusionGraphRunner:
         text_embeddings = self.text_encoder(**input_tokens)
         sample = self.generate_sample()
         sample = self.run(sample, text_embeddings)
-        image = self.vae_decoder(sample)
+        image = self.vae_decoder(sample / 0.18215)
         return image
         

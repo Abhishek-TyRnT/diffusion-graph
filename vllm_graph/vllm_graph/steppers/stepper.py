@@ -15,6 +15,7 @@ class PNDMStepper:
         self.num_train_timesteps = scheduler.config.num_train_timesteps
         self.num_inference_steps = num_of_steps
 
+        self.timesteps = scheduler.timesteps
 
         self.ets = []
         self.counter = 0
@@ -25,6 +26,7 @@ class PNDMStepper:
         self.final_alpha_cumprod = self.final_alpha_cumprod.to(device)
         self.betas = self.betas.to(device)
         self.ets = [e.to(device) for e in self.ets]
+        self.timesteps = self.timesteps.to(device)
         return self
 
     def step(self, model_output, timestep, sample,):

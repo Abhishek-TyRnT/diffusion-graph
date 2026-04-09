@@ -4,6 +4,7 @@ from compiler import GraphCompiler
 from vllm_graph.modelmaps import TYPE_MAP, OP_MAP
 from vllm_graph.utils import read_pb
 import torch
+import numpy as np
 import json
 import os
 from collections import deque
@@ -21,13 +22,23 @@ class ModelDict(dict):
         return f"<{self.name}>"
 
 class ParameterModel(torch.nn.Module):
-    def __init__(self, graph_dict: dict, weightPathMap: dict, arg_dict: dict):
+    def __init__(self, graph_dict: dict, weightPathMap: dict, arg_dict: dict, weights_directory: str):
         super().__init__()
-        self.weight_dict = {"DenseElementsAndScalars" : read_pb(weightPathMap["DenseAndScalarWeights"])}
+        self.weight_dict = {"DenseElementsAndScalars" : read_pb(f"{weights_directory}/{weightPathMap['DenseAndScalarWeights']}")}
         self.graph_dict = graph_dict
+        buffer_dict = None
         for buffer in arg_dict:
             if arg_dict[buffer]["kind"] == "buffer":
-                self.register_buffer(arg_dict[buffer]["target"], arg_dict[buffer]["value"], persistent = True)
+                #This is done to store register buffers during compilation
+                if(isinstance(arg_dict[buffer]["value"], str)):
+                    if(buffer_dict is None):
+                        buffer_dict = np.load(arg_dict[buffer]["value"])
+                    
+                    value = buffer_dict[arg_dict[buffer]["target"]]
+                    value = torch.tensor(value)
+                else:
+                    value = arg_dict[buffer]["value"]
+                self.register_buffer(arg_dict[buffer]["target"], value, persistent = True)
 
         for constant in self.graph_dict["constants"]:
             if(self.graph_dict[constant]["dtype"] == "!vllm_graph.none"):
@@ -50,10 +61,8 @@ class ParameterModel(torch.nn.Module):
             else:
                 data_name = self.graph_dict[constant]["resource"]
                 if weightPathMap[data_name] not in self.weight_dict:
-                    self.weight_dict[weightPathMap[data_name]] = read_pb(weightPathMap[data_name])
-                    # import sys
-                    # print(sys.getsizeof(self.weight_dict))
-                    # breakpoint()
+                    self.weight_dict[weightPathMap[data_name]] = read_pb(f"{weights_directory}/{weightPathMap[data_name]}")
+
                 data = self.weight_dict[weightPathMap[data_name]][data_name]
                 key = weightPathMap[data_name]
             
@@ -90,137 +99,6 @@ class ParameterModel(torch.nn.Module):
     def device(self):
         """Returns the device of the model by checking the first parameter"""
         return next(self.parameters()).device
-
-class vLLMGraphModel(torch.nn.Module):
-    def __init__(self, graph_modules: dict[str, torch.fx.GraphModule], weights_directory: str):
-        super().__init__()
-
-        if graph_modules.get("main", None) is None:
-            raise ValueError("FATAL: Model has no main module!")
-        
-        for func_name, graph_module in graph_modules.items():
-            setattr(self, func_name, graph_module)
-        
-        self.weights = read_pb(weights_directory)
-        vocab_size = self.main.config.vocab_size
-        embedding_size = self.main.config.embedding_size
-        weight_name = f"torch_tensor_{vocab_size}_{embedding_size}_torch.float32"
-        data = self.weights[weight_name]
-        tensor = torch.tensor(data, dtype = torch.float32)
-        tensor = torch.reshape(tensor, (vocab_size, embedding_size))
-        self.embeddings = torch.nn.Parameter(tensor, requires_grad=False)
-        self.func_names = list(graph_modules.keys())
-    
-    def to(self, *args, **kwargs):
-        super().to(*args, **kwargs)
-        self.device = torch.device(args[0])
-        for func_name in self.func_names:
-            module = getattr(self, func_name)
-            module = module.to(self.device)
-            module.device = self.device
-            
-        return self
-        
-    def forward(self,
-                input_ids,
-                positions,
-                intermediate_tensors=None,
-                inputs_embeds=None,
-                ):
-        return self.main(input_ids, positions)
-
-class vLLMGraph:
-    def __init__(self, model_name: str, temp_directory: str | None = None, debug: bool = False):
-        self.name = model_name
-        if temp_directory is None:
-            root_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            self.temp_directory = f"{root_folder}/temp_files/{model_name}"
-            self.weights_directory = f"{root_folder}/temp_files/{model_name}"
-        else:
-            self.temp_directory = f"{temp_directory}/{model_name}"
-            self.weights_directory = f"{temp_directory}/{model_name}"
-        
-        if not os.path.exists(self.temp_directory):
-            os.makedirs(self.temp_directory)
-        self.graph_compiler = GraphCompiler(self.weights_directory, debug = debug)
-        self.graph_dict : dict = {}
-    
-    def compile(self, model: torch.nn.Module, inputs: torch.Tensor, input_kwargs : dict = {}, dynamic_dims = {}):
-        """
-        Compiles the model and returns a topologically unsorted
-        graph in dictionary format and stores it in graph_dict object of the class 
-        """
-        
-        dynamo_model = torch.export.export(model, inputs, input_kwargs, dynamic_shapes = dynamic_dims)
-
-        print("Completed Dynamo Export!")
-        #TODO: Figure out a way to calculate this
-        if hasattr(model, "config"):
-            self.config = model.config
-        else:
-            self.config = None
-
-        graph_signature = dynamo_model.graph_signature
-        input_specs = graph_signature.input_specs
-        index = 0
-        self.arg_dict = {}
-        print("Processing Input Specs!")
-        for spec in input_specs:
-            kind = spec.kind
-            #Buffers
-            if kind == InputKind.BUFFER:
-                sub_model = model
-                for target in spec.target.split("."):
-                    sub_model = getattr(sub_model, target)
-                self.arg_dict[index] = {"target" : spec.target.replace(".", "_"),
-                                        "kind": "buffer",
-                                        "value": sub_model
-                                        }
-                index +=1
-            
-            #user_inputs
-            elif kind == InputKind.USER_INPUT:
-                self.arg_dict[index] =  {"target" : spec.target, "kind": "user_input"}
-                index += 1
-
-        self.graph_dict = self.graph_compiler.compile(dynamo_model, inputs)
-        print("Completed Graph Compilation!")
-        input_args = self.graph_dict['main']["entrypoint"]
-        new_args = []
-        for arg in input_args:
-            arg_index = int(arg.split("g")[-1])
-            if self.arg_dict[arg_index]["kind"] == "buffer":
-                next_nodes = self.graph_dict['main'][arg]["next_nodes"]
-                for node in next_nodes:
-                    input_nodes = self.graph_dict['main'][node]["input_nodes"]
-                    index = input_nodes.index(arg)
-                    self.graph_dict['main'][node]["input_nodes"][index] = self.arg_dict[arg_index]["target"]
-                
-                del self.graph_dict['main'][arg]
-        
-            else:
-                new_args.append(arg)
-
-        self.graph_dict["main"]["entrypoint"] = new_args
-        self.graph_dict["main"]["arg_dict"] = self.arg_dict
-        # self.graph_dict["weights_directory"] = self.weights_directory
-        self.graph_dict["model_name"] = self.name
-        self.graph_dict["config"] = self.config
-    
-    def store_graph_dict(self):
-        """Stores the graph dict for debugging purposes"""
-
-        assert len(self.graph_dict) != 0, "Model not compiled"
-        with open(f"{self.temp_directory}/model.json",'w') as f:
-            f.write(json.dumps(self.graph_dict, indent = 2))
-        
-        print(f"model.json stored in {self.temp_directory}")
-    
-    def get_graph_dict(self):
-        assert len(self.graph_dict) != 0, "Model not compiled"
-
-        return ModelDict(self.graph_dict)
-
 
 def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results: list[str]) -> torch.fx.Graph:
     """Reconstructs torch.fx.Graph from grapg dict."""
@@ -323,17 +201,7 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
                 i+=1
             input_kwargs['device'] = graph.get_attr("device")
             graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
-        
-        # elif node_type == "vllm_graph.vllm.arange":
-        #     arange_func = OP_MAP.get(node_type, None)
-        #     input_args = []
-        #     for inp in graph_dict[node]['input_nodes']:
-        #         input_args.append(graph_nodes[inp])
-            
-        #     input_kwargs = { "device" : graph.get_attr("device")}
-
-        #     graph_nodes[node] = graph.call_function(arange_func, args=tuple(input_args), kwargs = input_kwargs)
-        
+                
         elif node_type == "vllm_graph.vllm.upsample":
             upsample_func = OP_MAP.get(node_type, None)
             i = 0
@@ -407,7 +275,7 @@ def topological_sort(graph_dict: dict, Nodes: list)->list:
     
     return result
 
-def reconstruct_model(graph_dict: ModelDict) -> dict[str, torch.fx.GraphModule]:
+def reconstruct_model(graph_dict: ModelDict, weights_directory: str) -> dict[str, torch.fx.GraphModule]:
 
     assert len(graph_dict) != 0, "Model not compiled"
     weightPathMap = graph_dict.get("resources_path", {})
@@ -419,7 +287,7 @@ def reconstruct_model(graph_dict: ModelDict) -> dict[str, torch.fx.GraphModule]:
             continue
         
         arg_dict = graph_dict[func_name].get("arg_dict", {})
-        model = ParameterModel(graph_dict[func_name], weightPathMap, arg_dict)
+        model = ParameterModel(graph_dict[func_name], weightPathMap, arg_dict, weights_directory)
         Nodes = []
         for node in graph_dict[func_name]:
             if node in ['entrypoint', 

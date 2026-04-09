@@ -54,7 +54,7 @@ def test_steppers_validation(diffusers_scheduler, diffusion_graph_scheduler, kwa
                 model_output.clone(),
                 t,
                 diffusion_graph_sample,
-            )[0]
+            )
         
         assert torch.allclose(diffusers_sample, diffusion_graph_sample, atol=1e-3), f"Samples do not match at timestep {t}"
     

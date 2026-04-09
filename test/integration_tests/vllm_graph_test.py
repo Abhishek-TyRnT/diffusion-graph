@@ -4,6 +4,7 @@ import sys
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph, reconstruct_model
+from vllm_graph.pipeline.model_compiler import DiffusionGraphCompiler
 from transformers.modeling_outputs import BaseModelOutput
 from typing import Dict, List, Optional, Tuple, Union
 from torch.export import Dim
@@ -73,9 +74,9 @@ def test_graph_compiler_python_to_dict(model,
     
     tmp_folder = f"/tmp"
 
-    vllmgraph = vLLMGraph(model.__name__, tmp_folder)
-    vllmgraph.compile(torch_model, inputs, dynamic_dims = dynamic_dims)
-    IRdict = vllmgraph.get_graph_dict()
+    model_compiler = DiffusionGraphCompiler(model.__name__, tmp_folder)
+    model_compiler.compile(torch_model, inputs, dynamic_dims = dynamic_dims)
+    IRdict = model_compiler.get_graph_dict()
     print(json.dumps(IRdict, indent = 2))
 
 @pytest.mark.parametrize("model, model_args, inputs",(
@@ -114,13 +115,13 @@ def test_graph_compiler_to_model(model,
     else:
         torch_model = model(*model_args)
     
-    tmp_folder = f"/tmp"
+    tmp_folder = f"./temp_files"
 
-    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
-    vllmgraph.compile(torch_model, inputs)
-    # vllmgraph.store_graph_dict()
-    IRdict = vllmgraph.get_graph_dict()
-    reconstructed_model = reconstruct_model(IRdict)
+    model_compiler = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
+    model_compiler.compile(torch_model, inputs)
+    model_compiler.store_graph_dict()
+    IRdict = model_compiler.get_graph_dict()
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     vllm_graph_output = reconstructed_model["main"](*inputs)
     normal_output = torch_model(*inputs)
 
@@ -141,10 +142,10 @@ def test_graph_compiler_function_partioning_to_model(model,
     
     tmp_folder = f"/tmp"
 
-    vllmgraph = vLLMGraph(model.__name__, tmp_folder)
+    vllmgraph = DiffusionGraphCompiler(model.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs, dynamic_dims = dynamic_dims)
     IRdict = vllmgraph.get_graph_dict()
-    reconstructed_model = reconstruct_model(IRdict)
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
 
     hidden_states = reconstructed_model["main"](*inputs)
     pooling_output = reconstructed_model["compute_pooling_layer"](hidden_states)

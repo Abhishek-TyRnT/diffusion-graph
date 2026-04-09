@@ -48,4 +48,7 @@ class GraphCompiler:
         print("Starting diffusion graph compilation!")
         IRDict = self.compiler.compile(self.ir_path)
         print("Completed graph compilation!")
+        if not self.debug:
+            os.remove(self.ir_path)
+            
         return IRDict

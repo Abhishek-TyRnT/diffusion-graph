@@ -26,6 +26,7 @@ class DiffusionPipelineCompiler:
         latent_shape = (1, vae.config.latent_channels, image_shape[0] // downscale_factor, image_shape[1] // downscale_factor)
         dummy_latent = torch.randn(latent_shape)
         #TODO: Add support for compiler VAE encoder.
+        decoder_scaling_factor = vae.config.scaling_factor
         print("Compiling VAE Decoder")
         decoder = MethodWrapper(vae, "decode")
         decoder_compiler = DiffusionGraphCompiler("vae_decoder", self.artifact_directory, self.debug)
@@ -68,6 +69,7 @@ class DiffusionPipelineCompiler:
             "latent_shape" : latent_shape,
             "input_token_shape" : input_token_shape,
             "hidden_state_shape" : hidden_state_shape,
+            "vae_downscaling_factor" : decoder_scaling_factor
         }
 
         with open(os.path.join(self.artifact_directory, "config.json"), "w") as f:

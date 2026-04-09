@@ -2,6 +2,7 @@ import pytest
 import json
 import torch
 from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel, reconstruct_model
+from vllm_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
 from vllm_graph.model_wrappers import MethodWrapper
 from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM, CLIPTextModel
 from test_utils import validate_outputs
@@ -74,7 +75,7 @@ def test_diffusers_submodule_layers(model,
     print("Model eval finished!")
     # breakpoint()
     tmp_folder = f"/tmp"
-    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
+    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
     print("Model compiled!")
     IRdict = vllmgraph.get_graph_dict()
@@ -87,7 +88,7 @@ def test_diffusers_submodule_layers(model,
         else:
             new_input.append(tensor)
 
-    reconstructed_model = reconstruct_model(IRdict)
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     print("Model reconstructed!")
     
     vllm_graph_output = reconstructed_model["main"](*new_input)
@@ -112,7 +113,7 @@ def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
     print("Model eval finished!")
     # breakpoint()
     tmp_folder = f"./temp_files"
-    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder, debug = True)
+    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
     vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = {}, )
     print("Model compiled!")
     IRdict = vllmgraph.get_graph_dict()
@@ -125,7 +126,7 @@ def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
         else:
             new_input.append(tensor)
 
-    reconstructed_model = reconstruct_model(IRdict)
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     print("Model reconstructed!")
     
     vllm_graph_output = reconstructed_model["main"](*new_input)
@@ -154,7 +155,7 @@ def test_diffusers_vae(model,
     print("Model eval finished!")
     # breakpoint()
     tmp_folder = f"/tmp"
-    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder)
+    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
     vllmgraph.compile(torch_model, inputs, input_kwargs)
     print("Model compiled!")
     IRdict = vllmgraph.get_graph_dict()
@@ -167,7 +168,7 @@ def test_diffusers_vae(model,
         else:
             new_input.append(tensor)
 
-    reconstructed_model = reconstruct_model(IRdict)
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     print("Model reconstructed!")
     vllm_graph_output = reconstructed_model["main"](*new_input)
     normal_output = torch_model(*inputs, **input_kwargs)
@@ -183,13 +184,12 @@ def test_diffusers_vae(model,
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)
-    print(model.config)
     max_length = model.config.max_position_embeddings
     inputs = tokenizer(text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
     #model(**inputs)
     tmp_folder = f"./temp_files"
 
-    vllmgraph = vLLMGraph(model_name,temp_directory = tmp_folder, debug = True)
+    vllmgraph = DiffusionGraphCompiler(model_name,temp_directory = tmp_folder, debug = True)
     input_kwargs = {"return_dict" : False, "attention_mask" : inputs['attention_mask']}
     vllmgraph.compile(model, (inputs['input_ids'], ), input_kwargs)
     
@@ -198,7 +198,7 @@ def test_hf_models(model_name, text, model_class, device):
     if("compute_pooling_layer" in compiled_model_dict):
         compiled_model_dict.pop("compute_pooling_layer")
 
-    reconstructed_model = reconstruct_model(compiled_model_dict)
+    reconstructed_model = reconstruct_model(compiled_model_dict, f"{tmp_folder}/{model_name}")
     #Offloading to target device
     inputs = {key : inputs[key].to(device) for key in inputs}
     input_kwargs["attention_mask"] = input_kwargs["attention_mask"].to(device)
@@ -249,11 +249,11 @@ def test_full_diffusers_model(model,
     print("Model eval finished!")
 
     tmp_folder = f"./temp_files"
-    vllmgraph = vLLMGraph(torch_model.__class__.__name__, tmp_folder, debug = True)
+    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
     vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
     print("Model compiled!")
     IRdict = vllmgraph.get_graph_dict()
-    vllmgraph.store_graph_dict()
+    # vllmgraph.store_graph_dict()
     new_input = []
     for tensor in inputs:
         if(isinstance(tensor, tuple) or isinstance(tensor, list)):
@@ -263,7 +263,7 @@ def test_full_diffusers_model(model,
 
     del vllmgraph
     gc.collect()
-    reconstructed_model = reconstruct_model(IRdict)
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     print("Model reconstructed!")
 
     reconstructed_model = {key: model.to(device) for key, model in reconstructed_model.items()}
@@ -273,5 +273,7 @@ def test_full_diffusers_model(model,
     gc.collect()
     torch_model = torch_model.to(device)
     normal_output = torch_model(*new_input, **input_kwargs)
+    del torch_model
+    gc.collect()
     print("Outputs validated!")
     assert validate_outputs(vllm_graph_output, normal_output, atol = 1e-2), f"Test failed validation check"

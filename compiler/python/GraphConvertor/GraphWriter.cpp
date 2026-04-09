@@ -239,7 +239,7 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
     mlir::OpPrintingFlags flags;
     
     SubGraphMap resourcePathMap;
-    DenseResourceData.push_back(WeightShard(weightsPath + "/weights_" + std::to_string(shard_index) + ".pb"));
+    DenseResourceData.push_back(WeightShard(weightsPath, "weights_" + std::to_string(shard_index) + ".pb"));
    
     // Storing the float weights from the Dialect Resources Map into protobuf
     for (const auto& entry : dialectResourcesMap) {
@@ -251,7 +251,7 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
         
         if(!DenseResourceData[shard_index].isSpaceAvailable(blobData.size())){
             shard_index++;
-            DenseResourceData.push_back(WeightShard(weightsPath + "/weights_" + std::to_string(shard_index) + ".pb"));
+            DenseResourceData.push_back(WeightShard(weightsPath, "weights_" + std::to_string(shard_index) + ".pb"));
         }
        
 
@@ -266,7 +266,7 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
         values_field->Reserve(floatVector.size());
         values_field->Add(floatVector.begin(), floatVector.end());
        
-        resourcePathMap[entry.first.str()] = DenseResourceData[shard_index].getShardPath();
+        resourcePathMap[entry.first.str()] = DenseResourceData[shard_index].getShardName();
     }
 
     // SubGraphMap resourcesPathSubGraph;
@@ -274,7 +274,7 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
     //     resourcesPathSubGraph[entry.first] = entry.second;
     graph["resources_path"] = resourcePathMap;
     // WeightShard DenseWeightShard(weightsPath + "/DenseAndScalarWeights.pb");
-    graph["DenseAndScalarWeights"] = weightsPath + "/DenseAndScalarWeights.pb";//DenseWeightShard.getShardPath();
+    graph["DenseAndScalarWeights"] = "DenseAndScalarWeights.pb";//DenseWeightShard.getShardPath();
     // constData = DenseWeightShard.getWeightsData();
     // DenseResourceData.push_back(DenseWeightShard);
 

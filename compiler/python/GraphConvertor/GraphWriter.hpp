@@ -30,10 +30,11 @@ private:
     struct WeightShard {
         DenseWeights::WeightsData data;
         std::string shard_path;
+        std::string shard_name;
         size_t space_occupied = 0;
 
-        WeightShard(std::string shard_path) : 
-            shard_path(shard_path) {}
+        WeightShard(std::string directory, std::string shard_name) : 
+            shard_path(directory + "/" + shard_name), shard_name(shard_name) {}
         
         bool isSpaceAvailable(size_t requested_space){
             return (space_occupied + requested_space) < 2e+9;
@@ -41,6 +42,10 @@ private:
 
         void updateSpaceOccupied(size_t requested_space){
             space_occupied += requested_space;
+        }
+
+        std::string getShardName(){
+            return shard_name;
         }
 
         std::string getShardPath(){

@@ -25,7 +25,7 @@ class DiffusionGraphRunner:
         self.graph_dict = None
         self.weights = None
 
-        assert os.path.exists(self.artifact_directory), "Artifact directory does not exist"
+        assert os.path.exists(self.artifact_directory), f"Artifact directory {self.artifact_directory} does not exist"
 
         self.config_path = os.path.join(artifact_directory, "config.json")
 
@@ -38,6 +38,7 @@ class DiffusionGraphRunner:
 
         self.tokenizer_name = tokenizer
         self.max_length = self.config["input_token_shape"][1]
+        self.vae_scaling_factor = self.config["vae_downscaling_factor"]
 
     def load_tokenizer(self):
         return AutoTokenizer.from_pretrained(self.tokenizer_name)
@@ -55,8 +56,11 @@ class DiffusionGraphRunner:
             del model_config["compute_pooling_layer"]
         
         model_name = model_config["model_name"]
+
+        config_dir = os.path.dirname(config_path)
+
         print(f"Loading model {model_name} ...")
-        model = reconstruct_model(model_config)
+        model = reconstruct_model(model_config, config_dir)
         model = WRAPPER_MAP[model_name](model)
         return model
     
@@ -112,6 +116,6 @@ class DiffusionGraphRunner:
         text_embeddings = self.text_encoder(**input_tokens)
         sample = self.generate_sample()
         sample = self.run(sample, text_embeddings)
-        image = self.vae_decoder(sample / 0.18215)
+        image = self.vae_decoder(sample / self.vae_scaling_factor)
         return image
         

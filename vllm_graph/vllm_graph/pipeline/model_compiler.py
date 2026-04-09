@@ -15,11 +15,11 @@ class DiffusionGraphCompiler:
             self.temp_directory = f"{root_folder}/temp_files/{model_name}"
             self.weights_directory = f"{root_folder}/temp_files/{model_name}"
         else:
-            self.temp_directory = f"{temp_directory}/{model_name}"
+            self.temp_directory = temp_directory
             self.weights_directory = f"{temp_directory}/{model_name}"
         
-        if not os.path.exists(self.temp_directory):
-            os.makedirs(self.temp_directory)
+        if not os.path.exists(self.weights_directory):
+            os.makedirs(self.weights_directory)
         self.graph_compiler = GraphCompiler(self.weights_directory, debug = debug)
         self.graph_dict : dict = {}
     
@@ -90,7 +90,7 @@ class DiffusionGraphCompiler:
 
         assert len(self.graph_dict) != 0, "Model not compiled"
         buffers = {}
-        path = f"{self.temp_directory}/buffers.npz"
+        path = "buffers.npz"
         for key in self.arg_dict:
             if self.arg_dict[key]["kind"] == "buffer":
                 value = self.arg_dict[key]["value"]
@@ -100,10 +100,10 @@ class DiffusionGraphCompiler:
         if(len(buffers) != 0):
             np.savez(path, **buffers)
     
-        with open(f"{self.temp_directory}/model.json",'w') as f:
+        with open(f"{self.weights_directory}/model.json",'w') as f:
             f.write(json.dumps(self.graph_dict, indent = 2))
         
-        print(f"model.json stored in {self.temp_directory}")
+        print(f"model.json stored in {self.weights_directory}")
     
     def get_graph_dict(self):
         assert len(self.graph_dict) != 0, "Model not compiled"

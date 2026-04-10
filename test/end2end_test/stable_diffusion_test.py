@@ -1,5 +1,6 @@
 import pytest
 import torch
+import matplotlib.pyplot as plt
 from diffusers import StableDiffusionPipeline
 from vllm_graph.pipeline.pipeline_compiler import DiffusionPipelineCompiler
 from vllm_graph.pipeline.pipeline_runner import DiffusionGraphRunner
@@ -28,14 +29,14 @@ def generate_pipe(model_id,):
 ))
 def test_stable_diffusion(model_id, model_name, image_shape):
 
-    tmp_folder = "./test/examples"
+    tmp_folder = "./temp_files"
     pipeline = generate_pipe(model_id)
     compiler = DiffusionPipelineCompiler(model_name, tmp_folder, debug=False)
     compiler.compile(pipeline, image_shape)
 
 
 @pytest.mark.parametrize("model_path, model_name, device, num_inference_steps, tokenizer, prompt", (
-    ("test/examples/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, "openai/clip-vit-large-patch14", "a photo of an astronaut riding a horse"),
+    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, "openai/clip-vit-large-patch14", "a photo of an astronaut riding a horse"),
 ))
 def test_stable_diffusion_inference(model_path, model_name, device, num_inference_steps, tokenizer, prompt):
     
@@ -50,5 +51,7 @@ def test_stable_diffusion_inference(model_path, model_name, device, num_inferenc
     image = runner.generate(prompt)
     end_time = time.perf_counter()
     print(f"Time taken: {end_time - start_time}")
+
+    plt.imsave(f"{artifact_path}/output.png", image)
     
     

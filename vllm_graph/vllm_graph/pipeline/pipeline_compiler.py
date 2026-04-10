@@ -53,7 +53,9 @@ class DiffusionPipelineCompiler:
         unet = pipeline.unet
         print("Compiling UNet")
         unet_compiler = DiffusionGraphCompiler("unet", self.artifact_directory, self.debug)
-        unet_compiler.compile(unet, (dummy_latent, torch.tensor([1], dtype=torch.long), torch.randn(hidden_state_shape)), input_kwargs = {"return_dict": False})
+        batched_dummy_latent = torch.cat([dummy_latent, dummy_latent], dim=0)
+        batched_dummy_text_embeddings = torch.cat([torch.randn(hidden_state_shape)]*2, dim=0)
+        unet_compiler.compile(unet, (batched_dummy_latent, torch.tensor([1]*2, dtype=torch.long), batched_dummy_text_embeddings), input_kwargs = {"return_dict": False})
         unet_compiler.store_graph_dict()
 
         del unet_compiler

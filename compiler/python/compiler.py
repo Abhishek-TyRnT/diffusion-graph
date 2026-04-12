@@ -15,7 +15,8 @@ import re
 BACKEND_END_LEGAL_OPS = ["aten.softmax.int", "aten.native_layer_norm", 
                         "aten._softmax", "aten.dropout", 
                         "aten.addmm", "aten.native_group_norm", 
-                        "aten.silu", "aten.upsample_nearest2d"]
+                        "aten.silu", "aten.upsample_nearest2d",
+                        "aten.scaled_dot_product_attention"]
 DECOMPOSITION_OPS = [torch.ops.aten._scaled_dot_product_flash_attention_for_cpu,
                     torch.ops.aten._to_copy,
                     torch.ops.aten._unsafe_index.Tensor,

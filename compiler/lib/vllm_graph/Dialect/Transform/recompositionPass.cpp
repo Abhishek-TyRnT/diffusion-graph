@@ -226,6 +226,124 @@ bool isPatternUpsampleNearestFunc(vllm_graph::BroadCastIndexOp op, SmallVector<O
     return true;
 }
 
+bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternOpsToErase, SmallVector<Value> &inputValues){
+    
+    Value input = op.getOperand(0);
+
+
+    auto transpose2op = input.getDefiningOp<vllm_graph::TransposeOp>();
+    if(!transpose2op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(transpose2op));
+
+    input = transpose2op.getOperand(0);
+
+    auto view1Op = input.getDefiningOp<vllm_graph::ViewOp>();
+    if(!view1Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(view1Op));
+
+    input = view1Op.getOperand(0);
+
+    auto bmm1Op = input.getDefiningOp<vllm_graph::BMMOp>();
+    if(!bmm1Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(bmm1Op));
+
+    Value value = bmm1Op.getOperand(1);
+
+    auto view2Op = value.getDefiningOp<vllm_graph::ViewOp>();
+    if(!view2Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(view2Op));
+
+    value = view2Op.getOperand(0);
+
+    input = bmm1Op.getOperand(0);
+
+    auto view3Op = input.getDefiningOp<vllm_graph::ViewOp>();
+    if(!view3Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(view3Op));
+
+    input = view3Op.getOperand(0);
+
+    auto softmax_op = input.getDefiningOp<vllm_graph::SoftmaxOp>();
+    if(!softmax_op)
+        return false;
+
+    patternOpsToErase.push_back(cast<Operation*>(softmax_op));
+
+    input = softmax_op.getOperand(0);
+
+    auto view4Op = input.getDefiningOp<vllm_graph::ViewOp>();
+    if(!view4Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(view4Op));
+
+    input = view4Op.getOperand(0);
+
+    auto bmm2Op = input.getDefiningOp<vllm_graph::BMMOp>();
+    if(!bmm2Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(bmm2Op));
+
+    Value key = bmm2Op.getOperand(1);
+    Value query = bmm2Op.getOperand(0);
+
+    auto view5Op = key.getDefiningOp<vllm_graph::ViewOp>();
+    if(!view5Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(view5Op));
+
+    key = view5Op.getOperand(0);
+    auto Mul1Op = key.getDefiningOp<vllm_graph::MulOp>();
+    if(!Mul1Op)
+        return false;
+
+    patternOpsToErase.push_back(cast<Operation*>(Mul1Op));
+    
+    key = Mul1Op.getOperand(0);
+
+    auto transpose3Op = key.getDefiningOp<vllm_graph::TransposeOp>();
+    if(!transpose3Op)
+        return false;
+
+    patternOpsToErase.push_back(cast<Operation*>(transpose3Op));
+
+    key = transpose3Op.getOperand(0);
+
+    auto view6Op = query.getDefiningOp<vllm_graph::ViewOp>();
+    if(!view6Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(view6Op));
+
+    query = view6Op.getOperand(0);
+
+    auto Mul2Op = query.getDefiningOp<vllm_graph::MulOp>();
+    if(!Mul2Op)
+        return false;
+    
+    patternOpsToErase.push_back(cast<Operation*>(Mul2Op));
+
+    query = Mul2Op.getOperand(0);
+    
+    inputValues.push_back(query);
+    inputValues.push_back(key);
+    inputValues.push_back(value);
+
+    return true;
+}
+
 template<>
 LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_graph::MatmulOp op, PatternRewriter &rewriter) const{
 
@@ -429,6 +547,118 @@ LogicalResult RecomposeSimpleOps<vllm_graph::LayerNormOp>::matchAndRewrite(vllm_
     
     return success();
 }
+
+
+template<> 
+LogicalResult RecomposeSimpleOps<vllm_graph::BMMOp>::matchAndRewrite(vllm_graph::BMMOp op, PatternRewriter &rewriter) const{
+    
+    Value input = op.getOperand(0);
+    Value value = op.getOperand(1);
+
+    Value result = op.getResult();
+    Type resultType = result.getType();
+
+    Location loc = op.getLoc();
+    MLIRContext *context = op.getContext();
+
+    auto softmax_op = input.getDefiningOp<vllm_graph::SoftmaxOp>();
+    if(!softmax_op){
+        return failure();
+    }
+
+    input = softmax_op.getOperand(0);
+
+
+    auto bmm2_op = input.getDefiningOp<vllm_graph::BMMOp>();
+    if(!bmm2_op){
+        return failure();
+    }
+
+
+    Value query = bmm2_op.getOperand(0);
+    Value key = bmm2_op.getOperand(1);
+
+    auto mul1_op = query.getDefiningOp<vllm_graph::MulOp>();
+    if(!mul1_op){
+        return failure();
+    }
+
+    query = mul1_op.getOperand(0);
+
+    auto mul2_op = key.getDefiningOp<vllm_graph::MulOp>();
+    if(!mul2_op){
+        return failure();
+    }
+
+
+    key = mul2_op.getOperand(0);
+
+    auto transpose_op = key.getDefiningOp<vllm_graph::TransposeOp>();
+    if(!transpose_op){
+        return failure();
+    }
+
+
+    key = transpose_op.getOperand(0);
+
+    Value falseOp = rewriter.create<arith::ConstantOp>(loc, rewriter.getI1Type(), rewriter.getBoolAttr(0));
+    
+    Type NoneType = vllm_graph::NoneType::get(context);
+    Type f32Type = rewriter.getF32Type();
+    
+
+    Value NoneOp = rewriter.create<vllm_graph::ConstantNoneOp>(loc, NoneType);
+    Value dropout = rewriter.create<arith::ConstantOp>(loc, f32Type, rewriter.getFloatAttr(f32Type, 0.0f));
+
+    Value newResult = rewriter.replaceOpWithNewOp<vllm_graph::ScaledDotProductAttentionOp>(op, resultType, query, key, value, NoneOp, dropout, falseOp, NoneOp, falseOp);
+
+    rewriter.eraseOp(softmax_op);
+    rewriter.eraseOp(bmm2_op);
+    rewriter.eraseOp(mul2_op);
+    rewriter.eraseOp(mul1_op);
+    rewriter.eraseOp(transpose_op);
+
+    return success();
+    
+}
+
+
+template<>
+LogicalResult RecomposeSimpleOps<vllm_graph::TransposeOp>::matchAndRewrite(vllm_graph::TransposeOp op, PatternRewriter &rewriter) const{
+
+    SmallVector<Operation*> patternOpsToDrop;
+    SmallVector<Value> inputValues;
+
+    Type resultType = op.getResult().getType();
+    if(!isPatternSDPA(op, patternOpsToDrop, inputValues)){
+        return failure();
+    }
+
+    Location loc = op.getLoc();
+    MLIRContext *context = op.getContext();
+
+    Value query = inputValues[0];
+    Value key = inputValues[1];
+    Value value = inputValues[2];
+
+    Value falseOp = rewriter.create<arith::ConstantOp>(loc, rewriter.getI1Type(), rewriter.getBoolAttr(0));
+    
+    Type NoneType = vllm_graph::NoneType::get(context);
+    Type f32Type = rewriter.getF32Type();
+    
+
+    Value NoneOp = rewriter.create<vllm_graph::ConstantNoneOp>(loc, NoneType);
+    Value dropout = rewriter.create<arith::ConstantOp>(loc, f32Type, rewriter.getFloatAttr(f32Type, 0.0f));
+
+    Value newResult = rewriter.replaceOpWithNewOp<vllm_graph::ScaledDotProductAttentionOp>(op, resultType, query, key, value, NoneOp, dropout, falseOp, NoneOp, falseOp);
+
+    for(auto* DropOp : patternOpsToDrop){
+        if(!DropOp->hasSuccessors())
+            rewriter.eraseOp(DropOp);
+    }
+    
+    return success();
+}
 } //namespace
 
 
@@ -451,11 +681,14 @@ public:
         patterns.add<RecomposeSimpleOps<vllm_graph::MatmulOp>>(context);
         patterns.add<RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>>(context);
         patterns.add<RecomposeSimpleOps<vllm_graph::LayerNormOp>>(context);
+        patterns.add<RecomposeSimpleOps<vllm_graph::BMMOp>>(context);
+        patterns.add<RecomposeSimpleOps<vllm_graph::TransposeOp>>(context);
 
         GreedyRewriteConfig config;
         config.useTopDownTraversal = true;
         config.maxIterations = GreedyRewriteConfig::kNoLimit;
 
+        // llvm::outs() << getOperation() << "\n";
         if (failed(applyPatternsGreedily(getOperation(), std::move(patterns),
                                             config))) {
             return signalPassFailure();

@@ -101,6 +101,7 @@ class DiffusionGraphRunner:
     def generate_sample(self):
         return torch.randn(*self.config["latent_shape"], device=self.device)
 
+    @torch.inference_mode()
     def run(self, sample, text_embeddings, uncond_text_embeddings, guidance_scale):
 
         print("Starting denoising process")
@@ -109,14 +110,14 @@ class DiffusionGraphRunner:
         for timestep in self.stepper.timesteps:
             print(f"Denoising at timestep {timestep}")
             multi_batch_sample = torch.cat([sample, sample], dim=0)
-            batched_timestep = torch.tensor([timestep] * 2, device=self.device)
-            timestep = torch.tensor([timestep], device=self.device)
+            timestep_tensor = torch.tensor([timestep], device=self.device)
+            batched_timestep = timestep_tensor.expand(2)
             model_output = self.unet(multi_batch_sample, batched_timestep, multi_batch_text_embeddings)
 
             model_output, uncond_model_output = model_output.chunk(2, dim=0)
             model_output = uncond_model_output + guidance_scale * (model_output - uncond_model_output)
 
-            sample = self.stepper.step(model_output, timestep, sample)
+            sample = self.stepper.step(model_output, timestep_tensor, sample)
         
         print("Denoising process completed")
         return sample

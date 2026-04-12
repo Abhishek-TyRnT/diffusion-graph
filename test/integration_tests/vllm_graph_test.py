@@ -3,7 +3,7 @@ import os
 import sys
 import json
 import torch
-from vllm_graph.reconstruct import vLLMGraph, reconstruct_model
+from vllm_graph.reconstruct import reconstruct_model
 from vllm_graph.pipeline.model_compiler import DiffusionGraphCompiler
 from transformers.modeling_outputs import BaseModelOutput
 from typing import Dict, List, Optional, Tuple, Union
@@ -61,6 +61,9 @@ def validate_outputs(vllm_graph_output, regular_output) -> bool:
     [GeGeLU, (16, 32), (torch.randn(1, 32, 16),), {}],
     [UpsampleNearest2d, (2,), (torch.randn(1, 32, 16, 16),), {}],
     [Sigmoid, (), (torch.randn(1, 32, 16, 16),), {}],
+    [SDPA, (), (torch.randn(1, 256, 256), torch.randn(1, 256, 256), torch.randn(1, 256, 256)), {}],
+    [SDPA, (), (torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64)), {}],
+
      ))
 def test_graph_compiler_python_to_dict(model,
                                        model_args,
@@ -104,6 +107,9 @@ def test_graph_compiler_python_to_dict(model,
      [GeGeLU, (16, 32), (torch.randn(1, 32, 16),)],
      [UpsampleNearest2d, (2,), (torch.randn(1, 32, 16, 16),)],
      [Sigmoid, (), (torch.randn(1, 32, 16, 16),)],
+     [SDPA, (), (torch.randn(1, 256, 256), torch.randn(1, 256, 256), torch.randn(1, 256, 256))],
+     [SDPA, (), (torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64))],
+
      ))
 def test_graph_compiler_to_model(model,
                                        model_args,

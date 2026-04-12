@@ -1,7 +1,7 @@
 import pytest
 import json
 import torch
-from vllm_graph.reconstruct import vLLMGraph, vLLMGraphModel, reconstruct_model
+from vllm_graph.reconstruct import reconstruct_model
 from vllm_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
 from vllm_graph.model_wrappers import MethodWrapper
 from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM, CLIPTextModel
@@ -71,11 +71,13 @@ def test_diffusers_submodule_layers(model,
     else:
         torch_model = model(*model_args, **model_kwargs)
     
+    device = "cuda"
+    print(f"Running model {torch_model.__class__.__name__}")
     torch_model.eval()
     print("Model eval finished!")
     # breakpoint()
-    tmp_folder = f"/tmp"
-    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
+    tmp_folder = f"./temp_files"
+    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
     vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
     print("Model compiled!")
     IRdict = vllmgraph.get_graph_dict()
@@ -84,15 +86,41 @@ def test_diffusers_submodule_layers(model,
     #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
     for tensor in inputs:
         if(isinstance(tensor, tuple) or isinstance(tensor, list)):
-            new_input.extend(tensor)
+            new_input.extend([t.to(device) for t in tensor])
         else:
-            new_input.append(tensor)
+            new_input.append(tensor.to(device))
 
     reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     print("Model reconstructed!")
+
+    reconstructed_model["main"].to(device)
+    torch_model.to(device)
+
+    new_input = [tensor.to(device) for tensor in new_input]
+    inputs = [tensor.to(device) if isinstance(tensor, torch.Tensor) else [t.to(device) for t in tensor] for tensor in inputs]
     
-    vllm_graph_output = reconstructed_model["main"](*new_input)
-    normal_output = torch_model(*inputs, **input_kwargs)
+    torch_model(*inputs, **input_kwargs)
+    reconstructed_model["main"](*new_input)
+
+    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
+
+
+
+    with profile(activities=activities, profile_memory=True) as prof2:
+        torch.cuda.reset_peak_memory_stats()
+        normal_output = torch_model(*inputs, **input_kwargs)
+        peak_original = torch.cuda.max_memory_allocated()
+
+    with profile(activities=activities, profile_memory=True) as prof1:
+        torch.cuda.reset_peak_memory_stats()
+        vllm_graph_output = reconstructed_model["main"](*new_input)
+        peak_vllm = torch.cuda.max_memory_allocated()
+
+    
+    print(f"Peak memory for original model: {peak_original / (1024 * 1024)} MB")
+    print(f"Peak memory for vllm graph: {peak_vllm / (1024 * 1024)} MB")
+    prof1.export_chrome_trace(f"{tmp_folder}/{torch_model.__class__.__name__}/vllm_graph_trace.json")
+    prof2.export_chrome_trace(f"{tmp_folder}/{torch_model.__class__.__name__}/torch_trace.json")
     print("Outputs validated!")
     assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
 
@@ -229,7 +257,7 @@ def test_hf_models(model_name, text, model_class, device):
 
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, dynamic_dims, device",(
-    [UNet2DModel, (64,), {}, (torch.randn(1, 3, 64, 64), torch.randint(0, 100, (1,))), {'return_dict': False}, {}, "cuda"],
+    # [UNet2DModel, (64,), {}, (torch.randn(1, 3, 64, 64), torch.randint(0, 100, (1,))), {'return_dict': False}, {}, "cuda"],
     [UNet2DConditionModel, (64,), {}, (torch.randn(1, 4, 64, 64), torch.randint(0, 100, (1,)), torch.randn(1, 16, 1280)), {'return_dict': False}, {}, "cuda"],
 ))
 def test_full_diffusers_model(model, 

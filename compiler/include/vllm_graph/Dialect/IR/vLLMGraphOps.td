@@ -78,7 +78,7 @@ def vllm_ListOp: vLLMGraph_Op<"vllm.list_op", [
   let results = (outs
     Torch_ListType:$result
   );
-
+  
   let assemblyFormat = [{
     $elements attr-dict `:` functional-type(operands, results)
   }];

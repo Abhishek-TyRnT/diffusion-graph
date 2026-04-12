@@ -291,3 +291,12 @@ class CLIPPoolingLayer(Module):
         ]
 
         return x, pooled_output
+
+class SDPA(Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, query, key, value):
+        return torch.nn.functional.scaled_dot_product_attention(
+            query, key, value
+        )

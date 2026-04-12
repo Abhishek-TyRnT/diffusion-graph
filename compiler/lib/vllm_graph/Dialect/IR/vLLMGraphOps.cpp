@@ -185,3 +185,29 @@ void BroadCastOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
   
   patterns.add<EliminateUnusedBroadCast>(context);
 }
+
+void ViewOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
+                                       MLIRContext *context) {
+  // Pattern to eliminate ViewOp if its result has no uses
+  struct EliminateRedundantView : public OpRewritePattern<ViewOp> {
+    using OpRewritePattern<ViewOp>::OpRewritePattern;
+    
+    LogicalResult matchAndRewrite(ViewOp op,
+                                  PatternRewriter &rewriter) const override {
+      
+        Value input = op.getOperand(0);
+        Value result = op.getResult();
+
+        if(input.getType() == result.getType()){
+            result.replaceAllUsesWith(input);
+            rewriter.eraseOp(op);
+            return success();
+        }
+
+        return failure();
+        
+    }
+  };  
+  
+  patterns.add<EliminateRedundantView>(context);
+}

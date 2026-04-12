@@ -168,12 +168,12 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             attn_func = OP_MAP.get(node_type, None)
             input_args = []
             input_kwargs = {}
-            kwarg_id = [ "scale", "enable_gqa"]
+            kwarg_id = [ "scale"]
             i = 0
             for inp in graph_dict[node]['input_nodes'][:6]:
                 input_args.append(graph_nodes[inp])
             
-            for inp in graph_dict[node]['input_nodes'][6:]:
+            for inp in graph_dict[node]['input_nodes'][6:7]:
                 input_kwargs[kwarg_id[i]] = graph_nodes[inp]
                 i+=1
             graph_nodes[node] = graph.call_function(attn_func, args=tuple(input_args), kwargs = input_kwargs)

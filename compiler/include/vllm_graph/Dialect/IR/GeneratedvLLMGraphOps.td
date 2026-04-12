@@ -249,6 +249,9 @@ def vllm_ViewOp : vLLMGraph_Op<"vllm.view", [
     AnyTorchOptionalTensorType:$result
   );
   let hasCustomAssemblyFormat = 1;
+
+  let hasCanonicalizer = 1;
+  
   let extraClassDefinition = [{
     ParseResult ViewOp::parse(OpAsmParser &parser, OperationState &result) {
       return parseDefaultvLLMGraphOp(parser, result, 2, 1);

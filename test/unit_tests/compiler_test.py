@@ -136,6 +136,8 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [GeGeLU, (16, 32), (torch.randn(1, 32, 16),)],
      [UpsampleNearest2d, (2,), (torch.randn(1, 32, 16, 16),)],
      [Sigmoid, (), (torch.randn(1, 32, 16, 16),)],
+     [SDPA, (), (torch.randn(1, 64, 64), torch.randn(1, 64, 64), torch.randn(1, 64, 64))],
+     [SDPA, (), (torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64))],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,
@@ -151,7 +153,8 @@ def test_vllm_graph_compiler_from_models(model,
                                 *inputs, 
                                 output_type="torch", 
                                 backend_legal_ops=backend_legal_ops, 
-                                decomposition_table = get_decompositions(DECOMPOSITION_OPS))
+                                decomposition_table = get_decompositions(DECOMPOSITION_OPS),
+                                enable_graph_printing = True)
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
@@ -190,7 +193,7 @@ def test_vllm_graph_compiler_partioning(model,
                                 *inputs, 
                                 output_type="torch", 
                                 backend_legal_ops=backend_legal_ops, 
-                                decomposition_table = get_decompositions(DECOMPOSITION_OPS))
+                                decomposition_table = get_decompositions(DECOMPOSITION_OPS),)
 
     filename = f"./temp_files/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
@@ -241,13 +244,16 @@ def test_diffusion_graph_submodules(model,
     torch_model(*inputs)
     dynamo_model = torch.export.export(torch_model, inputs, input_kwargs, dynamic_shapes = dynamic_dims)
 
+    print(dynamo_model.graph_module.graph)
+    # print(get_decompositions(DECOMPOSITION_OPS))
+    # print(dynamo_model.run_decompositions())
     torchIR = export_and_import(dynamo_model, 
                                 *inputs, 
                                 output_type="torch", 
                                 backend_legal_ops=backend_legal_ops, 
                                 decomposition_table = get_decompositions(DECOMPOSITION_OPS),
                                 enable_ir_printing = False,
-                                enable_graph_printing = False)
+                                enable_graph_printing = True)
 
     filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:

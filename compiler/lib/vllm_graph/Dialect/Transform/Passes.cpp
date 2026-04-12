@@ -16,7 +16,9 @@ void mlir::vllm_graph::createTorchTovLLMGraphPipeline(PassManager &pm){
     mlir::OpPassManager &FuncOpPM = pm.nest<mlir::func::FuncOp>();
     FuncOpPM.addPass(createTorchTovLLMGraph());
 
-    pm.addPass(createCanonicalizerPass());
+    // pm.addPass(createCanonicalizerPass());
+    FuncOpPM.addPass(createCanonicalizerPass());
+
     FuncOpPM.addPass(createRecomposeSimpleOpsToComplexOps());
     FuncOpPM.addPass(createStaticOpMaterializationPass());
 

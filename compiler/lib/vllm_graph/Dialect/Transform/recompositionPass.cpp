@@ -489,18 +489,23 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>::matchAndRewrite(
     llvm::StringRef str("nearest");
     auto stringAttr = rewriter.getStringAttr(str);
     auto constantStringOp = rewriter.create<vllm_graph::ConstantStringOp>(loc, stringAttr);
-    
-    ArrayRef<int64_t> resizeDimsSize(resizeDims.data(), 2);
-    auto resizeDimsType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
-    auto DenseInputType = RankedTensorType::get({2}, rewriter.getIntegerType(64));
-    auto denseAttr = DenseElementsAttr::get(DenseInputType, resizeDimsSize);
-    auto resizeDimsTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(loc, resizeDimsType, denseAttr);
 
     Value Input = op.getOperand(0);
     Value result = op.getResult();
     Type resultType = result.getType();
+    Type InputType = Input.getType();
+
+    auto inputVllmType = cast<vllm_graph::ValueTensorType>(InputType);
+    auto resultVllmType = cast<vllm_graph::ValueTensorType>(resultType);
+
+    auto inputShape = inputVllmType.getSizes();
+    auto resultShape = resultVllmType.getSizes();
+
+    float scale_factor = (float)resultShape[2] / (float)inputShape[2];
+
+    auto ScaleFactorConstOp = rewriter.create<arith::ConstantOp>(loc, rewriter.getF32Type(), rewriter.getFloatAttr(rewriter.getF32Type(), scale_factor));
     
-    rewriter.replaceOpWithNewOp<vllm_graph::UpsampleOp>(op, resultType, Input, resizeDimsTupleOp, constantStringOp);
+    rewriter.replaceOpWithNewOp<vllm_graph::UpsampleOp>(op, resultType, Input, ScaleFactorConstOp, constantStringOp);
 
     for ( Operation* op : patternOpsToRecompose){
         if(!op->hasSuccessors())

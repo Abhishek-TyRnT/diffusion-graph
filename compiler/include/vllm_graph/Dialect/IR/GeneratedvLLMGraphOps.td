@@ -1008,10 +1008,10 @@ def vllm_UpsampleOp : vLLMGraph_Op<"vllm.upsample", [
     vLLMHasValueSemantics,
     vLLMReadOnly
   ]> {
-    let summary = "Generated op for `vllm::upsample : (Tensor, tuple[int], string) -> (Tensor)`";
+    let summary = "Generated op for `vllm::upsample : (Tensor, scalar, string) -> (Tensor)`";
     let arguments = (ins
       AnyTorchTensorType:$input,
-      Torch_TupleType:$size,
+      ScalarType:$scale_factor,
       Torch_StringType:$interpolateStyle
     );
     let results = (outs
@@ -1071,6 +1071,29 @@ def vllm_LessThanOp : vLLMGraph_Op<"vllm.less_than", [
       }
       void LessThanOp::print(OpAsmPrinter &printer) {
         printDefaultvLLMGraphOp(printer, *this, 2, 1);
+      }
+    }];
+}
+
+def vllm_ContiguousOp : vLLMGraph_Op<"vllm.contiguous", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::contiguous : (Tensor) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult ContiguousOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+      }
+      void ContiguousOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 1, 1);
       }
     }];
 }

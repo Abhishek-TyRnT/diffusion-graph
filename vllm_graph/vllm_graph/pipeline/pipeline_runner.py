@@ -83,8 +83,8 @@ class DiffusionGraphRunner:
         stepper_class = StepperMap[diffusers_scheduler_name]
         self.stepper = stepper_class(diffusers_scheduler, self.num_inference_steps)
 
-        self.vae_decoder.to("cpu")
-        self.text_encoder.to("cpu")
+        self.vae_decoder.to(self.device)
+        self.text_encoder.to(self.device)
         self.unet.to(self.device)
         self.stepper.to(self.device)
 
@@ -94,18 +94,19 @@ class DiffusionGraphRunner:
                         truncation=True, 
                         max_length=self.max_length, 
                         return_tensors="pt")
-        # self.empty_input_tokens = {k: v.to(self.device) for k, v in self.empty_input_tokens.items()}
+        self.empty_input_tokens = {k: v.to(self.device) for k, v in self.empty_input_tokens.items()}
 
         print("Pipeline constructed successfully")
 
     def generate_sample(self):
-        return torch.randn(*self.config["latent_shape"], device=self.device)
+        x = torch.randn(*self.config["latent_shape"], device=self.device)
+        return x
 
     @torch.inference_mode()
     def run(self, sample, text_embeddings, uncond_text_embeddings, guidance_scale):
 
         print("Starting denoising process")
-        multi_batch_text_embeddings = torch.cat([text_embeddings, uncond_text_embeddings], dim=0)
+        multi_batch_text_embeddings = torch.cat([uncond_text_embeddings, text_embeddings], dim=0)
         #TODO: Convert this function into async generator
         for timestep in self.stepper.timesteps:
             print(f"Denoising at timestep {timestep}")
@@ -114,7 +115,7 @@ class DiffusionGraphRunner:
             batched_timestep = timestep_tensor.expand(2)
             model_output = self.unet(multi_batch_sample, batched_timestep, multi_batch_text_embeddings)
 
-            model_output, uncond_model_output = model_output.chunk(2, dim=0)
+            uncond_model_output, model_output = model_output.chunk(2, dim=0)
             model_output = uncond_model_output + guidance_scale * (model_output - uncond_model_output)
 
             sample = self.stepper.step(model_output, timestep_tensor, sample)
@@ -129,7 +130,7 @@ class DiffusionGraphRunner:
                         truncation=True, 
                         max_length=self.max_length, 
                         return_tensors="pt")
-        # input_tokens = {k: v.to(self.device) for k, v in input_tokens.items()}
+        input_tokens = {k: v.to(self.device) for k, v in input_tokens.items()}
         text_embeddings = self.text_encoder(**input_tokens)
         uncond_text_embeddings = self.text_encoder(**self.empty_input_tokens)
 
@@ -137,11 +138,12 @@ class DiffusionGraphRunner:
         uncond_text_embeddings = uncond_text_embeddings.to(self.device)
         sample = self.generate_sample()
         sample = self.run(sample, text_embeddings, uncond_text_embeddings, guidance_scale)
-        sample = sample.to("cpu")
+        # sample = sample.to("cpu")
         image = self.vae_decoder(sample / self.vae_scaling_factor)
-        image = image + 1
+        image = (image *0.5 + 0.5)
         image = image.clip(0, 1)
         image = image[0]
         image = image.permute(1 ,2 , 0)
+        image = image.cpu().numpy()
         return image
         

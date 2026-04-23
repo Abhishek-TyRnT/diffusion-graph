@@ -207,11 +207,11 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             i = 0
             input_kwargs = {}
             input_args = []
-            kwarg_id = ["mode"]
-            for inp in graph_dict[node]['input_nodes'][:2]:
+            kwarg_id = ["scale_factor","mode"]
+            for inp in graph_dict[node]['input_nodes'][:1]:
                 input_args.append(graph_nodes[inp])
 
-            for inp in graph_dict[node]['input_nodes'][2:]:
+            for inp in graph_dict[node]['input_nodes'][1:]:
                 input_kwargs[kwarg_id[i]] = graph_nodes[inp]
                 i+=1
 

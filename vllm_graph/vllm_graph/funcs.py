@@ -23,4 +23,7 @@ def index_with_tensors_broadcast(x: torch.Tensor, indices: list[torch.Tensor]):
     assert len(indices) == x.ndim, "Number of indices must match number of dimensions"
     indices = torch.broadcast_tensors(*indices)
     return x[tuple(indices)]
+
+def get_contiguous(x: torch.Tensor):
+    return x.contiguous()
     

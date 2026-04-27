@@ -300,3 +300,27 @@ class SDPA(Module):
         return torch.nn.functional.scaled_dot_product_attention(
             query, key, value
         )
+
+class PermuteLayerNorm(Module):
+    def __init__(self, permute_shape, normalized_shape,):
+        super().__init__()
+        self.permute_shape = permute_shape
+        self.normalized_shape = normalized_shape
+        self.layer_norm = nn.LayerNorm(normalized_shape, bias=True, elementwise_affine=True)
+    
+    def forward(self, x):
+        x = torch.permute(x, self.permute_shape)
+        x = x.view(self.normalized_shape)
+        x = self.layer_norm(x)
+        return x
+
+class PermuteConv2D(Module):
+    def __init__(self, permute_shape, in_channels, out_channels, kernel_size = (3, 3), stride = (1, 1), padding = (1, 1)):
+        super().__init__()
+        self.permute_shape = permute_shape
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+    
+    def forward(self, x):
+        x = torch.permute(x, self.permute_shape)
+        x = self.conv(x)
+        return x

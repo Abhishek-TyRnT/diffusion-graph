@@ -54,4 +54,14 @@ def vLLMFunctionPartitioningPass : Pass<"function-partioning-pass", "ModuleOp"> 
     let constructor = "mlir::vllm_graph::createvLLMFunctionPartitionPass()";
 }
 
+def ContiguousInsertionPass : Pass<"contiguous-insertion-pass", "func::FuncOp"> {
+    let summary = "This pass inserts contiguous operations after ops that fragment or stride memory.";
+    let description = [{
+        This pass identifies operations that fragment or stride memory and inserts contiguous operations after them.
+        This is done to ensure optimal kernel dispatching.
+    }];
+
+    let constructor = "mlir::vllm_graph::createContiguousInsertionPass()";
+}
+
 #endif //VLLM_GRAPH_TRANSFORM_PASSES_H_

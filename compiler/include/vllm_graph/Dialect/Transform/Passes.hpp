@@ -21,6 +21,7 @@ std::unique_ptr<OperationPass<func::FuncOp>> createStaticOpMaterializationPass()
 
 std::unique_ptr<OperationPass<ModuleOp>> createvLLMFunctionPartitionPass();
 
+std::unique_ptr<OperationPass<func::FuncOp>> createContiguousInsertionPass();
 
 void createTorchTovLLMGraphPipeline(PassManager &pm);
 

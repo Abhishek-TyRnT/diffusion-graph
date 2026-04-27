@@ -21,7 +21,7 @@ void mlir::vllm_graph::createTorchTovLLMGraphPipeline(PassManager &pm){
 
     FuncOpPM.addPass(createRecomposeSimpleOpsToComplexOps());
     FuncOpPM.addPass(createStaticOpMaterializationPass());
-
+    FuncOpPM.addPass(createContiguousInsertionPass());
     pm.addPass(createvLLMFunctionPartitionPass());
     pm.addPass(createCanonicalizerPass());
 

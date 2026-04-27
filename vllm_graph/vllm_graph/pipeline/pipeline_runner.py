@@ -7,6 +7,7 @@ from vllm_graph.steppers.stepper import PNDMStepper
 from transformers import CLIPTokenizer
 from torch import fft
 import numpy as np
+import math
 
 from diffusers import schedulers as diffusers_schedulers
 
@@ -158,11 +159,13 @@ class DiffusionGraphRunner:
 
         print("Starting denoising process")
         multi_batch_text_embeddings = torch.cat([uncond_text_embeddings, text_embeddings], dim=0)
+        multi_batch_text_embeddings = multi_batch_text_embeddings.contiguous()
         stats_map = {}
         #TODO: Convert this function into async generator
         for timestep in self.stepper.timesteps:
             print(f"Denoising at timestep {timestep}")
             multi_batch_sample = torch.cat([sample, sample], dim=0)
+            multi_batch_sample = multi_batch_sample.contiguous()
             timestep_tensor = torch.tensor([timestep], device=self.device)
             batched_timestep = timestep_tensor.expand(2)
             model_output = self.unet(multi_batch_sample, batched_timestep, multi_batch_text_embeddings)

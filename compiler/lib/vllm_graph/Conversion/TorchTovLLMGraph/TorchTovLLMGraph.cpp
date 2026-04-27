@@ -1191,17 +1191,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPermuteOp>::matchAndRewrite(
         const TypeConverter *convertor = getTypeConverter();
         Type resultType = convertor->convertType(op.getResult().getType());
 
-        auto PermuteOp = rewriter.create<vllm_graph::PermuteOp>(loc, resultType, input, shape);
-
-        //For now to force determinism of the kernel dispatching, contiguous is added after permute
-        //This is not the optimal way to handle this, but it works for now
-        //Need to run proper analysis when specifically to call the contiguous
-
-        auto newResult = rewriter.create<vllm_graph::ContiguousOp>(loc, resultType, PermuteOp);
-        
-        result.replaceAllUsesWith(newResult);
-        rewriter.eraseOp(cast<Operation*>(op));
-        
+        auto PermuteOp = rewriter.replaceOpWithNewOp<vllm_graph::PermuteOp>(op, resultType, input, shape);
 
         return success();
         

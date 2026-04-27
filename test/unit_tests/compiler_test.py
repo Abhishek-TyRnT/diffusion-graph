@@ -138,6 +138,8 @@ def test_vllm_graph_compiler_passes_from_models(model,
      [Sigmoid, (), (torch.randn(1, 32, 16, 16),)],
      [SDPA, (), (torch.randn(1, 64, 64), torch.randn(1, 64, 64), torch.randn(1, 64, 64))],
      [SDPA, (), (torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64))],
+    [PermuteLayerNorm, ((0, 2, 3, 1), (2, 16, 8)), (torch.randn(2, 8, 4, 4),)],
+    [PermuteConv2D, ((0, 3, 1, 2), 3, 16, 3, 1, 1), (torch.randn(2, 4, 4, 3),)],
      ))
 def test_vllm_graph_compiler_from_models(model,
                                         model_args,

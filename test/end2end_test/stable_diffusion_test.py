@@ -7,7 +7,114 @@ from vllm_graph.pipeline.pipeline_runner import DiffusionGraphRunner
 import os
 import time
 
+
+
+def plot_timestep_stats(stats_map: dict, save_path: str) -> None:
+    """Plot per-timestep statistics and save the figure to *save_path*.
+
+    Args:
+        stats_map: A dictionary whose keys are timestep values (numeric) and
+            whose values are dictionaries containing the keys:
+                - ``"mean"``     – mean of the distribution at that timestep
+                - ``"std"``      – standard deviation
+                - ``"kurtosis"`` – kurtosis
+                - ``"kl"``       – KL divergence
+        save_path: Absolute or relative file path (including filename and
+            extension, e.g. ``"plots/stats.png"``) where the figure will be
+            saved.  Parent directories are created automatically if they do
+            not already exist.
+    """
+    # Sort timesteps so the x-axis is ordered.
+    timesteps = sorted(stats_map.keys(), reverse=True)
+
+    means     = [stats_map[t]["mean"]     for t in timesteps]
+    stds      = [stats_map[t]["std"]      for t in timesteps]
+    kurtoses  = [stats_map[t]["kurtosis"] for t in timesteps]
+    kls       = [stats_map[t]["kl"]       for t in timesteps]
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle("Per-Timestep Statistics", fontsize=16, fontweight="bold")
+
+    plot_configs = [
+        (axes[0, 0], means,    "Mean",     "tab:blue"),
+        (axes[0, 1], stds,     "Std Dev",  "tab:orange"),
+        (axes[1, 0], kurtoses, "Kurtosis", "tab:green"),
+        (axes[1, 1], kls,      "KL Divergence", "tab:red"),
+    ]
+
+    for ax, values, title, color in plot_configs:
+        ax.plot(timesteps, values, marker="o", linewidth=2,
+                markersize=4, color=color)
+        ax.set_title(title, fontsize=13, fontweight="bold")
+        ax.set_xlabel("Timestep", fontsize=11)
+        ax.set_ylabel(title, fontsize=11)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.tick_params(axis="both", labelsize=10)
+
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+
+    # Ensure the parent directory exists.
+    parent_dir = os.path.dirname(save_path)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Stats plot saved to: {save_path}")
+
+def plot_timestep_freq_stats(stats_map: dict, save_path: str) -> None:
+    """Plot per-timestep statistics and save the figure to *save_path*.
+
+    Args:
+        stats_map: A dictionary whose keys are timestep values (numeric) and
+            whose values are dictionaries containing the keys:
+                - ``"mean"``     – mean of the distribution at that timestep
+                - ``"std"``      – standard deviation
+                - ``"kurtosis"`` – kurtosis
+                - ``"kl"``       – KL divergence
+        save_path: Absolute or relative file path (including filename and
+            extension, e.g. ``"plots/stats.png"``) where the figure will be
+            saved.  Parent directories are created automatically if they do
+            not already exist.
+    """
+    # Sort timesteps so the x-axis is ordered.
+    timesteps = sorted(stats_map.keys(), reverse=True)
+
+    energy     = [stats_map[t]["energy"]     for t in timesteps]
+    flatness      = [stats_map[t]["flatness"]      for t in timesteps]
+    hf_ratio  = [stats_map[t]["hf_ratio"] for t in timesteps]
+
+    fig, axes = plt.subplots(1, 3, figsize=(14, 10))
+    fig.suptitle("Per-Timestep Statistics", fontsize=16, fontweight="bold")
+
+    plot_configs = [
+        (axes[0], energy,    "Energy",     "tab:blue"),
+        (axes[1], flatness,  "Flatness",  "tab:orange"),
+        (axes[2], hf_ratio,  "HF Ratio", "tab:green"),
+    ]
+
+    for ax, values, title, color in plot_configs:
+        ax.plot(timesteps, values, marker="o", linewidth=2,
+                markersize=4, color=color)
+        ax.set_title(title, fontsize=13, fontweight="bold")
+        ax.set_xlabel("Timestep", fontsize=11)
+        ax.set_ylabel(title, fontsize=11)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.tick_params(axis="both", labelsize=10)
+
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+
+    # Ensure the parent directory exists.
+    parent_dir = os.path.dirname(save_path)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Stats plot saved to: {save_path}")
+
 def generate_pipe(model_id,):
+
     
     # Check if CUDA is available, otherwise use CPU    
     print(f"Loading model {model_id}...")
@@ -36,7 +143,7 @@ def test_stable_diffusion(model_id, model_name, image_shape):
 
 
 @pytest.mark.parametrize("model_path, model_name, device, num_inference_steps, tokenizer, prompt", (
-    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, "openai/clip-vit-large-patch14", "a photo of an astronaut riding a horse"),
+    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, "openai/clip-vit-large-patch14", "an astronaut riding a horse"),
 ))
 def test_stable_diffusion_inference(model_path, model_name, device, num_inference_steps, tokenizer, prompt):
     
@@ -48,10 +155,12 @@ def test_stable_diffusion_inference(model_path, model_name, device, num_inferenc
     runner.load_pipeline()
 
     start_time = time.perf_counter()
-    image = runner.generate(prompt)
+    image, stats_map = runner.generate(prompt, guidance_scale=7.5)
     end_time = time.perf_counter()
     print(f"Time taken: {end_time - start_time}")
 
     plt.imsave(f"{artifact_path}/output.png", image)
+    plot_timestep_stats(stats_map, f"{artifact_path}/stats.png")
+    plot_timestep_freq_stats(stats_map, f"{artifact_path}/freq_stats.png")
     
     

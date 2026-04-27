@@ -4,7 +4,7 @@ import torch
 from vllm_graph.reconstruct import reconstruct_model
 from vllm_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
 from vllm_graph.model_wrappers import MethodWrapper
-from transformers import AutoTokenizer, AlbertModel, AlbertForMaskedLM, CLIPTextModel
+from transformers import AutoTokenizer, CLIPTextModel
 from test_utils import validate_outputs
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.attention_processor import Attention
@@ -36,8 +36,6 @@ from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 
 from torch.export import Dim
 import gc
-
-
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, dynamic_dims",(
     [TimestepEmbedding, (16, 32), {}, (torch.randn(1, 32, 16), ), {}, {}],
@@ -72,6 +70,8 @@ def test_diffusers_submodule_layers(model,
         torch_model = model(*model_args, **model_kwargs)
     
     device = "cuda"
+    torch.backends.cudnn.deterministic = True
+
     print(f"Running model {torch_model.__class__.__name__}")
     torch_model.eval()
     print("Model eval finished!")
@@ -102,9 +102,9 @@ def test_diffusers_submodule_layers(model,
     torch_model(*inputs, **input_kwargs)
     reconstructed_model["main"](*new_input)
 
+    # print(reconstructed_model["main"].print_readable())
+
     activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
-
-
 
     with profile(activities=activities, profile_memory=True) as prof2:
         torch.cuda.reset_peak_memory_stats()
@@ -122,7 +122,7 @@ def test_diffusers_submodule_layers(model,
     prof1.export_chrome_trace(f"{tmp_folder}/{torch_model.__class__.__name__}/vllm_graph_trace.json")
     prof2.export_chrome_trace(f"{tmp_folder}/{torch_model.__class__.__name__}/torch_trace.json")
     print("Outputs validated!")
-    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+    assert validate_outputs(vllm_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs",(
         (CLIPTextEmbeddings, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)),), {}),
@@ -198,22 +198,30 @@ def test_diffusers_vae(model,
 
     reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     print("Model reconstructed!")
+    device = "cuda"
+    reconstructed_model["main"].to(device)
+    torch_model.to(device)
+
+    new_input = [tensor.to(device) for tensor in new_input]
+    inputs = [tensor.to(device) if isinstance(tensor, torch.Tensor) else [t.to(device) for t in tensor] for tensor in inputs]
+
     vllm_graph_output = reconstructed_model["main"](*new_input)
     normal_output = torch_model(*inputs, **input_kwargs)
     print("Outputs validated!")
-    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+    assert validate_outputs(vllm_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
 
 @pytest.mark.parametrize("model_name, text, model_class, device",
     (
     # pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda", marks = pytest.mark.xfail()),
     # pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda", marks = pytest.mark.xfail()),
     ["openai/clip-vit-large-patch14", "Hello, my dog is cute", CLIPTextModel, "cuda"],
+    ["openai/clip-vit-large-patch14", "", CLIPTextModel, "cuda"],
     ))
 def test_hf_models(model_name, text, model_class, device):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = model_class.from_pretrained(model_name, attn_implementation = None)
     max_length = model.config.max_position_embeddings
-    inputs = tokenizer(text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
+    inputs = tokenizer(text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt", return_attention_mask = True)
     #model(**inputs)
     tmp_folder = f"./temp_files"
 
@@ -253,12 +261,12 @@ def test_hf_models(model_name, text, model_class, device):
 
     prof1.export_chrome_trace("vllm_graph_trace.json")
 
-    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+    assert validate_outputs(vllm_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
 
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, dynamic_dims, device",(
     # [UNet2DModel, (64,), {}, (torch.randn(1, 3, 64, 64), torch.randint(0, 100, (1,))), {'return_dict': False}, {}, "cuda"],
-    [UNet2DConditionModel, (64,), {}, (torch.randn(1, 4, 64, 64), torch.randint(0, 100, (1,)), torch.randn(1, 16, 1280)), {'return_dict': False}, {}, "cuda"],
+    [UNet2DConditionModel, (64,), {"cross_attention_dim" : 768}, (torch.randn(2, 4, 64, 64), torch.randint(0, 100, (2,)), torch.randn(2, 77, 768)), {'return_dict': False}, {}, "cuda"],
 ))
 def test_full_diffusers_model(model, 
                     model_args, 
@@ -274,6 +282,7 @@ def test_full_diffusers_model(model,
         torch_model = model(*model_args, **model_kwargs)
     
     torch_model.eval()
+    model_name = torch_model.__class__.__name__
     print("Model eval finished!")
 
     tmp_folder = f"./temp_files"
@@ -296,12 +305,24 @@ def test_full_diffusers_model(model,
 
     reconstructed_model = {key: model.to(device) for key, model in reconstructed_model.items()}
 
-    vllm_graph_output = reconstructed_model["main"](*new_input)
-    del reconstructed_model
-    gc.collect()
-    torch_model = torch_model.to(device)
-    normal_output = torch_model(*new_input, **input_kwargs)
+    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
+    with torch.no_grad():
+        with profile(activities=activities, profile_memory=True) as prof1:
+
+            vllm_graph_output = reconstructed_model["main"](*new_input)
+
+        del reconstructed_model["main"]
+        torch.cuda.empty_cache()
+        gc.collect()
+        
+        torch_model = torch_model.to(device)
+        with torch.no_grad():
+            with profile(activities=activities, profile_memory=True) as prof2:
+                normal_output = torch_model(*new_input, **input_kwargs)
     del torch_model
     gc.collect()
+    prof1.export_chrome_trace(f"{tmp_folder}/{model_name}/diffusion_graph_trace.json")
+    prof2.export_chrome_trace(f"{tmp_folder}/{model_name}/torch_trace.json")
+    # breakpoint()
     print("Outputs validated!")
-    assert validate_outputs(vllm_graph_output, normal_output, atol = 1e-2), f"Test failed validation check"
+    assert validate_outputs(vllm_graph_output, normal_output[0], atol = 1e-5), f"Test failed validation check"

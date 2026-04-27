@@ -5,6 +5,8 @@ from vllm_graph.reconstruct import reconstruct_model
 from vllm_graph.model_wrappers import VaeEncoderWrapper, VaeDecoderWrapper, CLIPWrapper, UNetWrapper
 from vllm_graph.steppers.stepper import PNDMStepper
 from transformers import CLIPTokenizer
+from torch import fft
+import numpy as np
 
 from diffusers import schedulers as diffusers_schedulers
 
@@ -79,14 +81,16 @@ class DiffusionGraphRunner:
         diffusers_scheduler_name = stepper_config["_class_name"]
         diffusers_scheduler_class = getattr(diffusers_schedulers, diffusers_scheduler_name)
         diffusers_scheduler = diffusers_scheduler_class.from_config(stepper_config)
+        diffusers_scheduler.set_timesteps(self.num_inference_steps, device=self.device)
+        # diffusers_scheduler.to(self.device)
 
-        stepper_class = StepperMap[diffusers_scheduler_name]
-        self.stepper = stepper_class(diffusers_scheduler, self.num_inference_steps)
+        self.stepper = diffusers_scheduler
+        # stepper_class = StepperMap[diffusers_scheduler_name]
+        # self.stepper = stepper_class(diffusers_scheduler, self.num_inference_steps)
 
         self.vae_decoder.to(self.device)
         self.text_encoder.to(self.device)
         self.unet.to(self.device)
-        self.stepper.to(self.device)
 
         self.empty_input_tokens = self.tokenizer("", 
                         return_attention_mask=True, 
@@ -99,14 +103,62 @@ class DiffusionGraphRunner:
         print("Pipeline constructed successfully")
 
     def generate_sample(self):
-        x = torch.randn(*self.config["latent_shape"], device=self.device)
+        x = torch.randn(*self.config["latent_shape"], device=self.device) * self.stepper.init_noise_sigma
         return x
+
+    def stats(self, x):
+        x = x.float().view(-1)
+
+        mean = x.mean()
+        var = x.var(unbiased=False)
+        std = var.sqrt()
+
+        kurt = ((x - mean)**4).mean() / (var**2 + 1e-8)
+
+        kl = 0.5 * (mean**2 + var - torch.log(var + 1e-8) - 1)
+
+        return {
+            "mean": mean.item(),
+            "std": std.item(),
+            "kurtosis": kurt.item(),
+            "kl": kl.item(),
+        }
+    
+    def fft_stats(self, eps):
+            x = eps.float()
+
+            # ---- FFT ----
+            X = fft.fft2(x, norm="ortho")
+            power = (X.real**2 + X.imag**2)  # (B, C, H, W)
+
+            # ---- Basic energy ----
+            total_energy = power.mean().item()
+
+            # ---- Spectral flatness ----
+            power_flat = power.flatten(1) + 1e-12
+            geo_mean = torch.exp(torch.mean(torch.log(power_flat), dim=1))
+            arith_mean = torch.mean(power_flat, dim=1)
+            flatness = (geo_mean / arith_mean).mean().item()
+
+            # ---- High-frequency energy ratio ----
+            B, C, H, W = power.shape
+            hf_region = power[:, :, H//4:3*H//4, W//4:3*W//4]
+            hf_energy = hf_region.mean().item()
+            hf_ratio = hf_energy / (total_energy + 1e-12)
+
+            log = {
+                "energy": total_energy,
+                "flatness": flatness,
+                "hf_ratio": hf_ratio,
+            }
+            return log
 
     @torch.inference_mode()
     def run(self, sample, text_embeddings, uncond_text_embeddings, guidance_scale):
 
         print("Starting denoising process")
         multi_batch_text_embeddings = torch.cat([uncond_text_embeddings, text_embeddings], dim=0)
+        stats_map = {}
         #TODO: Convert this function into async generator
         for timestep in self.stepper.timesteps:
             print(f"Denoising at timestep {timestep}")
@@ -116,12 +168,14 @@ class DiffusionGraphRunner:
             model_output = self.unet(multi_batch_sample, batched_timestep, multi_batch_text_embeddings)
 
             uncond_model_output, model_output = model_output.chunk(2, dim=0)
-            model_output = uncond_model_output + guidance_scale * (model_output - uncond_model_output)
-
-            sample = self.stepper.step(model_output, timestep_tensor, sample)
+            eps_diff = model_output - uncond_model_output
+            model_output = uncond_model_output + guidance_scale * eps_diff
+            stats_map[timestep.item()] = self.stats(eps_diff)
+            stats_map[timestep.item()].update(self.fft_stats(eps_diff))
+            sample = self.stepper.step(model_output, timestep.item(), sample).prev_sample
         
         print("Denoising process completed")
-        return sample
+        return sample, stats_map
     
     def generate(self, prompt: str, guidance_scale: float = 7.5):
         input_tokens = self.tokenizer(prompt, 
@@ -130,6 +184,8 @@ class DiffusionGraphRunner:
                         truncation=True, 
                         max_length=self.max_length, 
                         return_tensors="pt")
+        
+        guidance_scale = torch.tensor(guidance_scale, device=self.device)
         input_tokens = {k: v.to(self.device) for k, v in input_tokens.items()}
         text_embeddings = self.text_encoder(**input_tokens)
         uncond_text_embeddings = self.text_encoder(**self.empty_input_tokens)
@@ -137,13 +193,15 @@ class DiffusionGraphRunner:
         text_embeddings = text_embeddings.to(self.device)
         uncond_text_embeddings = uncond_text_embeddings.to(self.device)
         sample = self.generate_sample()
-        sample = self.run(sample, text_embeddings, uncond_text_embeddings, guidance_scale)
+        sample, stats_map = self.run(sample, text_embeddings, uncond_text_embeddings, guidance_scale)
         # sample = sample.to("cpu")
-        image = self.vae_decoder(sample / self.vae_scaling_factor)
+        sample = (1 / self.vae_scaling_factor) * sample
+        image = self.vae_decoder(sample)
         image = (image *0.5 + 0.5)
         image = image.clip(0, 1)
         image = image[0]
         image = image.permute(1 ,2 , 0)
         image = image.cpu().numpy()
-        return image
+        image = (image * 255).round().astype(np.uint8)
+        return image, stats_map
         

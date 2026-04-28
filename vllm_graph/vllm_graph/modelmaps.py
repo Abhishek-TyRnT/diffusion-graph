@@ -52,4 +52,5 @@ OP_MAP = {
     "vllm_graph.vllm.sigmoid": torch.nn.functional.sigmoid,
     "vllm_graph.vllm.less_than": torch.lt,
     "vllm_graph.vllm.contiguous": funcs.get_contiguous,
+    "vllm_graph.vllm.narrow": torch.narrow,
 }

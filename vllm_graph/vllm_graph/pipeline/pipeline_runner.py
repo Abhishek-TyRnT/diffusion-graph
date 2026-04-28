@@ -28,6 +28,8 @@ class DiffusionGraphRunner:
         self.graph_dict = None
         self.weights = None
 
+        # torch.backends.cudnn.benchmark = False
+        # torch.backends.cudnn.deterministic = True
         assert os.path.exists(self.artifact_directory), f"Artifact directory {self.artifact_directory} does not exist"
 
         self.config_path = os.path.join(artifact_directory, "config.json")
@@ -123,6 +125,8 @@ class DiffusionGraphRunner:
             "std": std.item(),
             "kurtosis": kurt.item(),
             "kl": kl.item(),
+            "max": x.max().item(),
+            "min": x.min().item(),
         }
     
     def fft_stats(self, eps):
@@ -166,6 +170,9 @@ class DiffusionGraphRunner:
             print(f"Denoising at timestep {timestep}")
             multi_batch_sample = torch.cat([sample, sample], dim=0)
             multi_batch_sample = multi_batch_sample.contiguous()
+            if hasattr(self.stepper, "scale_model_input"):
+                    multi_batch_sample = self.stepper.scale_model_input(multi_batch_sample, timestep)
+
             timestep_tensor = torch.tensor([timestep], device=self.device)
             batched_timestep = timestep_tensor.expand(2)
             model_output = self.unet(multi_batch_sample, batched_timestep, multi_batch_text_embeddings)

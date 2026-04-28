@@ -1123,3 +1123,30 @@ def vllm_MaxDimOp : vLLMGraph_Op<"temp.max_dim", [
       }
     }];
 }
+
+def vllm_NarrowOp : vLLMGraph_Op<"vllm.narrow", [
+    vLLMAllowsTypeRefinement,
+    vLLMHasValueSemantics,
+    vLLMReadOnly
+  ]> {
+    let summary = "Generated op for `vllm::narrow : (Tensor, int, int, int) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      I32:$dim,
+      I32:$start,
+      I32:$length
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult NarrowOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultvLLMGraphOp(parser, result, 4, 1);
+      }
+      void NarrowOp::print(OpAsmPrinter &printer) {
+        printDefaultvLLMGraphOp(printer, *this, 4, 1);
+      }
+    }];
+}
+

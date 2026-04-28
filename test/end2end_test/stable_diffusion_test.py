@@ -31,8 +31,10 @@ def plot_timestep_stats(stats_map: dict, save_path: str) -> None:
     stds      = [stats_map[t]["std"]      for t in timesteps]
     kurtoses  = [stats_map[t]["kurtosis"] for t in timesteps]
     kls       = [stats_map[t]["kl"]       for t in timesteps]
+    maxs      = [stats_map[t]["max"]      for t in timesteps]
+    mins      = [stats_map[t]["min"]      for t in timesteps]
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(3, 2, figsize=(14, 10))
     fig.suptitle("Per-Timestep Statistics", fontsize=16, fontweight="bold")
 
     plot_configs = [
@@ -40,6 +42,8 @@ def plot_timestep_stats(stats_map: dict, save_path: str) -> None:
         (axes[0, 1], stds,     "Std Dev",  "tab:orange"),
         (axes[1, 0], kurtoses, "Kurtosis", "tab:green"),
         (axes[1, 1], kls,      "KL Divergence", "tab:red"),
+        (axes[2, 0], maxs,     "Max",      "tab:purple"),
+        (axes[2, 1], mins,     "Min",      "tab:brown"),
     ]
 
     for ax, values, title, color in plot_configs:

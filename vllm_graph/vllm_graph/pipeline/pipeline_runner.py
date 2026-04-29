@@ -32,38 +32,35 @@ StepperMap = {
 #         new_average = self.momentum * self.running_average
 #         self.running_average = update_value + new_average
 
-# def project(
-#         v0: torch.Tensor, # [B, C, H, W]
-#         v1: torch.Tensor, # [B, C, H, W]
-#     ):
-#     dtype = v0.dtype
-#     v0, v1 = v0.double(), v1.double()
-#     v1 = torch.nn.functional.normalize(v1, dim=[-1, -2, -3])
-#     v0_parallel = (v0 * v1).sum(dim=[-1, -2, -3], keepdim=True) * v1
-#     v0_orthogonal = v0 - v0_parallel
-#     return v0_parallel.to(dtype), v0_orthogonal.to(dtype)
+def project(
+        v0: torch.Tensor, # [B, C, H, W]
+        v1: torch.Tensor, # [B, C, H, W]
+    ):
+    dtype = v0.dtype
+    v0, v1 = v0.double(), v1.double()
+    v1 = torch.nn.functional.normalize(v1, dim=[-1, -2, -3])
+    v0_parallel = (v0 * v1).sum(dim=[-1, -2, -3], keepdim=True) * v1
+    v0_orthogonal = v0 - v0_parallel
+    return v0_parallel.to(dtype), v0_orthogonal.to(dtype)
 
-# def adaptive_projected_guidance(
-#     pred_cond: torch.Tensor, # [B, C, H, W]
-#     pred_uncond: torch.Tensor, # [B, C, H, W]
-#     guidance_scale: float,
-#     momentum_buffer: MomentumBuffer = None,
-#     eta: float = 1.0,
-#     norm_threshold: float = 0.0,
-# ):
-#     diff = pred_cond - pred_uncond
-#     if momentum_buffer is not None:
-#         momentum_buffer.update(diff)
-#         diff = momentum_buffer.running_average
-#     if norm_threshold > 0:
-#         ones = torch.ones_like(diff)
-#         diff_norm = diff.norm(p=2, dim=[-1, -2, -3], keepdim=True)
-#         scale_factor = torch.minimum(ones, norm_threshold / diff_norm)
-#         diff = diff * scale_factor
-#     diff_parallel, diff_orthogonal = project(diff, pred_cond)
-#     normalized_update = diff_orthogonal + eta * diff_parallel
-#     pred_guided = pred_cond + (guidance_scale - 1) * normalized_update
-#     return pred_guided
+def adaptive_projected_guidance(
+    pred_cond: torch.Tensor, # [B, C, H, W]
+    pred_uncond: torch.Tensor, # [B, C, H, W]
+    guidance_scale: float,
+    momentum_buffer = None,
+    eta: float = 1.0,
+    norm_threshold: float = 0.0,
+):
+    diff = pred_cond - pred_uncond
+    if momentum_buffer is not None:
+        raise NotImplementedError("Momentum buffer not implemented yet")
+    if norm_threshold > 0:
+        raise NotImplementedError("Norm threshold not implemented yet")
+    
+    diff_parallel, diff_orthogonal = project(diff, pred_cond)
+    normalized_update = diff_orthogonal + eta * diff_parallel
+    pred_guided = pred_cond + (guidance_scale - 1) * normalized_update
+    return pred_guided
 
 class DiffusionGraphRunner:
     def __init__(self, artifact_directory: str, device:str, num_inference_steps:int, tokenizer:str):
@@ -195,7 +192,7 @@ class DiffusionGraphRunner:
             return log
 
     @torch.inference_mode()
-    def run(self, sample, text_embeddings, uncond_text_embeddings, guidance_scale):
+    def run(self, sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta):
 
         print("Starting denoising process")
         multi_batch_text_embeddings = torch.cat([uncond_text_embeddings, text_embeddings], dim=0)
@@ -205,7 +202,6 @@ class DiffusionGraphRunner:
         for timestep in self.stepper.timesteps:
             print(f"Denoising at timestep {timestep}")
             multi_batch_sample = torch.cat([sample, sample], dim=0)
-            # multi_batch_sample = multi_batch_sample.contiguous()
             # if hasattr(self.stepper, "scale_model_input"):
             #         multi_batch_sample = self.stepper.scale_model_input(multi_batch_sample, timestep)
 
@@ -215,18 +211,29 @@ class DiffusionGraphRunner:
 
             uncond_model_output, model_output = model_output.chunk(2, dim=0)
 
-            # guided_model_output = adaptive_projected_guidance(model_output, uncond_model_output, 
-            #                                                 guidance_scale, eta = 0.1,
-            #                                                 momentum_buffer=mb)
-            # eps_diff = model_output - uncond_model_output
-            guided_model_output = (1 - guidance_scale) * uncond_model_output + guidance_scale * model_output
+            if do_adaptive_guidance:
+                guided_model_output = adaptive_projected_guidance(model_output, uncond_model_output, 
+                                                                guidance_scale, eta = 0.2,
+                                                                momentum_buffer=None #Momentum currently not supported
+                                                                )
+            else:
+                guided_model_output = (1 - guidance_scale) * uncond_model_output + guidance_scale * model_output
             sample = self.stepper.step(guided_model_output, timestep.item(), sample).prev_sample
         
         print("Denoising process completed")
         return sample
     
-    def generate(self, prompt: str, negative_prompt: str | None = None, guidance_scale: float = 7.5):
+    def generate(self, prompt: str, 
+                    negative_prompt: str | None = None, 
+                    guidance_scale: float = 7.5,
+                    do_classifier_free_guidance: bool = True,
+                    do_adaptive_guidance: bool = False,
+                    eta: float = 0.1 ):
 
+
+        if do_adaptive_guidance and do_classifier_free_guidance:
+            raise ValueError("Adaptive guidance and classifier free guidance cannot be used together")
+        
         guidance_scale = torch.tensor(guidance_scale, device=self.device)
 
 
@@ -256,7 +263,7 @@ class DiffusionGraphRunner:
         text_embeddings = text_embeddings.to(self.device)
         uncond_text_embeddings = uncond_text_embeddings.to(self.device)
         sample = self.generate_sample()
-        sample = self.run(sample, text_embeddings, uncond_text_embeddings, guidance_scale)
+        sample = self.run(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
         
         sample = (1 / self.vae_scaling_factor) * sample
         image = self.vae_decoder(sample)

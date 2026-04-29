@@ -146,25 +146,22 @@ def test_stable_diffusion(model_id, model_name, image_shape):
     compiler.compile(pipeline, image_shape)
 
 
-@pytest.mark.parametrize("model_path, model_name, device, num_inference_steps, tokenizer, prompt", (
-    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, "openai/clip-vit-large-patch14", "an astronaut riding a horse"),
+@pytest.mark.parametrize("model_path, model_name, device, num_inference_steps, tokenizer, prompt, negative_prompt", (
+    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, "openai/clip-vit-large-patch14", "an astronaut riding a horse", "oil painting, water color, drawing"),
 ))
-def test_stable_diffusion_inference(model_path, model_name, device, num_inference_steps, tokenizer, prompt):
+def test_stable_diffusion_inference(model_path, model_name, device, num_inference_steps, tokenizer, prompt, negative_prompt):
     
     root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     artifact_path = os.path.join(root_path, model_path)
     
     runner = DiffusionGraphRunner(artifact_path, device, num_inference_steps, tokenizer)
-
     runner.load_pipeline()
 
     start_time = time.perf_counter()
-    image, stats_map = runner.generate(prompt, guidance_scale=7.5)
+    image = runner.generate(prompt, negative_prompt, guidance_scale=7.5)
     end_time = time.perf_counter()
     print(f"Time taken: {end_time - start_time}")
 
     plt.imsave(f"{artifact_path}/output.png", image)
-    plot_timestep_stats(stats_map, f"{artifact_path}/stats.png")
-    plot_timestep_freq_stats(stats_map, f"{artifact_path}/freq_stats.png")
     
     

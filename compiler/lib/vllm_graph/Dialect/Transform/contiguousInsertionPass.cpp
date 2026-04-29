@@ -92,7 +92,7 @@ struct ContiguousInsertionPass :
 
         RewritePatternSet patterns(&getContext());
 
-        patterns.add<FragmentationPattern<vllm_graph::LayerNormOp>>(&getContext());
+        // patterns.add<FragmentationPattern<vllm_graph::LayerNormOp>>(&getContext());
         patterns.add<FragmentationPattern<vllm_graph::Conv2DOp>>(&getContext());
         // patterns.add<FragmentationPattern<vllm_graph::AddmmOp>>(&getContext());
 

@@ -128,38 +128,21 @@ image = runner.generate(prompt)
 ---
 
 ## Project Structure
-
 ```
+
 diffusion-graph/
-├── include/            # Public C++ headers
-├── lib/
-│   ├── Dialect/        # Diffusion MLIR dialect definitions
-│   ├── Transforms/     # Optimization passes
-│   ├── Conversion/     # Lowering passes to LLVM/CUDA/etc.
-│   └── Runtime/        # Engine runtime & memory management
-├── python/             # Python bindings (pybind11)
-├── tools/              # dg-compile, dg-inspect, dg-bench CLIs
-├── test/               # Lit & unit tests
-├── benchmarks/         # Reproducible benchmark scripts
-└── examples/           # End-to-end usage examples
+├── compiler/            # C++ Compiler files
+|     ├──include         # C++ Header files
+|     ├──lib             # C++ Source code files
+|     |   ├── Dialect/        # Diffusion MLIR dialect definitions
+|     |   ├── Utils/          # Utility functions
+|     |   ├── Conversion/     # Lowering pass which converts torch-mlir to diffusion-graph dialect
+|     ├──python          # Python Bindings
+|     ├──tools           # Diagnostic C++ tools
+├── python/             # Python runtime files
+└── test/               # Lit & unit tests
+
 ```
-
----
-
-## Contributing
-
-Contributions are welcome. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines on submitting passes, dialect extensions, and new backend targets.
-
----
-
-## Roadmap
-
-- [ ] INT4 weight-only quantization
-- [ ] Speculative decoding for consistency models
-- [ ] Multi-GPU tensor parallelism
-- [ ] WebGPU backend
-- [ ] Dynamic resolution & batch size without recompilation
-- [ ] ONNX export of compiled engines
 
 ---
 

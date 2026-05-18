@@ -5,14 +5,14 @@
 
 include "mlir/IR/OpBase.td"
 
-def vLLMGraphIR_Dialect : Dialect {
-    let name = "vllm_graph";
-    let cppNamespace = "::mlir::vllm_graph";
+def DiffusionGraphIR_Dialect : Dialect {
+    let name = "diffusion_graph";
+    let cppNamespace = "::mlir::diffusion_graph";
     let description = [{
-        A high level dialect for creating a graph to support for vllm runtime
+        A high level dialect for creating a graph to support for diffusion models.
 
         This Dialect specifically represents the low level kernels that are specifically called 
-        by vllm in an optimised fashion.
+        by diffusion model runtimes in an optimised fashion.
 
         - The tensor sizes have been analysed and static ranks inferred where possile and propagated thoughout the program.
 

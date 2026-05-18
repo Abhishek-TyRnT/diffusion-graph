@@ -1,6 +1,6 @@
 
-#ifndef VLLMGRAPH_OPS
-#define VLLMGRAPH_OPS
+#ifndef DIFFUSIONGRAPH_OPS
+#define DIFFUSIONGRAPH_OPS
 
 include "vllm_graph/Dialect/IR/vLLMGraphBase.td"
 include "mlir/Bytecode/BytecodeOpInterface.td"
@@ -15,13 +15,13 @@ include "vllm_graph/Dialect/IR/vLLMGraphTypes.td"
 include "mlir/IR/OpBase.td"
 
 
-class vLLMGraph_Op<string mnenomic, list<Trait> traits = []>
-    : Op<vLLMGraphIR_Dialect, mnenomic, traits> {
+class DiffusionGraph_Op<string mnenomic, list<Trait> traits = []>
+    : Op<DiffusionGraphIR_Dialect, mnenomic, traits> {
 }
 
 include "vllm_graph/Dialect/IR/GeneratedvLLMGraphOps.td"
 
-def vllm_ConstantDeviceOp : vLLMGraph_Op<"constant.device",
+def diffusion_ConstantDeviceOp : DiffusionGraph_Op<"constant.device",
     [Pure,
     DeclareOpInterfaceMethods<OpAsmOpInterface, ["getAsmResultNames"]>,
     ConstantLike]> {
@@ -39,7 +39,7 @@ def vllm_ConstantDeviceOp : vLLMGraph_Op<"constant.device",
   let hasFolder = 1;
 }
 
-def vllm_CastOp : vLLMGraph_Op<"vllm.cast_op",[Pure]> {
+def diffusion_CastOp : DiffusionGraph_Op<"vllm.cast_op",[Pure]> {
   let summary = "Acts as temporary cast Op when Dialect is being transformed";
   let description = [{
     When Torch Dialect is being lowered to vllm_graph Dialect, For chaning just function signatures,
@@ -66,7 +66,7 @@ def vllm_CastOp : vLLMGraph_Op<"vllm.cast_op",[Pure]> {
 }
 
 
-def vllm_ListOp: vLLMGraph_Op<"vllm.list_op", [
+def diffusion_ListOp: DiffusionGraph_Op<"vllm.list_op", [
     Pure,
     vLLMAllowsTypeRefinement
   ]> {
@@ -84,11 +84,11 @@ def vllm_ListOp: vLLMGraph_Op<"vllm.list_op", [
   }];
 }
 
-def vllm_ValueTensorLiteralOp : vLLMGraph_Op<"constant.tensor", [
+def diffusion_ValueTensorLiteralOp : DiffusionGraph_Op<"constant.tensor", [
     ConstantLike,
     Pure,
   ]> {
-  let summary = "Create a value of !vllm_graph.constant.tensor type from a literal";
+  let summary = "Create a value of !diffusion_graph.constant.tensor type from a literal";
   let description = [{
     Example:
     ```
@@ -105,7 +105,7 @@ def vllm_ValueTensorLiteralOp : vLLMGraph_Op<"constant.tensor", [
   let hasFolder = 1;
 }
 
-def vllm_ConstantNoneOp : vLLMGraph_Op<"constant.none", [
+def diffusion_ConstantNoneOp : DiffusionGraph_Op<"constant.none", [
     ConstantLike,
     Pure,
   ]> {
@@ -120,7 +120,7 @@ def vllm_ConstantNoneOp : vLLMGraph_Op<"constant.none", [
   let hasFolder = 1;
 }
 
-def vllm_GetIndexAtOp : vLLMGraph_Op<"indexAt", [
+def diffusion_GetIndexAtOp : DiffusionGraph_Op<"indexAt", [
   Pure,
   vLLMAllowsTypeRefinement
 ]> {
@@ -143,11 +143,11 @@ def vllm_GetIndexAtOp : vLLMGraph_Op<"indexAt", [
   }];
 }
 
-def vllm_ConstantStringOp : vLLMGraph_Op<"constant.string", [
+def diffusion_ConstantStringOp : DiffusionGraph_Op<"constant.string", [
     ConstantLike,
     Pure,
   ]> {
-  let summary = "Create a value of !vllm_graph.constant.string type from a literal";
+  let summary = "Create a value of !diffusion_graph.constant.string type from a literal";
   let description = [{
     Example:
     ```
@@ -166,4 +166,4 @@ def vllm_ConstantStringOp : vLLMGraph_Op<"constant.string", [
 
 
 
-#endif // VLLMGRAPH_OPS
+#endif // DIFFUSIONGRAPH_OPS

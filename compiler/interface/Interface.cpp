@@ -12,10 +12,10 @@
 #include <cstdlib>
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
 
-vLLMGraphBase::vLLMGraphBase(){
+diffusionGraphBase::diffusionGraphBase(){
     DialectRegistry registry;
     registerAllDialects(registry);
     registerAllPasses();
@@ -24,12 +24,12 @@ vLLMGraphBase::vLLMGraphBase(){
     createTorchTovLLMGraphPipeline(*passmanager);
 }
 
-vLLMGraphBase::~vLLMGraphBase(){
+diffusionGraphBase::~diffusionGraphBase(){
     delete context;
 }
 
 // Helper function to extract dialect resources from the module
-void vLLMGraphBase::extractDialectResources(mlir::ModuleOp module) {
+void diffusionGraphBase::extractDialectResources(mlir::ModuleOp module) {
     // Clear existing resources
     dialectResourcesMap.clear();
     
@@ -52,7 +52,7 @@ void vLLMGraphBase::extractDialectResources(mlir::ModuleOp module) {
     });
 }
 
-OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parse(std::string IR){
+OwningOpRef<mlir::ModuleOp> diffusionGraphBase::parse(std::string IR){
     // Parse the file into an MLIR module with resource metadata support.
     mlir::FallbackAsmResourceMap resourceMap;
     mlir::ParserConfig parserConfig(context, /*verifyAfterParse=*/true, &resourceMap);
@@ -79,7 +79,7 @@ OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parse(std::string IR){
     return moduleOpRef;
 }
 
-OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parseFromFile(std::string IRFile){
+OwningOpRef<mlir::ModuleOp> diffusionGraphBase::parseFromFile(std::string IRFile){
     llvm::SourceMgr sourceMgr;
     auto fileOrErr = llvm::MemoryBuffer::getFile(IRFile);
     if (!fileOrErr) {
@@ -102,7 +102,7 @@ OwningOpRef<mlir::ModuleOp> vLLMGraphBase::parseFromFile(std::string IRFile){
     return module;
 }
 
-void vLLMGraphBase::convert(OwningOpRef<ModuleOp> &module){
+void diffusionGraphBase::convert(OwningOpRef<ModuleOp> &module){
 
     if (!module) {
         llvm::errs() << "Error parsing MLIR file\n";

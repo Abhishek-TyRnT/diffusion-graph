@@ -11,18 +11,18 @@
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Transforms/Passes.h"
 
-void mlir::vllm_graph::registerAllDialects(mlir::DialectRegistry &registry)
+void mlir::diffusion_graph::registerAllDialects(mlir::DialectRegistry &registry)
 {
     registry.insert<mlir::func::FuncDialect>();
-    registry.insert<mlir::vllm_graph::vLLMGraphIRDialect>();
+    registry.insert<mlir::diffusion_graph::vLLMGraphIRDialect>();
     registry.insert<mlir::torch::Torch::TorchDialect>();
     registry.insert<arith::ArithDialect>();
     registry.insert<mlir::BuiltinDialect>();
 }
 
-void mlir::vllm_graph::registerAllPasses() {
-    mlir::vllm_graph::registervLLMGraphPasses();
-    mlir::vllm_graph::registerConversionPasses();
+void mlir::diffusion_graph::registerAllPasses() {
+    mlir::diffusion_graph::registervLLMGraphPasses();
+    mlir::diffusion_graph::registerConversionPasses();
     mlir::registerTransformsPasses();
 }
 

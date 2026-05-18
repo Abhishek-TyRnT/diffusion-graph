@@ -6,4 +6,4 @@ namespace {
 #include "vllm_graph/Conversion/Passes.h.inc"
 } // end namespace
 
-void mlir::vllm_graph::registerConversionPasses() { ::registerPasses(); }
+void mlir::diffusion_graph::registerConversionPasses() { ::registerPasses(); }

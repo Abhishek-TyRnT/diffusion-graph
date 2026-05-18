@@ -1,5 +1,5 @@
-#ifndef VLLM_GRAPH_TRANSFORM_PASSES_H_
-#define VLLM_GRAPH_TRANSFORM_PASSES_H_
+#ifndef DIFFUSION_GRAPH_TRANSFORM_PASSES_H_
+#define DIFFUSION_GRAPH_TRANSFORM_PASSES_H_
 
 
 include "mlir/Pass/PassBase.td"
@@ -20,7 +20,7 @@ def RecomposeSimpleOpsToComplexPass : Pass<"recompose-simple-ops-to-complex", "f
        This pass is important for selecting appropriate kernels during runtime
    }];
 
-   let constructor = "mlir::vllm_graph::createRecomposeSimpleOpsToComplexOps()";
+   let constructor = "mlir::diffusion_graph::createRecomposeSimpleOpsToComplexOps()";
 
 }
 
@@ -41,17 +41,17 @@ def StaticOpMaterializationPass : Pass<"static-op-materialization-pass", "func::
         This reduces runtime overhead by pre-calculating values that are invariant.
     }];
 
-    let constructor = "mlir::vllm_graph::createStaticOpMaterializationPass()";
+    let constructor = "mlir::diffusion_graph::createStaticOpMaterializationPass()";
 
 }
 
-def vLLMFunctionPartitioningPass : Pass<"function-partioning-pass", "ModuleOp"> {
+def diffusionGraphFunctionPartitioningPass : Pass<"function-partioning-pass", "ModuleOp"> {
     let summary = "FunctionPartitionPass for partioning forward function.";
     let description = [{
         Splitting the forward graph to separate out certain subgraphs 
     }];
 
-    let constructor = "mlir::vllm_graph::createvLLMFunctionPartitionPass()";
+    let constructor = "mlir::diffusion_graph::createDiffusionGraphFunctionPartitionPass()";
 }
 
 def ContiguousInsertionPass : Pass<"contiguous-insertion-pass", "func::FuncOp"> {
@@ -61,7 +61,7 @@ def ContiguousInsertionPass : Pass<"contiguous-insertion-pass", "func::FuncOp"> 
         This is done to ensure optimal kernel dispatching.
     }];
 
-    let constructor = "mlir::vllm_graph::createContiguousInsertionPass()";
+    let constructor = "mlir::diffusion_graph::createContiguousInsertionPass()";
 }
 
-#endif //VLLM_GRAPH_TRANSFORM_PASSES_H_
+#endif //DIFFUSION_GRAPH_TRANSFORM_PASSES_H_

@@ -22,7 +22,7 @@
 
 using namespace mlir;
 using namespace llvm;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 using namespace mlir::torch::Torch;
 
 
@@ -66,7 +66,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenReluOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::ReluOp>(op, resultType, self);
+    rewriter.replaceOpWithNewOp<diffusion_graph::ReluOp>(op, resultType, self);
     return success();
 
 }
@@ -88,7 +88,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSiluOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SiLUOp>(op, resultType, self);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SiLUOp>(op, resultType, self);
     return success();
 
 }
@@ -111,7 +111,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTanhOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::TanhOp>(op, resultType, self);
+    rewriter.replaceOpWithNewOp<diffusion_graph::TanhOp>(op, resultType, self);
     return success();
 
 }
@@ -134,7 +134,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenGeluOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::GeluOp>(op, resultType, self, approxMode);
+    rewriter.replaceOpWithNewOp<diffusion_graph::GeluOp>(op, resultType, self, approxMode);
     return success();
 }
 
@@ -155,7 +155,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenRsqrtOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::RSqrtOp>(op, resultType, self);
+    rewriter.replaceOpWithNewOp<diffusion_graph::RSqrtOp>(op, resultType, self);
     return success();
 }
 
@@ -167,8 +167,8 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantDeviceOp>::matchAndRewri
     llvm::StringRef device = op.getValue();
 
     MLIRContext *context = getContext();
-    auto device_type = vllm_graph::DeviceType::get(context);
-    rewriter.replaceOpWithNewOp<vllm_graph::ConstantDeviceOp>(op, device_type, device);
+    auto device_type = diffusion_graph::DeviceType::get(context);
+    rewriter.replaceOpWithNewOp<diffusion_graph::ConstantDeviceOp>(op, device_type, device);
     return success();
 
 }
@@ -183,7 +183,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantStrOp>::matchAndRewrite(
     MLIRContext *context = getContext();
     // Lower to arith.constant with StringAttr - output is generic string
     auto stringAttr = rewriter.getStringAttr(str);
-    rewriter.replaceOpWithNewOp<vllm_graph::ConstantStringOp>(op, stringAttr);
+    rewriter.replaceOpWithNewOp<diffusion_graph::ConstantStringOp>(op, stringAttr);
     return success();
 
 }
@@ -226,7 +226,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ConstantNoneOp>::matchAndRewrite
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
     
-    Value arithOp = rewriter.replaceOpWithNewOp<vllm_graph::ConstantNoneOp>(op, resultType);
+    Value arithOp = rewriter.replaceOpWithNewOp<diffusion_graph::ConstantNoneOp>(op, resultType);
     return mlir::success();
 
 }
@@ -245,7 +245,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenConvolutionOp>::matchAndRewr
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::Conv2DOp>(
+    rewriter.replaceOpWithNewOp<diffusion_graph::Conv2DOp>(
         op, resultType, input, weight, bias, stride, padding);
     return success();
 }
@@ -266,7 +266,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeGroupNormOp>::matchAnd
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult(0).getType());
 
-    vllm_graph::GroupNormOp groupNormOp = rewriter.create<vllm_graph::GroupNormOp>(
+    diffusion_graph::GroupNormOp groupNormOp = rewriter.create<diffusion_graph::GroupNormOp>(
         loc, resultType, input, numGroups, weight, bias, eps);
     
     OldResult.replaceAllUsesWith(groupNormOp.getResult());
@@ -318,7 +318,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenDivScalarOp>::matchAndRewrit
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::DivScalarOp>(op, resultType, input, scalar);
+    rewriter.replaceOpWithNewOp<diffusion_graph::DivScalarOp>(op, resultType, input, scalar);
 
 
     return mlir::success();
@@ -335,7 +335,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSinOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SinOp>(op, resultType, input);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SinOp>(op, resultType, input);
     return mlir::success();
 }
 
@@ -349,7 +349,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenCosOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::CosOp>(op, resultType, input);
+    rewriter.replaceOpWithNewOp<diffusion_graph::CosOp>(op, resultType, input);
     return mlir::success();
 }
 
@@ -366,7 +366,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSizeIntOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SizeOp>(op, resultType, input, dim);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SizeOp>(op, resultType, input, dim);
     return mlir::success();
 
 }
@@ -384,7 +384,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSumDimIntListOp>::matchAndRe
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SumOp>(op, resultType, input, dim, keepdim);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SumOp>(op, resultType, input, dim, keepdim);
     return mlir::success();
 }
 
@@ -402,7 +402,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenOnesOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::OnesOp>(op, resultType, input, dtype, layout);     
+    rewriter.replaceOpWithNewOp<diffusion_graph::OnesOp>(op, resultType, input, dtype, layout);     
     return mlir::success();
 
 }
@@ -420,7 +420,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPowTensorScalarOp>::matchAnd
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
     
-    rewriter.replaceOpWithNewOp<vllm_graph::PowOp>(op, resultType, input, exponent);
+    rewriter.replaceOpWithNewOp<diffusion_graph::PowOp>(op, resultType, input, exponent);
 
 
     return mlir::success();
@@ -443,7 +443,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddTensorOp>::matchAndRewrit
 
     assert(Tensor1.getType() == Tensor2.getType() && "The dtypes of the tensors1 must match");
 
-    rewriter.replaceOpWithNewOp<vllm_graph::AddOp>(op, resultType, Tensor1, Tensor2, Alpha);
+    rewriter.replaceOpWithNewOp<diffusion_graph::AddOp>(op, resultType, Tensor1, Tensor2, Alpha);
     return mlir::success();
     
 }
@@ -460,7 +460,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenUnsqueezeOp>::matchAndRewrit
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::UnsqueezeOp>(op, resultType, input, dim);
+    rewriter.replaceOpWithNewOp<diffusion_graph::UnsqueezeOp>(op, resultType, input, dim);
 
     return mlir::success();
 
@@ -478,7 +478,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSqueezeDimOp>::matchAndRewri
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SqueezeOp>(op, resultType, input, dim);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SqueezeOp>(op, resultType, input, dim);
 
     return mlir::success();
 
@@ -499,7 +499,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddScalarOp>::matchAndRewrit
     Type resultType = convertor->convertType(op.getResult().getType());
 
 
-    rewriter.replaceOpWithNewOp<vllm_graph::AddOp>(op, resultType, Operand1, Operand2, Alpha);
+    rewriter.replaceOpWithNewOp<diffusion_graph::AddOp>(op, resultType, Operand1, Operand2, Alpha);
     return mlir::success();
     
 }
@@ -517,7 +517,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenRsubScalarOp>::matchAndRewri
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SubOp>(op, resultType, Operand2, Operand1, Alpha);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SubOp>(op, resultType, Operand2, Operand1, Alpha);
     return mlir::success();
     
 }
@@ -536,7 +536,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSubTensorOp>::matchAndRewrit
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SubOp>(op, resultType, input, subtrahend, alpha);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SubOp>(op, resultType, input, subtrahend, alpha);
     return mlir::success();
 }
 
@@ -557,7 +557,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulScalarOp>::matchAndRewrit
     if(!isa<mlir::torch::Torch::IntType>(Operand2.getType()) || isa<mlir::torch::Torch::FloatType>(Operand2.getType()))
         assert(false && "Scalar must be integer or float");
 
-    rewriter.replaceOpWithNewOp<vllm_graph::MulOp>(op, resultType, Operand1, Operand2);
+    rewriter.replaceOpWithNewOp<diffusion_graph::MulOp>(op, resultType, Operand1, Operand2);
     return mlir::success();
     
 }
@@ -579,7 +579,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMulTensorOp>::matchAndRewrit
 
     assert(Tensor1.getType() == Tensor2.getType() && "The dtypes of the tensors1 must match");
 
-    rewriter.replaceOpWithNewOp<vllm_graph::MulOp>(op, resultType, Tensor1, Tensor2);
+    rewriter.replaceOpWithNewOp<diffusion_graph::MulOp>(op, resultType, Tensor1, Tensor2);
     return mlir::success();
     
 }
@@ -599,7 +599,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenTransposeIntOp>::matchAndRew
     Type resultType = convertor->convertType(op.getResult().getType());
 
     // result.setType(resultType);
-    rewriter.replaceOpWithNewOp<vllm_graph::TransposeOp>(op, resultType, Input, dim0, dim1);
+    rewriter.replaceOpWithNewOp<diffusion_graph::TransposeOp>(op, resultType, Input, dim0, dim1);
     
     return mlir::success();
     
@@ -640,7 +640,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::ValueTensorLiteralOp>::matchAndR
         values = DenseElementsAttr::get(f32Type, floatArray);
 
     }
-    rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, LiteralTensorType, values);
+    rewriter.replaceOpWithNewOp<diffusion_graph::ValueTensorLiteralOp>(op, LiteralTensorType, values);
     return success();
 }
 
@@ -657,7 +657,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMatmulOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::MatmulOp>(op, resultType, input, weight);
+    rewriter.replaceOpWithNewOp<diffusion_graph::MatmulOp>(op, resultType, input, weight);
     return mlir::success();
 
 }
@@ -675,7 +675,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMmOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::MatmulOp>(op, resultType, input, weight);
+    rewriter.replaceOpWithNewOp<diffusion_graph::MatmulOp>(op, resultType, input, weight);
     return mlir::success();
 
 }
@@ -690,7 +690,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenExpOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::ExpOp>(op, resultType, input);
+    rewriter.replaceOpWithNewOp<diffusion_graph::ExpOp>(op, resultType, input);
     return mlir::success();
 }
 
@@ -704,7 +704,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSigmoidOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SigmoidOp>(op, resultType, input);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SigmoidOp>(op, resultType, input);
     return mlir::success();
 }
 
@@ -721,7 +721,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBmmOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::BMMOp>(op, resultType, input, weight);
+    rewriter.replaceOpWithNewOp<diffusion_graph::BMMOp>(op, resultType, input, weight);
     return mlir::success();
 
     }
@@ -740,7 +740,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSoftmaxIntOp>::matchAndRewri
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::SoftmaxOp>(op, resultType, input, dim);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SoftmaxOp>(op, resultType, input, dim);
 
     return success();
 }
@@ -760,7 +760,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::Aten_SoftmaxOp>::matchAndRewrite
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
     
-    rewriter.replaceOpWithNewOp<vllm_graph::SoftmaxOp>(op, resultType, input, dim);
+    rewriter.replaceOpWithNewOp<diffusion_graph::SoftmaxOp>(op, resultType, input, dim);
     return success();
 }
 
@@ -778,7 +778,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenViewOp>::matchAndRewrite(
         Type resultType = convertor->convertType(op.getResult().getType());
 
 
-        rewriter.replaceOpWithNewOp<vllm_graph::ViewOp>(op, resultType, input, shape);
+        rewriter.replaceOpWithNewOp<diffusion_graph::ViewOp>(op, resultType, input, shape);
         
         return success();
         
@@ -795,7 +795,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSplitTensorOp>::matchAndRewr
 
         const TypeConverter *convertor = getTypeConverter();
         Type resultType = convertor->convertType(op.getResult().getType());
-        rewriter.replaceOpWithNewOp<vllm_graph::SplitOp>(op, resultType, input, splitSizes, dim);
+        rewriter.replaceOpWithNewOp<diffusion_graph::SplitOp>(op, resultType, input, splitSizes, dim);
         return success();
 }
 
@@ -820,7 +820,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenScaledDotProductAttentionOp>
         Type resultType = convertor->convertType(op.getResult().getType());
 
 
-        rewriter.replaceOpWithNewOp<vllm_graph::ScaledDotProductAttentionOp>(op, resultType, 
+        rewriter.replaceOpWithNewOp<diffusion_graph::ScaledDotProductAttentionOp>(op, resultType, 
                                                                             query,
                                                                             key,
                                                                             value,
@@ -848,7 +848,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenWhereSelfOp>::matchAndRewrit
         Type resultType = convertor->convertType(op.getResult().getType());
         // result.setType(resultType);
 
-        rewriter.replaceOpWithNewOp<vllm_graph::WhereOp>(op, resultType, condition, trueInput, falseInput);
+        rewriter.replaceOpWithNewOp<diffusion_graph::WhereOp>(op, resultType, condition, trueInput, falseInput);
         return success();
 }
 
@@ -862,7 +862,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListConstructOp>::matchAndRe
     const TypeConverter *convertor = getTypeConverter();
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
-    rewriter.replaceOpWithNewOp<vllm_graph::ListOp>(op, resultType, operandRange);
+    rewriter.replaceOpWithNewOp<diffusion_graph::ListOp>(op, resultType, operandRange);
     return success();
 
 }
@@ -882,7 +882,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::PrimListUnpackOp>::matchAndRewri
         Value result = results[i];
         Type resultType = convertor->convertType(result.getType());
         Value index = rewriter.create<arith::ConstantIntOp>(loc, i, rewriter.getI32Type());
-        Value newResult = rewriter.create<vllm_graph::GetIndexAtOp>(loc, resultType, List, index);
+        Value newResult = rewriter.create<diffusion_graph::GetIndexAtOp>(loc, resultType, List, index);
         result.replaceAllUsesWith(newResult);
     }
     rewriter.eraseOp(cast<Operation*>(op));
@@ -904,7 +904,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenEmbeddingOp>::matchAndRewrit
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::EmbeddingOp>(op, resultType, input, weight);
+    rewriter.replaceOpWithNewOp<diffusion_graph::EmbeddingOp>(op, resultType, input, weight);
     return success();
 
 }
@@ -922,7 +922,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenCatOp>::matchAndRewrite(
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::ConcatenateOp>(op, resultType, inputs, dim);
+    rewriter.replaceOpWithNewOp<diffusion_graph::ConcatenateOp>(op, resultType, inputs, dim);
     return success();
 }
 
@@ -938,7 +938,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>::matchAnd
     Value step = adaptor.getOperands()[2];
     Value dtype = adaptor.getOperands()[3];
 
-    if(dtype.getDefiningOp<vllm_graph::ConstantNoneOp>()){
+    if(dtype.getDefiningOp<diffusion_graph::ConstantNoneOp>()){
         dtype = rewriter.create<arith::ConstantIntOp>(op.getLoc(), 4, rewriter.getI32Type());
     }
 
@@ -946,7 +946,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenArangeStartStepOp>::matchAnd
     Value result = op.getResult();
     Type resultType = convertor->convertType(op.getResult().getType());
     
-    rewriter.replaceOpWithNewOp<vllm_graph::ArangeOp>(op, resultType, start, end, step, dtype);
+    rewriter.replaceOpWithNewOp<diffusion_graph::ArangeOp>(op, resultType, start, end, step, dtype);
     return success();
 
 }
@@ -962,7 +962,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLtTensorOp>::matchAndRewrite
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult().getType());
     
-    rewriter.replaceOpWithNewOp<vllm_graph::LessThanOp>(op, resultType, self, other);
+    rewriter.replaceOpWithNewOp<diffusion_graph::LessThanOp>(op, resultType, self, other);
     return success();
 }
 
@@ -1016,7 +1016,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     auto lengthOp = rewriter.create<arith::ConstantIntOp>(loc, length, elemType);
 
     Type resultType = convertor->convertType(op.getResult().getType());
-    rewriter.replaceOpWithNewOp<vllm_graph::NarrowOp>(op, resultType, self, dim, start, lengthOp);
+    rewriter.replaceOpWithNewOp<diffusion_graph::NarrowOp>(op, resultType, self, dim, start, lengthOp);
     return success();
 
     // if(start.getDefiningOp<arith::ConstantIntOp>() && 
@@ -1048,27 +1048,27 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     //     int64_t x = static_cast<int64_t>(range.size());
     //     int64_t shape[] = {x};
 
-    //     auto IndicesType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(shape, 1), elemType);//RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
+    //     auto IndicesType = diffusion_graph::ValueTensorType::get(context, ArrayRef<int64_t>(shape, 1), elemType);//RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
         
     //     ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
     //     auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
 
-    //     RangeValOp = rewriter.create<vllm_graph::ValueTensorLiteralOp>(loc, IndicesType, denseAttr);
+    //     RangeValOp = rewriter.create<diffusion_graph::ValueTensorLiteralOp>(loc, IndicesType, denseAttr);
     // } else {
-    //     vllm_graph::ValueTensorType RangeTypeOp;
+    //     diffusion_graph::ValueTensorType RangeTypeOp;
     //     RangeTypeOp = RangeTypeOp.get(context, 
     //                     ArrayRef<int64_t>({-1}), 
     //                     elemType);
         
     //     Value arithOp = rewriter.create<arith::ConstantIntOp>(loc, 4, elemType);
-    //     RangeValOp = rewriter.create<vllm_graph::ArangeOp>(loc, RangeTypeOp, start, end, step, arithOp);
+    //     RangeValOp = rewriter.create<diffusion_graph::ArangeOp>(loc, RangeTypeOp, start, end, step, arithOp);
         
     // }
     
     // Value result = op.getResult();
     // Type resultType = convertor->convertType(op.getResult().getType());
 
-    // Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, self, dim, RangeValOp);
+    // Value indexSelectResult = rewriter.create<diffusion_graph::IndexSelectOp>(loc, resultType, self, dim, RangeValOp);
     // result.replaceAllUsesWith(indexSelectResult);
     // rewriter.eraseOp(cast<Operation*>(op));
     return mlir::success();
@@ -1088,7 +1088,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenIndexTensorHackedTwinOp>::ma
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<vllm_graph::BroadCastIndexOp>(op, resultType, inputArg, indicesArg);
+    rewriter.replaceOpWithNewOp<diffusion_graph::BroadCastIndexOp>(op, resultType, inputArg, indicesArg);
     return success();
 }
 
@@ -1112,7 +1112,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenNativeLayerNormOp>::matchAnd
     const TypeConverter *convertor = getTypeConverter();
     Type resultType = convertor->convertType(op.getResult(0).getType());
 
-    vllm_graph::LayerNormOp layerNormOp = rewriter.create<vllm_graph::LayerNormOp>(loc, resultType, inputArg, normalisedShape, weight, bias, epsilon);
+    diffusion_graph::LayerNormOp layerNormOp = rewriter.create<diffusion_graph::LayerNormOp>(loc, resultType, inputArg, normalisedShape, weight, bias, epsilon);
     OldResult.replaceAllUsesWith(layerNormOp.getResult());
     rewriter.eraseOp(cast<Operation*>(op));
     return success();
@@ -1134,7 +1134,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenMaxDimOp>::matchAndRewrite(
     Type resultType2 = convertor->convertType(op.getResult(1).getType());
     
     TypeRange resultTypes = {resultType1, resultType2};
-    rewriter.replaceOpWithNewOp<vllm_graph::MaxDimOp>(op, resultTypes, inputArg, dimArg, keepdimArg);
+    rewriter.replaceOpWithNewOp<diffusion_graph::MaxDimOp>(op, resultTypes, inputArg, dimArg, keepdimArg);
     return success();
 }
 
@@ -1150,7 +1150,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenBroadcastToOp>::matchAndRewr
 
         const TypeConverter *convertor = getTypeConverter();
         Type resultType = convertor->convertType(op.getResult().getType());
-        rewriter.replaceOpWithNewOp<vllm_graph::BroadCastOp>(op, resultType, input, shape);
+        rewriter.replaceOpWithNewOp<diffusion_graph::BroadCastOp>(op, resultType, input, shape);
 
         return success();
 
@@ -1182,7 +1182,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenToDtypeOp>::matchAndRewrite(
         } else {
             const TypeConverter *convertor = getTypeConverter();
             Type resultType = convertor->convertType(op.getResult().getType());
-            rewriter.replaceOpWithNewOp<vllm_graph::DtypeCastOp>(op, resultType, input, dtype);
+            rewriter.replaceOpWithNewOp<diffusion_graph::DtypeCastOp>(op, resultType, input, dtype);
         }
 
         return success();
@@ -1206,7 +1206,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenAddmmOp>::matchAndRewrite(
         const TypeConverter *convertor = getTypeConverter();
         Type resultType = convertor->convertType(op.getResult().getType());
 
-        rewriter.replaceOpWithNewOp<vllm_graph::AddmmOp>(op, resultType, bias, input, weight, Alpha, beta);
+        rewriter.replaceOpWithNewOp<diffusion_graph::AddmmOp>(op, resultType, bias, input, weight, Alpha, beta);
         
         return success();
         
@@ -1226,7 +1226,7 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenPermuteOp>::matchAndRewrite(
         const TypeConverter *convertor = getTypeConverter();
         Type resultType = convertor->convertType(op.getResult().getType());
 
-        auto PermuteOp = rewriter.replaceOpWithNewOp<vllm_graph::PermuteOp>(op, resultType, input, shape);
+        auto PermuteOp = rewriter.replaceOpWithNewOp<diffusion_graph::PermuteOp>(op, resultType, input, shape);
 
         return success();
         
@@ -1271,7 +1271,7 @@ public:
 
         // Convert f32 to f64
         addConversion([this, context](torch::Torch::ValueTensorType type) -> std::optional<Type> {
-            return convertTorchvTypeTovLLMvType(type, context);      
+            return convertTorchvTypeToDGvType(type, context);      
         });
 
         addConversion([context](torch::Torch::FloatType type) -> std::optional<Type> {
@@ -1283,7 +1283,7 @@ public:
         });
 
         addConversion([context](torch::Torch::StringType type) -> std::optional<Type> {
-            return vllm_graph::StringType::get(context);
+            return diffusion_graph::StringType::get(context);
         });
 
         addConversion([context](torch::Torch::BoolType type) -> std::optional<Type> {
@@ -1291,22 +1291,22 @@ public:
         });
 
         addConversion([context](torch::Torch::ListType type) -> std::optional<Type> {
-            auto containedType = convertvLLMContainedType(type, context);
-            return vllm_graph::ListType::get(context, containedType);
+            auto containedType = convertDGContainedType(type, context);
+            return diffusion_graph::ListType::get(context, containedType);
         });
 
         addConversion([context](torch::Torch::NoneType type) -> std::optional<Type> {
-            return vllm_graph::NoneType::get(context);
+            return diffusion_graph::NoneType::get(context);
         });
 
         addSourceMaterialization([](OpBuilder &builder, Type type, ValueRange inputs, Location loc) -> Value {
 
-            return builder.create<vllm_graph::CastOp>(loc, type, inputs[0]).getResult();
+            return builder.create<diffusion_graph::CastOp>(loc, type, inputs[0]).getResult();
         });
 
         addTargetMaterialization([](OpBuilder &builder, Type type, ValueRange inputs, Location loc) -> Value {
 
-            return builder.create<vllm_graph::CastOp>(loc, type, inputs[0]).getResult();
+            return builder.create<diffusion_graph::CastOp>(loc, type, inputs[0]).getResult();
         });
 
 
@@ -1315,17 +1315,17 @@ public:
 };
 
 
-class ConvertTorchTovLLMGraph : public ConvertTorchTovLLMGraphBase<ConvertTorchTovLLMGraph> {
+class ConvertTorchToDiffusionGraph : public ConvertTorchToDiffusionGraphBase<ConvertTorchToDiffusionGraph> {
 public:
     void getDependentDialects(DialectRegistry &registry) const override {
-        registry.insert<vllm_graph::vLLMGraphIRDialect>();
+        registry.insert<diffusion_graph::DiffusionGraphIRDialect>();
         registry.insert<arith::ArithDialect>();
     }
 
     void runOnOperation() override {
         MLIRContext *context = &getContext();
         ConversionTarget target(*context);
-        target.addLegalDialect<vllm_graph::vLLMGraphIRDialect, arith::ArithDialect, func::FuncDialect>();
+        target.addLegalDialect<diffusion_graph::DiffusionGraphIRDialect, arith::ArithDialect, func::FuncDialect>();
 
         vLLMGraphConversion typeConverter(context);
 
@@ -1568,7 +1568,7 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<func::FuncOp>> mlir::vllm_graph::createTorchTovLLMGraph()
+std::unique_ptr<OperationPass<func::FuncOp>> mlir::diffusion_graph::createTorchTovLLMGraph()
 {
-     return std::make_unique<ConvertTorchTovLLMGraph>();
+     return std::make_unique<ConvertTorchToDiffusionGraph>();
 }

@@ -1,6 +1,6 @@
 
-#ifndef VLLM_GRAPH_CONVERSION_TORCH_TO_VLLMGRAPH_H
-#define VLLM_GRAPH_CONVERSION_TORCH_TO_VLLMGRAPH_H
+#ifndef VLLM_GRAPH_CONVERSION_TORCH_TO_DIFFUSIONGRAPH_H
+#define VLLM_GRAPH_CONVERSION_TORCH_TO_DIFFUSIONGRAPH_H
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -8,19 +8,19 @@
 #include <memory>
 
 namespace mlir {
-namespace vllm_graph{
+namespace diffusion_graph{
 
 void registerConversionPasses();
-} // vllm_graph
+} // diffusion_graph
 } // mlir
 
-namespace mlir::vllm_graph {
+namespace mlir::diffusion_graph {
 
-std::unique_ptr<OperationPass<func::FuncOp>> createTorchTovLLMGraph();
+std::unique_ptr<OperationPass<func::FuncOp>> createTorchToDiffusionGraph();
 
-void registerTorchTovLLMGraphPasses();
+void registerTorchToDiffusionGraphPasses();
 
-} // mlir::vllm_graph
+} // mlir::diffusion_graph
 
 
 #endif

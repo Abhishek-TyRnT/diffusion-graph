@@ -26,25 +26,25 @@ Pattern ExtractPoolingLayer with benefit(1) {
 
   let constantOp0 = op<arith.constant>() ;
 
-  let constantZeroTensor = op<vllm_graph.constant.tensor>(); 
+  let constantZeroTensor = op<diffusion_graph.constant.tensor>(); 
 
-  let constantBias = op<vllm_graph.constant.tensor>();
+  let constantBias = op<diffusion_graph.constant.tensor>();
 
-  let constantWeight = op<vllm_graph.constant.tensor>();
+  let constantWeight = op<diffusion_graph.constant.tensor>();
     
     // Match custom dialect operations that use constants
     // Replace "custom.op" with your actual custom op
-  let layerNormOp = op<vllm_graph.vllm.layer_norm>;
+  let layerNormOp = op<diffusion_graph.torch.layer_norm>;
 
-  let IndexSelectOp = op<vllm_graph.vllm.index_select>(layerNormOp, constantOp1, constantZeroTensor);
+  let IndexSelectOp = op<diffusion_graph.torch.index_select>(layerNormOp, constantOp1, constantZeroTensor);
 
-  let SqueezeOp = op<vllm_graph.vllm.squeeze>(IndexSelectOp, constantOp1) ;
+  let SqueezeOp = op<diffusion_graph.torch.squeeze>(IndexSelectOp, constantOp1) ;
 
-  let TransposeOp = op<vllm_graph.vllm.transpose>(constantBias, constantOp0, constantOp1) ;
+  let TransposeOp = op<diffusion_graph.torch.transpose>(constantBias, constantOp0, constantOp1) ;
 
-  let AddMmOp = op<vllm_graph.vllm.addmm>(constantWeight, SqueezeOp, TransposeOp, constantOp1, constantOp1) ;
+  let AddMmOp = op<diffusion_graph.torch.addmm>(constantWeight, SqueezeOp, TransposeOp, constantOp1, constantOp1) ;
 
-  let TanhOp = op<vllm_graph.vllm.tanh>(AddMmOp);
+  let TanhOp = op<diffusion_graph.torch.tanh>(AddMmOp);
                       
   rewrite IndexSelectOp with {
     CreatePoolingFunc(IndexSelectOp);

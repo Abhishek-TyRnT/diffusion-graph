@@ -1,5 +1,5 @@
-#ifndef VLLM_GRAPH_DIALECT_PATTERNS_NATIVEREWRITES_H
-#define VLLM_GRAPH_DIALECT_PATTERNS_NATIVEREWRITES_H
+#ifndef DIFFUSION_GRAPH_DIALECT_PATTERNS_NATIVEREWRITES_H
+#define DIFFUSION_GRAPH_DIALECT_PATTERNS_NATIVEREWRITES_H
 
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -12,14 +12,14 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
 
 namespace mlir {
-namespace vllm_graph{
+namespace diffusion_graph{
 
 
 bool createPoolingFunc(Value rootOpResult, PatternRewriter& rewriter);
 
 bool createCLIPPoolingFunc(Value rootOpResult, PatternRewriter& rewriter);
 
-} //vllm_graph
+} //diffusion_graph
 } //mlir
 
 #endif

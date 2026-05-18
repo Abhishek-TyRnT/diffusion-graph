@@ -19,7 +19,7 @@
 //===----------------------------------------------------------------------===//
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
 
 void ConstantDeviceOp::getAsmResultNames(

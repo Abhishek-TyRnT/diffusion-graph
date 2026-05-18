@@ -34,7 +34,7 @@ SmallVector<int64_t> makeShapeLLVMCompatible(ArrayRef<int64_t> shape) {
   return updatedShape;
 }
 
-bool vllm_graph::isValidSubtype(Type subtype, Type type) {
+bool diffusion_graph::isValidSubtype(Type subtype, Type type) {
   if (subtype == type)
     return true;
 
@@ -42,34 +42,34 @@ bool vllm_graph::isValidSubtype(Type subtype, Type type) {
   // subtypes.
   if (auto unionType = dyn_cast<UnionType>(subtype)) {
     for (auto containedType : unionType.getContainedTypes()) {
-      if (!vllm_graph::isValidSubtype(containedType, type))
+      if (!diffusion_graph::isValidSubtype(containedType, type))
         return false;
     }
     return true;
   }
 
-  if (auto any = dyn_cast<vllm_graph::AnyType>(type))
+  if (auto any = dyn_cast<diffusion_graph::AnyType>(type))
     return true;
 
-  if (auto number = dyn_cast<vllm_graph::NumberType>(type))
-    return isa<vllm_graph::IntType>(subtype) || isa<vllm_graph::FloatType>(subtype);
+  if (auto number = dyn_cast<diffusion_graph::NumberType>(type))
+    return isa<diffusion_graph::IntType>(subtype) || isa<diffusion_graph::FloatType>(subtype);
 
-  if (auto optional = dyn_cast<vllm_graph::OptionalType>(type))
+  if (auto optional = dyn_cast<diffusion_graph::OptionalType>(type))
     return isValidSubtype(subtype, optional.getContainedType()) ||
-           isa<vllm_graph::NoneType>(subtype);
+           isa<diffusion_graph::NoneType>(subtype);
 
   if (auto unionType = dyn_cast<UnionType>(type)) {
     for (auto containedType : unionType.getContainedTypes()) {
-      if (vllm_graph::isValidSubtype(subtype, containedType))
+      if (diffusion_graph::isValidSubtype(subtype, containedType))
         return true;
     }
     return false;
   }
 
-  if (auto tuple = dyn_cast<vllm_graph::TupleType>(type)) {
-    if (!isa<vllm_graph::TupleType>(subtype))
+  if (auto tuple = dyn_cast<diffusion_graph::TupleType>(type)) {
+    if (!isa<diffusion_graph::TupleType>(subtype))
       return false;
-    auto subtypes = cast<vllm_graph::TupleType>(subtype).getContainedTypes();
+    auto subtypes = cast<diffusion_graph::TupleType>(subtype).getContainedTypes();
     auto types = tuple.getContainedTypes();
     if (subtypes.size() != types.size())
       return false;
@@ -80,14 +80,14 @@ bool vllm_graph::isValidSubtype(Type subtype, Type type) {
     return true;
   }
 
-  auto subtypeTensorType = dyn_cast<vllm_graph::BaseTensorType>(subtype);
-  auto typeTensorType = dyn_cast<vllm_graph::BaseTensorType>(type);
+  auto subtypeTensorType = dyn_cast<diffusion_graph::BaseTensorType>(subtype);
+  auto typeTensorType = dyn_cast<diffusion_graph::BaseTensorType>(type);
   if (subtypeTensorType && typeTensorType) {
     // Check that both tensors have the same `BaseTensorType` subtype.
     // TODO: This is not subtyping according to PEP 483. See description
     // of NonValueTensorType.
-    if (isa<vllm_graph::ValueTensorType>(subtypeTensorType) !=
-        isa<vllm_graph::ValueTensorType>(typeTensorType))
+    if (isa<diffusion_graph::ValueTensorType>(subtypeTensorType) !=
+        isa<diffusion_graph::ValueTensorType>(typeTensorType))
       return false;
 
     // `type` must not have more static information than `subtype`, and `type`
@@ -99,7 +99,7 @@ bool vllm_graph::isValidSubtype(Type subtype, Type type) {
     }
 
     // `type` must not have more static shape information than `subtype`.
-    auto isSubsizes = [](vllm_graph::BaseTensorType type, vllm_graph::BaseTensorType subtype) -> bool {
+    auto isSubsizes = [](diffusion_graph::BaseTensorType type, diffusion_graph::BaseTensorType subtype) -> bool {
       auto typeSizes = type.getSizes();
       auto subtypeSizes = subtype.getSizes();
       if (typeSizes.size() != subtypeSizes.size()) {
@@ -162,13 +162,13 @@ static void printMultipleContainedTypes(AsmPrinter &printer,
 // TupleType
 //===----------------------------------------------------------------------===//
 
-Type vllm_graph::TupleType::parse(AsmParser &parser) {
+Type diffusion_graph::TupleType::parse(AsmParser &parser) {
   if (auto containedTypes = parseMultipleContainedTypes(parser))
     return TupleType::get(parser.getContext(), *containedTypes);
   return Type();
 }
 
-void vllm_graph::TupleType::print(AsmPrinter &printer) const {
+void diffusion_graph::TupleType::print(AsmPrinter &printer) const {
   printMultipleContainedTypes(printer, getContainedTypes());
 }
 
@@ -176,13 +176,13 @@ void vllm_graph::TupleType::print(AsmPrinter &printer) const {
 // UnionType
 //===----------------------------------------------------------------------===//
 
-Type vllm_graph::UnionType::parse(AsmParser &parser) {
+Type diffusion_graph::UnionType::parse(AsmParser &parser) {
   if (auto containedTypes = parseMultipleContainedTypes(parser))
     return UnionType::get(parser.getContext(), *containedTypes);
   return Type();
 }
 
-void vllm_graph::UnionType::print(AsmPrinter &printer) const {
+void diffusion_graph::UnionType::print(AsmPrinter &printer) const {
   printMultipleContainedTypes(printer, getContainedTypes());
 }
 
@@ -196,8 +196,8 @@ static bool isValidTorchDtype(Type dtype) {
     dtype = cast<ComplexType>(dtype).getElementType();
   }
   // Torch quantized types.
-  if (isa<vllm_graph::QInt8Type, vllm_graph::QUInt8Type, vllm_graph::QInt16Type,
-          vllm_graph::QInt32Type>(dtype))
+  if (isa<diffusion_graph::QInt8Type, diffusion_graph::QUInt8Type, diffusion_graph::QInt16Type,
+          diffusion_graph::QInt32Type>(dtype))
     return true;
   // Builtin floating point types.
   if (isa<Float16Type, BFloat16Type, Float32Type, Float64Type>(dtype))
@@ -206,7 +206,7 @@ static bool isValidTorchDtype(Type dtype) {
           Float8E4M3FNUZType, Float8E4M3B11FNUZType>(dtype))
     return true;
 
-  if (isa<vllm_graph::StringType>(dtype))
+  if (isa<diffusion_graph::StringType>(dtype))
     return true;
   // Builtin integer types.
   if (IntegerType type = dyn_cast<IntegerType>(dtype)) {
@@ -228,41 +228,41 @@ static bool isValidTorchDtype(Type dtype) {
   return false;
 }
 
-bool vllm_graph::BaseTensorType::hasSameSizesAndDtype(vllm_graph::BaseTensorType other) const {
+bool diffusion_graph::BaseTensorType::hasSameSizesAndDtype(diffusion_graph::BaseTensorType other) const {
   return getOptionalSizes() == other.getOptionalSizes() &&
          getOptionalDtype() == other.getOptionalDtype();
 }
 
-Type vllm_graph::BaseTensorType::getWithSizesAndDtypeFrom(vllm_graph::BaseTensorType other) const {
+Type diffusion_graph::BaseTensorType::getWithSizesAndDtypeFrom(diffusion_graph::BaseTensorType other) const {
   return getWithSizesAndDtype(other.getOptionalSizes(),
                               other.getOptionalDtype());
 }
 
-Type vllm_graph::BaseTensorType::getWithSizesAndDtype(
+Type diffusion_graph::BaseTensorType::getWithSizesAndDtype(
     std::optional<ArrayRef<int64_t>> optionalSizes, Type optionalDtype) const {
-  if (mlir::isa<vllm_graph::NonValueTensorType>(*this))
-    return vllm_graph::NonValueTensorType::get(getContext(), optionalSizes, optionalDtype);
-  if (mlir::isa<vllm_graph::ValueTensorType>(*this))
-    return vllm_graph::ValueTensorType::get(getContext(), optionalSizes, optionalDtype);
+  if (mlir::isa<diffusion_graph::NonValueTensorType>(*this))
+    return diffusion_graph::NonValueTensorType::get(getContext(), optionalSizes, optionalDtype);
+  if (mlir::isa<diffusion_graph::ValueTensorType>(*this))
+    return diffusion_graph::ValueTensorType::get(getContext(), optionalSizes, optionalDtype);
   llvm_unreachable("not a BaseTensorType!");
 }
 
-Type vllm_graph::BaseTensorType::getWithSizesAndDtypeAndSparsity(
+Type diffusion_graph::BaseTensorType::getWithSizesAndDtypeAndSparsity(
     std::optional<ArrayRef<int64_t>> optionalSizes, Type optionalDtype,
     Attribute optionalSparsity) const {
-  if (mlir::isa<vllm_graph::NonValueTensorType>(*this))
-    return vllm_graph::NonValueTensorType::get(getContext(), optionalSizes, optionalDtype,
+  if (mlir::isa<diffusion_graph::NonValueTensorType>(*this))
+    return diffusion_graph::NonValueTensorType::get(getContext(), optionalSizes, optionalDtype,
                                    optionalSparsity);
-  if (mlir::isa<vllm_graph::ValueTensorType>(*this))
-    return vllm_graph::ValueTensorType::get(getContext(), optionalSizes, optionalDtype,
+  if (mlir::isa<diffusion_graph::ValueTensorType>(*this))
+    return diffusion_graph::ValueTensorType::get(getContext(), optionalSizes, optionalDtype,
                                 optionalSparsity);
   llvm_unreachable("not a BaseTensorType!");
 }
 
-vllm_graph::ValueTensorType vllm_graph::BaseTensorType::getWithValueSemantics() const {
-  if (auto tensor = mlir::dyn_cast<vllm_graph::NonValueTensorType>(*this))
+diffusion_graph::ValueTensorType diffusion_graph::BaseTensorType::getWithValueSemantics() const {
+  if (auto tensor = mlir::dyn_cast<diffusion_graph::NonValueTensorType>(*this))
     return tensor.getWithValueSemantics();
-  if (auto tensor = mlir::dyn_cast<vllm_graph::ValueTensorType>(*this))
+  if (auto tensor = mlir::dyn_cast<diffusion_graph::ValueTensorType>(*this))
     return tensor;
   llvm_unreachable("not a BaseTensorType!");
 }
@@ -305,7 +305,7 @@ verifyTensorType(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
-Type parsevLLMTensorType(MLIRContext *context, AsmParser &parser,
+Type parseDiffusionGraphDialectType(MLIRContext *context, AsmParser &parser,
                      GetTensorTypeFn getTensorType) {
   llvm::SMLoc startLoc = parser.getCurrentLocation();
   if (parser.parseOptionalLess())
@@ -376,7 +376,7 @@ Type parsevLLMTensorType(MLIRContext *context, AsmParser &parser,
   return getTensorType(context, optionalSizes, optionalDtype, optionalSparsity);
 }
 
-static void printvLLMTensorType(AsmPrinter &printer,
+static void printDiffusionGraphDialectType(AsmPrinter &printer,
                             std::optional<ArrayRef<int64_t>> optionalSizes,
                             Type optionalDtype, Attribute optionalSparsity) {
   if (!optionalSizes && !optionalDtype)
@@ -412,38 +412,38 @@ static void printvLLMTensorType(AsmPrinter &printer,
 // NonValueTensorType
 //===----------------------------------------------------------------------===//
 
-vllm_graph::ValueTensorType vllm_graph::NonValueTensorType::getWithValueSemantics() const {
-  return vllm_graph::ValueTensorType::get(getContext(), getOptionalSizes(),
+diffusion_graph::ValueTensorType diffusion_graph::NonValueTensorType::getWithValueSemantics() const {
+  return diffusion_graph::ValueTensorType::get(getContext(), getOptionalSizes(),
                               getOptionalDtype());
 }
 
-vllm_graph::NonValueTensorType
-vllm_graph::NonValueTensorType::getWithLeastStaticInformation(MLIRContext *context) {
+diffusion_graph::NonValueTensorType
+diffusion_graph::NonValueTensorType::getWithLeastStaticInformation(MLIRContext *context) {
   return NonValueTensorType::get(context,
                                  /*optionalSizes=*/std::nullopt,
                                  /*optionalDtype=*/Type());
 }
 
 LogicalResult
-vllm_graph::NonValueTensorType::verify(function_ref<InFlightDiagnostic()> emitError,
+diffusion_graph::NonValueTensorType::verify(function_ref<InFlightDiagnostic()> emitError,
                            std::optional<ArrayRef<int64_t>> optionalSizes,
                            Type optionalDtype, Attribute optionalSparsity) {
   return verifyTensorType(emitError, optionalSizes, optionalDtype,
                           optionalSparsity);
 }
 
-Type vllm_graph::NonValueTensorType::parse(AsmParser &parser) {
+Type diffusion_graph::NonValueTensorType::parse(AsmParser &parser) {
   MLIRContext *context = parser.getContext();
   return parsevLLMTensorType(
       context, parser,
       [](MLIRContext *context, std::optional<ArrayRef<int64_t>> optionalSizes,
          Type optionalType, Attribute optionalSparsity) {
-        return vllm_graph::NonValueTensorType::get(context, optionalSizes, optionalType,
+        return diffusion_graph::NonValueTensorType::get(context, optionalSizes, optionalType,
                                        optionalSparsity);
       });
 }
 
-void vllm_graph::NonValueTensorType::print(AsmPrinter &printer) const {
+void diffusion_graph::NonValueTensorType::print(AsmPrinter &printer) const {
   printvLLMTensorType(printer, getOptionalSizes(), getOptionalDtype(),
                   getOptionalSparsity());
 }
@@ -452,14 +452,14 @@ void vllm_graph::NonValueTensorType::print(AsmPrinter &printer) const {
 // ValueTensorType
 //===----------------------------------------------------------------------===//
 
-vllm_graph::NonValueTensorType vllm_graph::ValueTensorType::getWithoutValueSemantics() const {
-  return vllm_graph::NonValueTensorType::get(getContext(), getOptionalSizes(),
+diffusion_graph::NonValueTensorType diffusion_graph::ValueTensorType::getWithoutValueSemantics() const {
+  return diffusion_graph::NonValueTensorType::get(getContext(), getOptionalSizes(),
                                  getOptionalDtype());
 }
 
-vllm_graph::ValueTensorType
-vllm_graph::ValueTensorType::getWithLeastStaticInformation(MLIRContext *context) {
-  return vllm_graph::ValueTensorType::get(context,
+diffusion_graph::ValueTensorType
+diffusion_graph::ValueTensorType::getWithLeastStaticInformation(MLIRContext *context) {
+  return diffusion_graph::ValueTensorType::get(context,
                               /*optionalSizes=*/std::nullopt,
                               /*optionalDtype=*/Type());
 }
@@ -469,16 +469,16 @@ static Type convertDtypeToBuiltinElementType(MLIRContext *context, Type dtype) {
     return dtype;
   }
 
-  if (isa<vllm_graph::QUInt8Type>(dtype))
+  if (isa<diffusion_graph::QUInt8Type>(dtype))
     return IntegerType::get(context, 8, IntegerType::Signless);
 
-  if (isa<vllm_graph::QInt8Type>(dtype))
+  if (isa<diffusion_graph::QInt8Type>(dtype))
     return IntegerType::get(context, 8, IntegerType::Signless);
 
-  if (isa<vllm_graph::QInt16Type>(dtype))
+  if (isa<diffusion_graph::QInt16Type>(dtype))
     return IntegerType::get(context, 16, IntegerType::Signless);
 
-  if (isa<vllm_graph::QInt32Type>(dtype))
+  if (isa<diffusion_graph::QInt32Type>(dtype))
     return IntegerType::get(context, 32, IntegerType::Signless);
 
   emitError(UnknownLoc::get(context))
@@ -487,7 +487,7 @@ static Type convertDtypeToBuiltinElementType(MLIRContext *context, Type dtype) {
   return nullptr;
 }
 
-TensorType vllm_graph::ValueTensorType::toBuiltinTensor() const {
+TensorType diffusion_graph::ValueTensorType::toBuiltinTensor() const {
   if (!hasDtype())
     return nullptr;
   Type elementType = convertDtypeToBuiltinElementType(getContext(), getDtype());
@@ -500,7 +500,7 @@ TensorType vllm_graph::ValueTensorType::toBuiltinTensor() const {
 }
 
 LogicalResult
-vllm_graph::ValueTensorType::verify(function_ref<InFlightDiagnostic()> emitError,
+diffusion_graph::ValueTensorType::verify(function_ref<InFlightDiagnostic()> emitError,
                         std::optional<ArrayRef<int64_t>> optionalSizes,
                         Type optionalDtype, Attribute optionalSparsity) {
   return verifyTensorType(emitError, optionalSizes, optionalDtype,
@@ -523,9 +523,9 @@ void ValueTensorType::print(AsmPrinter &printer) const {
                   getOptionalSparsity());
 }
 
-Type meetTensorTypes(vllm_graph::BaseTensorType lhs, vllm_graph::BaseTensorType rhs) {
-  assert(((isa<vllm_graph::ValueTensorType>(lhs) && isa<vllm_graph::ValueTensorType>(rhs)) ||
-          (isa<vllm_graph::NonValueTensorType>(lhs) && isa<vllm_graph::NonValueTensorType>(rhs))) &&
+Type meetTensorTypes(diffusion_graph::BaseTensorType lhs, diffusion_graph::BaseTensorType rhs) {
+  assert(((isa<diffusion_graph::ValueTensorType>(lhs) && isa<diffusion_graph::ValueTensorType>(rhs)) ||
+          (isa<diffusion_graph::NonValueTensorType>(lhs) && isa<diffusion_graph::NonValueTensorType>(rhs))) &&
          "expected lhs and rhs to have same sense of value semantics");
 
   // First, calculate the dtype.
@@ -545,7 +545,7 @@ Type meetTensorTypes(vllm_graph::BaseTensorType lhs, vllm_graph::BaseTensorType 
 
   // If neither has sizes, we have nothing left to do.
   if (!lhs.hasSizes() && !rhs.hasSizes()) {
-    return vllm_graph::ValueTensorType::get(lhs.getContext(),
+    return diffusion_graph::ValueTensorType::get(lhs.getContext(),
                                 /*optionalSizes=*/std::nullopt, dtype);
   }
 
@@ -588,21 +588,21 @@ Type meetTensorTypes(vllm_graph::BaseTensorType lhs, vllm_graph::BaseTensorType 
 // linkage) and the predicates themselves can't be added/used in the
 // specification of the parameters of the Torch_DictType.
 static bool isAnyTorchDictKeyType(Type type) {
-  return isa<vllm_graph::AnyType>(type) || isa<vllm_graph::IntType>(type) ||
-         isa<vllm_graph::BoolType>(type) || isa<vllm_graph::FloatType>(type) ||
-         isa<vllm_graph::StringType>(type) || isa<vllm_graph::BaseTensorType>(type);
+  return isa<diffusion_graph::AnyType>(type) || isa<diffusion_graph::IntType>(type) ||
+         isa<diffusion_graph::BoolType>(type) || isa<diffusion_graph::FloatType>(type) ||
+         isa<diffusion_graph::StringType>(type) || isa<diffusion_graph::BaseTensorType>(type);
 }
 
 static bool isAnyTorchType(Type type) {
-  return isValidSubtype(type, vllm_graph::NumberType::get(type.getContext())) ||
-         isa<vllm_graph::BaseTensorType>(type) || isa<vllm_graph::AnyType>(type) ||
-         isa<vllm_graph::BoolType>(type) || isa<vllm_graph::DictType>(type) ||
-         isa<vllm_graph::DeviceType>(type) || isa<vllm_graph::GeneratorType>(type) ||
-         isa<vllm_graph::ListType>(type) || isa<vllm_graph::LinearParamsType>(type) ||
-         isa<vllm_graph::NumberType>(type) || isa<vllm_graph::NnModuleType>(type) ||
-         isa<vllm_graph::NoneType>(type) || isa<vllm_graph::OptionalType>(type) ||
-         isa<vllm_graph::StringType>(type) || isa<vllm_graph::TupleType>(type) ||
-         isa<vllm_graph::UnionType>(type);
+  return isValidSubtype(type, diffusion_graph::NumberType::get(type.getContext())) ||
+         isa<diffusion_graph::BaseTensorType>(type) || isa<diffusion_graph::AnyType>(type) ||
+         isa<diffusion_graph::BoolType>(type) || isa<diffusion_graph::DictType>(type) ||
+         isa<diffusion_graph::DeviceType>(type) || isa<diffusion_graph::GeneratorType>(type) ||
+         isa<diffusion_graph::ListType>(type) || isa<diffusion_graph::LinearParamsType>(type) ||
+         isa<diffusion_graph::NumberType>(type) || isa<diffusion_graph::NnModuleType>(type) ||
+         isa<diffusion_graph::NoneType>(type) || isa<diffusion_graph::OptionalType>(type) ||
+         isa<diffusion_graph::StringType>(type) || isa<diffusion_graph::TupleType>(type) ||
+         isa<diffusion_graph::UnionType>(type);
 }
 
 LogicalResult

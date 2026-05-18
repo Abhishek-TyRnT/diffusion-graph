@@ -1,5 +1,5 @@
-#ifndef VLLM_GRAPH_UTILS_UTILS_H_
-#define VLLM_GRAPH_UTILS_UTILS_H_
+#ifndef DIFFUSION_GRAPH_UTILS_UTILS_H_
+#define DIFFUSION_GRAPH_UTILS_UTILS_H_
 
 #include "vllm_graph/Conversion/TorchTovLLMGraph.hpp"
 #include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
@@ -12,17 +12,17 @@
 #include "mlir/IR/Types.h"
 
 namespace mlir{
-namespace vllm_graph{
+namespace diffusion_graph{
 
-Type convertTorchvTypeTovLLMvType(Type type, MLIRContext *context);
+Type convertTorchvTypeToDGvType(Type type, MLIRContext *context);
 
 
 RankedTensorType convertTorchvTypeToTensorType(Type type);
 
-Type convertvLLMContainedType(Type type, 
+Type convertDGContainedType(Type type, 
                         MLIRContext *context);
 
-}// namespace vllm_graph
+}// namespace diffusion_graph
 
 }// namespace mlir
 #endif

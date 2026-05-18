@@ -16,13 +16,13 @@ Pattern ExtractPoolingLayer with benefit(1) {
     let Constant3Op = op<arith.constant>();
     let ConstantFalseOp = op<arith.constant>();
 
-    let layerNormOp = op<vllm_graph.vllm.layer_norm>;
-    let CastDtypeOp = op<vllm_graph.vllm.cast_dtype>(_ : Value, Constant3Op );
+    let layerNormOp = op<diffusion_graph.torch.layer_norm>;
+    let CastDtypeOp = op<diffusion_graph.torch.cast_dtype>(_ : Value, Constant3Op );
 
-    let MaxDimOp = op<vllm_graph.temp.max_dim>(CastDtypeOp, ConstantNeg1Op , ConstantFalseOp );
+    let MaxDimOp = op<diffusion_graph.temp.max_dim>(CastDtypeOp, ConstantNeg1Op , ConstantFalseOp );
 
     let Indices : Value = MaxDimOp.indices;
-    let IndexSelectOp = op<vllm_graph.vllm.index_select>(layerNormOp , _ : Value, Indices);
+    let IndexSelectOp = op<diffusion_graph.torch.index_select>(layerNormOp , _ : Value, Indices);
 
     rewrite IndexSelectOp with {
       CreateCLIPPoolingFunc(IndexSelectOp);

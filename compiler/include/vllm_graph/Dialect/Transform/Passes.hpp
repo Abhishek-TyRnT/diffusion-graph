@@ -7,7 +7,7 @@
 namespace mlir {
 class ModuleOp;
 
-namespace vllm_graph {
+namespace diffusion_graph {
 
 #include "vllm_graph/Dialect/Transform/Passes.h.inc"
 
@@ -19,13 +19,13 @@ std::unique_ptr<OperationPass<func::FuncOp>> createRecomposeSimpleOpsToComplexOp
 
 std::unique_ptr<OperationPass<func::FuncOp>> createStaticOpMaterializationPass();
 
-std::unique_ptr<OperationPass<ModuleOp>> createvLLMFunctionPartitionPass();
+std::unique_ptr<OperationPass<ModuleOp>> createDiffusionGraphFunctionPartitionPass();
 
 std::unique_ptr<OperationPass<func::FuncOp>> createContiguousInsertionPass();
 
-void createTorchTovLLMGraphPipeline(PassManager &pm);
+void createTorchToDiffusionGraphPipeline(PassManager &pm);
 
-void registervLLMGraphPasses();
+void registerDiffusionGraphPasses();
 
 //===----------------------------------------------------------------------===//
 // Pass registration

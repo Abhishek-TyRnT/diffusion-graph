@@ -22,7 +22,7 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.h.inc"
 
 namespace mlir {
-namespace vllm_graph {
+namespace diffusion_graph {
 namespace detail {
 
 struct vllm_constant_device_op_binder {
@@ -32,7 +32,7 @@ struct vllm_constant_device_op_binder {
   vllm_constant_device_op_binder(std::string &bv) : bind_value(bv) {}
 
   bool match(Operation *op) {
-    if (auto constantDevice = dyn_cast<vllm_graph::ConstantDeviceOp>(op)) {
+    if (auto constantDevice = dyn_cast<diffusion_graph::ConstantDeviceOp>(op)) {
       bind_value = constantDevice.getValue().str();
       return true;
     }
@@ -40,16 +40,16 @@ struct vllm_constant_device_op_binder {
   }
 };
 } //detail
-} //vllm_graph
+} //diffusion_graph
 } //mlir
 
 namespace mlir {
-namespace vllm_graph {
+namespace diffusion_graph {
 
-ParseResult parseDefaultvLLMGraphOp(OpAsmParser &parser, OperationState &result,
+ParseResult parseDefaultDiffusionGraphOp(OpAsmParser &parser, OperationState &result,
                                 int numOperands, int numResults);
-// Print a generated Torch op in the default format.
-void printDefaultvLLMGraphOp(OpAsmPrinter &p, Operation *op, int numOperands,
+// Print a generated Diffusion Graph op in the default format.
+void printDefaultDiffusionGraphOp(OpAsmPrinter &p, Operation *op, int numOperands,
                          int numResults);
 
 }

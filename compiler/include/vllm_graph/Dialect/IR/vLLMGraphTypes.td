@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef VLLMM_GRAPH_TYPES
-#define VLLMM_GRAPH_TYPES
+#ifndef DIFFUSION_GRAPH_TYPES
+#define DIFFUSION_GRAPH_TYPES
 
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/DialectBase.td"
@@ -18,13 +18,13 @@ include "vllm_graph/Dialect/IR/vLLMGraphBase.td"
 // Type defs
 //===----------------------------------------------------------------------===//
 
-class vllm_Type<string name, string typeMnemonic,
+class diffusion_Type<string name, string typeMnemonic,
                  string baseCppClass = "::mlir::Type">
     : TypeDef<vLLMGraphIR_Dialect, name, [], baseCppClass> {
   let mnemonic = typeMnemonic;
 }
 
-class vllm_TypeWithContainedType<string name, string typeMnemonic> : vllm_Type<name, typeMnemonic> {
+class diffusion_TypeWithContainedType<string name, string typeMnemonic> : diffusion_Type<name, typeMnemonic> {
   let parameters = (ins "::mlir::Type":$containedType);
   let hasCustomAssemblyFormat = 1;
 
@@ -35,7 +35,7 @@ class vllm_TypeWithContainedType<string name, string typeMnemonic> : vllm_Type<n
   ];
 }
 
-def Torch_NnModuleType : vllm_Type<"NnModule", "nn.Module"> {
+def Torch_NnModuleType : diffusion_Type<"NnModule", "nn.Module"> {
   let summary = "torch.nn.Module";
   let description = [{
     Represents an instance of a `torch.nn.Module` with the given `className`.
@@ -56,7 +56,7 @@ class OptionalArrayRefTorchParameter<string arrayOf, string desc = ""> :
 }
 
 class AnyTorchTensorType<string name, string typeMnemonic>
-    : vllm_Type<name, typeMnemonic, "::mlir::vllm_graph::BaseTensorType"> {
+    : diffusion_Type<name, typeMnemonic, "::mlir::vllm_graph::BaseTensorType"> {
   let summary = "Multi-dimensional array modeling Torch's Tensor type";
   let description = [{
     Syntax:
@@ -210,19 +210,19 @@ def AnyTorchTensorType : Type<
 // For now, we only need it as a stand-in type to allow importing
 // the `_is_full_backward_hook` optional bool type that Torch puts on
 // all classes.
-def Torch_OptionalType : vllm_TypeWithContainedType<"Optional", "optional"> {
+def Torch_OptionalType : diffusion_TypeWithContainedType<"Optional", "optional"> {
   let summary = "!torch.optional<T>";
   let description = [{
   }];
 }
 
-def Torch_ListType : vllm_TypeWithContainedType<"List", "list"> {
+def Torch_ListType : diffusion_TypeWithContainedType<"List", "list"> {
   let summary = "!vllm_graph.list<T>";
   let description = [{
   }];
 }
 
-def Torch_TupleType : vllm_Type<"Tuple", "tuple"> {
+def Torch_TupleType : diffusion_Type<"Tuple", "tuple"> {
   let summary = "!vllm_graph.tuple<T1, T2, T3>";
   let description = [{
     Tuple type with 0-N ordered contained types.
@@ -233,7 +233,7 @@ def Torch_TupleType : vllm_Type<"Tuple", "tuple"> {
   let hasCustomAssemblyFormat = 1;
 }
 
-def Torch_UnionType : vllm_Type<"Union", "union"> {
+def Torch_UnionType : diffusion_Type<"Union", "union"> {
   let summary = "!torch.union<T1, T2, T3>";
   let description = [{
     Union type with 0-N alternative types.
@@ -252,22 +252,22 @@ def Torch_UnionType : vllm_Type<"Union", "union"> {
   let hasCustomAssemblyFormat = 1;
 }
 
-def Torch_DeviceType : vllm_Type<"Device", "Device"> {
+def Torch_DeviceType : diffusion_Type<"Device", "Device"> {
   let summary = "Torch device";
 }
 
-def Torch_GeneratorType : vllm_Type<"Generator", "Generator"> {
+def Torch_GeneratorType : diffusion_Type<"Generator", "Generator"> {
   let summary = "Torch Generator for producing valsem-random numbers";
 }
 
-def Torch_BoolType : vllm_Type<"Bool", "bool"> {
+def Torch_BoolType : diffusion_Type<"Bool", "bool"> {
   let summary = "Torch BoolType";
   let description = [{
     An immutable boolean taking values 0 or 1.
   }];
 }
 
-def Torch_IntType : vllm_Type<"Int", "int"> {
+def Torch_IntType : diffusion_Type<"Int", "int"> {
   let summary = "Torch IntType";
   let description = [{
     The integer type used to model the Python `int` type in TorchScript.
@@ -277,7 +277,7 @@ def Torch_IntType : vllm_Type<"Int", "int"> {
   }];
 }
 
-def Torch_FloatType : vllm_Type<"Float", "float"> {
+def Torch_FloatType : diffusion_Type<"Float", "float"> {
   let summary = "Torch FloatType";
   let description = [{
     The float type is used to model the Python `float` type in TorchScript.
@@ -287,14 +287,14 @@ def Torch_FloatType : vllm_Type<"Float", "float"> {
   }];
 }
 
-def Torch_NoneType : vllm_Type<"None", "none"> {
+def Torch_NoneType : diffusion_Type<"None", "none"> {
   let summary = "Torch NoneType";
   let description = [{
     The singleton "None" type.
   }];
 }
 
-def Torch_StringType : vllm_Type<"String", "str"> {
+def Torch_StringType : diffusion_Type<"String", "str"> {
   let summary = "Torch StringType";
   let description = [{
     An immutable string representing a sequence of characters.
@@ -304,7 +304,7 @@ def Torch_StringType : vllm_Type<"String", "str"> {
   }];
 }
 
-def Torch_QInt8Type : vllm_Type<"QInt8", "qint8"> {
+def Torch_QInt8Type : diffusion_Type<"QInt8", "qint8"> {
   let summary = "Type modeling `ScalarType::QInt8`";
   let description = [{
     This is intended to be a 1:1 match for the Torch `ScalarType` types.
@@ -315,7 +315,7 @@ def Torch_QInt8Type : vllm_Type<"QInt8", "qint8"> {
   }];
 }
 
-def Torch_QInt16Type : vllm_Type<"QInt16", "qint16"> {
+def Torch_QInt16Type : diffusion_Type<"QInt16", "qint16"> {
   let summary = "Type modeling `ScalarType::QInt16`, which doesn't yet exist";
   let description = [{
     Pytorch does not have 16-bit integer quantization support.
@@ -325,7 +325,7 @@ def Torch_QInt16Type : vllm_Type<"QInt16", "qint16"> {
   }];
 }
 
-def Torch_QUInt8Type : vllm_Type<"QUInt8", "quint8"> {
+def Torch_QUInt8Type : diffusion_Type<"QUInt8", "quint8"> {
   let summary = "Type modeling `ScalarType::QUInt8`";
   let description = [{
     This is intended to be a 1:1 match for the Torch `ScalarType` types.
@@ -336,7 +336,7 @@ def Torch_QUInt8Type : vllm_Type<"QUInt8", "quint8"> {
   }];
 }
 
-def Torch_QInt32Type : vllm_Type<"QInt32", "qint32"> {
+def Torch_QInt32Type : diffusion_Type<"QInt32", "qint32"> {
   let summary = "Type modeling `ScalarType::QInt32`";
   let description = [{
     This is intended to be a 1:1 match for the Torch `ScalarType` types.
@@ -347,7 +347,7 @@ def Torch_QInt32Type : vllm_Type<"QInt32", "qint32"> {
   }];
 }
 
-def Torch_LinearParamsType : vllm_Type<"LinearParams", "LinearParams"> {
+def Torch_LinearParamsType : diffusion_Type<"LinearParams", "LinearParams"> {
   let summary = "Torch packed linear params type";
   let description = [{
     A weight and optional bias, packed into one value.
@@ -367,21 +367,21 @@ def Torch_LinearParamsType : vllm_Type<"LinearParams", "LinearParams"> {
   }];
 }
 
-def Torch_AnyType : vllm_Type<"Any", "any"> {
+def Torch_AnyType : diffusion_Type<"Any", "any"> {
   let summary = "Torch any type";
   let description = [{
     Represent any torch type. All the other types are sub types of Any type.
   }];
 }
 
-def Torch_NumberType : vllm_Type<"Number", "number"> {
+def Torch_NumberType : diffusion_Type<"Number", "number"> {
   let summary = "Torch number type";
   let description = [{
     The Int, Float and Complex type are sub types of Number type.
   }];
 }
 
-def Torch_DictType : vllm_Type<"Dict", "dict"> {
+def Torch_DictType : diffusion_Type<"Dict", "dict"> {
 
   let summary = "!torch.dict[KT, VT] ";
   let parameters = (ins "::mlir::Type":$keyType, "::mlir::Type":$valueType);
@@ -506,4 +506,4 @@ def AnyTorchArrayType : AnyTypeOf<[
   Torch_TupleType
 ], "Any Torch array type">; 
 
-#endif // VLLMM_GRAPH_TYPES
+#endif // DIFFUSION_GRAPH_TYPES

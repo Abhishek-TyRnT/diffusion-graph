@@ -4,13 +4,13 @@
 
 include "mlir/Pass/PassBase.td"
 
-def ConvertTorchTovLLMGraph : Pass<"convert-torch-to-vllm-graph", "func::FuncOp"> {
-   let summary = "Converts Torch Ops in the vllm graph dialect";
+def ConvertTorchToDiffusionGraph : Pass<"convert-torch-to-diffusion-graph", "func::FuncOp"> {
+   let summary = "Converts Torch Ops in the diffusion graph dialect";
    let description = [{
-       Converts equivalent torch ops to vllm-graph Dialect 
+       Converts equivalent torch ops to diffusion-graph Dialect 
    }];
 
-   let constructor = "mlir::vllm_graph::createTorchTovLLMGraph()";
+   let constructor = "mlir::diffusion_graph::createTorchToDiffusionGraph()";
 
 }
 

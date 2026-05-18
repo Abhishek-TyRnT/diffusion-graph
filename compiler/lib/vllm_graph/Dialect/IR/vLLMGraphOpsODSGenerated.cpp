@@ -10,12 +10,12 @@
 #include "llvm/Support/Casting.h"
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
 #define GET_OP_CLASSES
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.cpp.inc"
 
-ParseResult vllm_graph::parseDefaultvLLMGraphOp(OpAsmParser &parser,
+ParseResult diffusion_graph::parseDefaultDiffusionGraphOp(OpAsmParser &parser,
                                        OperationState &result, int numOperands,
                                        int numResults) {
   llvm::SMLoc loc = parser.getCurrentLocation();
@@ -44,7 +44,7 @@ ParseResult vllm_graph::parseDefaultvLLMGraphOp(OpAsmParser &parser,
   return success();
 }
 
-void vllm_graph::printDefaultvLLMGraphOp(OpAsmPrinter &p, Operation *op, int numOperands,
+void diffusion_graph::printDefaultDiffusionGraphOp(OpAsmPrinter &p, Operation *op, int numOperands,
                                 int numResults) {
   if (numOperands > 0) {
     p << ' ';

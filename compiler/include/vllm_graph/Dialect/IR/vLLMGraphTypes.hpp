@@ -1,12 +1,12 @@
 
-#ifndef VLLM_GRAPH_DIALECT_IR_VLLM_GRAPH_TYPES_H
-#define VLLM_GRAPH_DIALECT_IR_VLLM_GRAPH_TYPES_H
+#ifndef DIFFUSION_GRAPH_DIALECT_IR_DIFFUSION_GRAPH_TYPES_H
+#define DIFFUSION_GRAPH_DIALECT_IR_DIFFUSION_GRAPH_TYPES_H
 
 #include "mlir/IR/BuiltinTypes.h"
 
 #define DYNAMIC_SIZE -1
 namespace mlir {
-namespace vllm_graph {
+namespace diffusion_graph {
 
 /// PyTorch has a well-developed notion of subtyping.
 ///
@@ -153,7 +153,7 @@ inline bool BaseTensorType::classof(Type type) {
   return mlir::isa<NonValueTensorType, ValueTensorType>(type);
 }
 
-} // namespace vllm_graph
+} // namespace diffusion_graph
 } // namespace mlir
 
-#endif // TORCHMLIR_DIALECT_TORCH_IR_TORCHTYPES_H
+#endif // DIFFUSION_GRAPH_DIALECT_IR_DIFFUSION_GRAPH_TYPES_H

@@ -16,15 +16,15 @@
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
-#include "vllm_graph/Dialect/IR/vLLMGraphIRDialect.cpp.inc"
+#include "vllm_graph/Dialect/IR/DiffusionGraphIRDialect.cpp.inc"
 
 #define GET_TYPEDEF_CLASSES
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.cpp.inc"
 
 
-Type vllm_graph::parsevLLMGraphDialectType(AsmParser &parser){
+Type diffusion_graph::parseDiffusionGraphDialectType(AsmParser &parser){
     SMLoc typeLoc = parser.getCurrentLocation();
     StringRef mnemonic;
     Type genType;
@@ -32,11 +32,11 @@ Type vllm_graph::parsevLLMGraphDialectType(AsmParser &parser){
     if(parseResult.has_value())
         return genType;
     parser.emitError(typeLoc) << "unknown  type `" << mnemonic << "` in dialect `"
-                                << vLLMGraphIRDialect::getDialectNamespace() << "`";
+                                << DiffusionGraphIRDialect::getDialectNamespace() << "`";
     return {};
 }
 
-void vllm_graph::printvLLMGraphDialectType(Type type, AsmPrinter &printer) {
+void diffusion_graph::printDiffusionGraphDialectType(Type type, AsmPrinter &printer) {
     if (succeeded(generatedTypePrinter(type, printer)))
         return;
 }
@@ -47,15 +47,15 @@ void vllm_graph::printvLLMGraphDialectType(Type type, AsmPrinter &printer) {
 //===----------------------------------------------------------------------===//
 
 /// Parse a type registered to this dialect.
-Type vLLMGraphIRDialect::parseType(DialectAsmParser &parser) const {
-  return parsevLLMGraphDialectType(parser);
+Type DiffusionGraphIRDialect::parseType(DialectAsmParser &parser) const {
+  return parseDiffusionGraphDialectType(parser);
 }
 /// Print a type registered to this dialect.
-void vLLMGraphIRDialect::printType(Type type, DialectAsmPrinter &printer) const {
-  printvLLMGraphDialectType(type, printer);
+void DiffusionGraphIRDialect::printType(Type type, DialectAsmPrinter &printer) const {
+  printDiffusionGraphDialectType(type, printer);
 }
 
-void vLLMGraphIRDialect::initialize() {
+void DiffusionGraphIRDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include "vllm_graph/Dialect/IR/vLLMGraphOps.cpp.inc"
@@ -67,13 +67,13 @@ void vLLMGraphIRDialect::initialize() {
     
 }
 
-Operation *vLLMGraphIRDialect::materializeConstant(OpBuilder &builder,
+Operation *DiffusionGraphIRDialect::materializeConstant(OpBuilder &builder,
                                              Attribute value, Type type,
                                              Location loc) {
-    // if (auto integerType = dyn_cast<vllm_graph::IntType>(type))
+    // if (auto integerType = dyn_cast<diffusion_graph::IntType>(type))
     //     return builder.create<arith::ConstantIntOp>(loc, cast<IntegerAttr>(value).getValue().getSExtValue(), builder.getIntegerType(32));
 
-    if (auto floatType = dyn_cast<vllm_graph::FloatType>(type))
+    if (auto floatType = dyn_cast<diffusion_graph::FloatType>(type))
         return builder.create<arith::ConstantFloatOp>(loc, cast<FloatAttr>(value).getValue(), builder.getF32Type());
 
     if (auto intAttr = dyn_cast<IntegerAttr>(value)) {
@@ -85,30 +85,30 @@ Operation *vLLMGraphIRDialect::materializeConstant(OpBuilder &builder,
 
 
     // TODO: Add number type
-    // if (auto numberType = dyn_cast<vllm_graph::NumberType>(type)) {
+    // if (auto numberType = dyn_cast<diffusion_graph::NumberType>(type)) {
     //     if (auto floatValue = dyn_cast<mlir::FloatAttr>(value)) {
-    //     return builder.create<vllm_graph::ConstantNumberOp>(loc, floatValue);
+    //     return builder.create<diffusion_graph::ConstantNumberOp>(loc, floatValue);
     //     } else if (auto intValue = dyn_cast<mlir::IntegerAttr>(value)) {
-    //     return builder.create<vllm_graph::ConstantNumberOp>(loc, intValue);
+    //     return builder.create<diffusion_graph::ConstantNumberOp>(loc, intValue);
     //     }
     // }
 
-    if (isa<vllm_graph::BoolType>(type)) {
+    if (isa<diffusion_graph::BoolType>(type)) {
         return builder.create<arith::ConstantIntOp>(loc, cast<IntegerAttr>(value).getValue().getZExtValue(), builder.getI1Type());
     }
 
-    // if (isa<vllm_graph::NoneType>(type))
+    // if (isa<diffusion_graph::NoneType>(type))
     //     return builder.create<arith::ConstantOp>(loc, mlir::NoneType::get(builder.getContext()));
 ;
 
     // if (auto stringAttr = dyn_cast<StringAttr>(value))
     //     return builder.create<ConstantStrOp>(loc, stringAttr);
 
-    // if (auto elementsAttr = dyn_cast<vllm_graph::ElementsAttr>(value)) {
+    // if (auto elementsAttr = dyn_cast<diffusion_graph::ElementsAttr>(value)) {
     //     // Only !torch.vtensor can be constant folded. !torch.tensor has
     //     // non-trivial aliasing semantics which prevent deduplicating it.
-    //     assert(isa<vllm_graph::ValueTensorType>(type) && "should be a vtensor type!");
-    //     return builder.create<vllm_graph::ValueTensorLiteralOp>(loc, elementsAttr);
+    //     assert(isa<diffusion_graph::ValueTensorType>(type) && "should be a vtensor type!");
+    //     return builder.create<diffusion_graph::ValueTensorLiteralOp>(loc, elementsAttr);
     // }
 
     return nullptr;
@@ -117,7 +117,7 @@ Operation *vLLMGraphIRDialect::materializeConstant(OpBuilder &builder,
 void OptionalType::print(AsmPrinter &printer) const {
   printer << "<";
   // Print the contained type without the `!torch.` prefix.
-  printvLLMGraphDialectType(getImpl()->containedType, printer);
+  printDiffusionGraphDialectType(getImpl()->containedType, printer);
   printer << ">";
 }
 
@@ -135,7 +135,7 @@ Type OptionalType::parse(AsmParser &odsParser) {
   // Parse the contained type, but forward directly to our internal parsing
   // of `torch` dialect types, so that we can parse nested types without
   // the `!torch.` prefix.
-  Type containedType = parsevLLMGraphDialectType(odsParser);
+  Type containedType = parseDiffusionGraphDialectType(odsParser);
   if (!containedType)
     return Type();
   if (odsParser.parseGreater())
@@ -150,7 +150,7 @@ Type ListType::parse(AsmParser &odsParser) {
   // Parse the contained type, but forward directly to our internal parsing
   // of `torch` dialect types, so that we can parse nested types without
   // the `!torch.` prefix.
-  Type containedType = parsevLLMGraphDialectType(odsParser);
+  Type containedType = parseDiffusionGraphDialectType(odsParser);
   if (!containedType)
     return Type();
   if (odsParser.parseGreater())
@@ -164,21 +164,21 @@ Type ListType::parse(AsmParser &odsParser) {
 
 void DictType::print(AsmPrinter &printer) const {
   printer << "<";
-  printvLLMGraphDialectType(getImpl()->keyType, printer);
+  printDiffusionGraphDialectType(getImpl()->keyType, printer);
   printer << ", ";
-  printvLLMGraphDialectType(getImpl()->valueType, printer);
+  printDiffusionGraphDialectType(getImpl()->valueType, printer);
   printer << ">";
 }
 
 Type DictType::parse(AsmParser &odsParser) {
   if (odsParser.parseLess())
     return Type();
-  Type keyType = parsevLLMGraphDialectType(odsParser);
+  Type keyType = parseDiffusionGraphDialectType(odsParser);
   if (!keyType)
     return Type();
   if (odsParser.parseComma())
     return Type();
-  Type valueType = parsevLLMGraphDialectType(odsParser);
+  Type valueType = parseDiffusionGraphDialectType(odsParser);
   if (!valueType)
     return Type();
   if (odsParser.parseGreater())

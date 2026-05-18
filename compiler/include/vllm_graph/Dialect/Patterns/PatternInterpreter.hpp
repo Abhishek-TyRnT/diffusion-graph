@@ -1,5 +1,5 @@
-#ifndef VLLM_GRAPH_DIALECT_PATTERNS_PATTERNINTERPRETER_H
-#define VLLM_GRAPH_DIALECT_PATTERNS_PATTERNINTERPRETER_H
+#ifndef DIFFUSION_GRAPH_DIALECT_PATTERNS_PATTERNINTERPRETER_H
+#define DIFFUSION_GRAPH_DIALECT_PATTERNS_PATTERNINTERPRETER_H
 
 #include "mlir/Dialect/PDL/IR/PDL.h"
 #include "mlir/Dialect/PDLInterp/IR/PDLInterp.h"
@@ -22,7 +22,7 @@ using namespace std;
 
 namespace mlir {
 
-namespace vllm_graph {
+namespace diffusion_graph {
 class PDLInterpMatcher {
 
 using FuncVariant = std::variant<
@@ -126,5 +126,5 @@ public:
 };
 
 } // mlir
-} // vllm_graph
+} // diffusion_graph
 #endif

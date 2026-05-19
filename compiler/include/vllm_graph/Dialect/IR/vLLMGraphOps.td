@@ -57,10 +57,10 @@ def diffusion_CastOp : DiffusionGraph_Op<"vllm.cast_op",[Pure]> {
     let hasCustomAssemblyFormat = 1;
     let extraClassDefinition = [{
         ParseResult CastOp::parse(OpAsmParser &parser, OperationState &result) {
-            return parseDefaultvLLMGraphOp(parser, result, 1, 1);
+            return parseDefaultDiffusionGraphOp(parser, result, 1, 1);
         }
         void CastOp::print(OpAsmPrinter &printer) {
-            printDefaultvLLMGraphOp(printer, *this, 1, 1);
+            printDefaultDiffusionGraphOp(printer, *this, 1, 1);
         }
     }];
 }
@@ -135,10 +135,10 @@ def diffusion_GetIndexAtOp : DiffusionGraph_Op<"indexAt", [
   let hasCustomAssemblyFormat = 1;
   let extraClassDefinition = [{
     ParseResult GetIndexAtOp::parse(OpAsmParser &parser, OperationState &result) {
-      return parseDefaultvLLMGraphOp(parser, result, 2, 1);
+      return parseDefaultDiffusionGraphOp(parser, result, 2, 1);
     }
     void GetIndexAtOp::print(OpAsmPrinter &printer) {
-      printDefaultvLLMGraphOp(printer, *this, 2, 1);
+      printDefaultDiffusionGraphOp(printer, *this, 2, 1);
     }
   }];
 }

@@ -12,7 +12,7 @@ add_mlir_conversion_library(vLLMGraphTorchTovLLMGraph
   MLIRPass
   MLIRSupport
   MLIRTransforms
-  vLLMGraphIRDialect
+  DiffusionGraphIRDialect
   TorchMLIRTorchDialect
   MLIRArithDialect
   vLLMGraphUtils

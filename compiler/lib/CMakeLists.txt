@@ -6,7 +6,7 @@ set(LinkedLibs
     MLIRIR
     
    # Dialects
-   vLLMGraphIRDialect
+   DiffusionGraphIRDialect
    TorchMLIRTorchDialect
    MLIRSparseTensorDialect
 

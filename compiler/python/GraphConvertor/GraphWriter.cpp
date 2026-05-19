@@ -93,13 +93,13 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
         mlir::Type resType = res.getType();
         //Case when it's a constant op 
         if(mlir::isa<mlir::arith::ConstantOp>(*op) || 
-            mlir::isa<vllm_graph::ValueTensorLiteralOp>(*op)){
+            mlir::isa<diffusion_graph::ValueTensorLiteralOp>(*op)){
             TypedAttr attr;
             if(mlir::isa<mlir::arith::ConstantOp>(*op)){
                 auto constOp = mlir::cast<mlir::arith::ConstantOp>(*op);
                 attr = constOp.getValue();
             } else {
-                auto constOp = mlir::cast<vllm_graph::ValueTensorLiteralOp>(*op);
+                auto constOp = mlir::cast<diffusion_graph::ValueTensorLiteralOp>(*op);
                 attr = constOp.getValue();
             }
 
@@ -115,25 +115,25 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
                 storeWeights<mlir::BoolAttr>(boolAttr, ssa_id.str());
             }
             std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
-        } else if(mlir::isa<vllm_graph::ConstTupleOp>(*op)) {
-            auto TupleOp = mlir::cast<vllm_graph::ConstTupleOp>(*op);
+        } else if(mlir::isa<diffusion_graph::ConstTupleOp>(*op)) {
+            auto TupleOp = mlir::cast<diffusion_graph::ConstTupleOp>(*op);
             auto attr = TupleOp.getValue();
             auto denseAttr = mlir::dyn_cast<mlir::DenseElementsAttr>(attr);
             storeWeights<mlir::DenseElementsAttr>(denseAttr, ssa_id.str());
             std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
-        } else if(mlir::isa<vllm_graph::ConstantNoneOp>(op))
+        } else if(mlir::isa<diffusion_graph::ConstantNoneOp>(op))
         {
             std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
-        } else if(mlir::isa<vllm_graph::ConstantStringOp>(op))
+        } else if(mlir::isa<diffusion_graph::ConstantStringOp>(op))
         {
-            auto constOp = mlir::cast<vllm_graph::ConstantStringOp>(op);
+            auto constOp = mlir::cast<diffusion_graph::ConstantStringOp>(op);
             mlir::StringAttr attr = constOp.getValueAttr();
             map["value"] = attr.getValue().str();
             std::get<std::vector<std::string>>(subGraph["constants"]).push_back(ssa_id.str());
         }
         
-        if(mlir::isa<mlir::vllm_graph::ValueTensorType>(resType)){
-            auto Rankedres = mlir::cast<mlir::vllm_graph::ValueTensorType>(resType);
+        if(mlir::isa<mlir::diffusion_graph::ValueTensorType>(resType)){
+            auto Rankedres = mlir::cast<mlir::diffusion_graph::ValueTensorType>(resType);
             llvm::ArrayRef<int64_t> shape = Rankedres.getSizes();
             std::vector<int64_t> shapeVec(shape.begin(), shape.end());
             mlir::Type elementType = Rankedres.getDtype();
@@ -162,8 +162,8 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             map["output_shape"] = shapeVec;
             map["op_name"] = op->getName().getStringRef().str();
         }
-        else if(mlir::isa<vllm_graph::TupleType>(resType)){
-            auto tupleType = mlir::cast<vllm_graph::TupleType>(resType);
+        else if(mlir::isa<diffusion_graph::TupleType>(resType)){
+            auto tupleType = mlir::cast<diffusion_graph::TupleType>(resType);
             std::string elementTypeName;
             llvm::raw_string_ostream os(elementTypeName);
             tupleType.getContainedTypes()[0].print(os);
@@ -171,8 +171,8 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             map["dtype"] = elementTypeName;
             map["op_name"] = op->getName().getStringRef().str();
         }
-        else if(mlir::isa<vllm_graph::ListType>(resType)){
-            auto listType = mlir::cast<vllm_graph::ListType>(resType);
+        else if(mlir::isa<diffusion_graph::ListType>(resType)){
+            auto listType = mlir::cast<diffusion_graph::ListType>(resType);
             std::string elementTypeName;
             llvm::raw_string_ostream os(elementTypeName);
             listType.getContainedType().print(os);
@@ -291,8 +291,8 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
             opMap[operand] = argName.str();
             std::get<std::vector<std::string>>(subGraph["entrypoint"]).push_back(argName.str());
             mlir::Type argType = operand.getType();
-            mlir::vllm_graph::ValueTensorType RankedArg = 
-                        mlir::cast<mlir::vllm_graph::ValueTensorType>(argType);
+            mlir::diffusion_graph::ValueTensorType RankedArg = 
+                        mlir::cast<mlir::diffusion_graph::ValueTensorType>(argType);
             std::unordered_map<std::string, NestedValueType> map;
             if(RankedArg){
                 llvm::ArrayRef<int64_t> shape = RankedArg.getSizes();

@@ -24,16 +24,16 @@
 // #define MLIMLIR_PYTHON_CAPI_PTR_ATTR 
 
 namespace py = pybind11;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
-class vLLMGraph : public vLLMGraphBase{
+class diffusionGraph : public diffusionGraphBase {
 
 private:
     GraphWriter convertor;
 
 public:
 
-vLLMGraph(std::string weightsPath) : convertor(weightsPath){}
+diffusionGraph(std::string weightsPath) : convertor(weightsPath){}
 
 std::unordered_map<std::string, std::variant<SubGraphMap, std::string>> compile(std::string &ir_path){
     mlir::OwningOpRef<mlir::ModuleOp> moduleRef = parseFromFile(ir_path);
@@ -47,7 +47,7 @@ std::unordered_map<std::string, std::variant<SubGraphMap, std::string>> compile(
 
 PYBIND11_MODULE(graph_compiler, m){
 
-    py::class_<vLLMGraph>(m, "vLLMGraph")
+    py::class_<diffusionGraph>(m, "diffusionGraph")
         .def(py::init<std::string& >())
-        .def("compile", py::overload_cast<std::string&>(&vLLMGraph::compile));
+        .def("compile", py::overload_cast<std::string&>(&diffusionGraph::compile));
 }

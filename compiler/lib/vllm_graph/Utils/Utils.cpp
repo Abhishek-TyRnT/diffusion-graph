@@ -1,9 +1,9 @@
 #include "vllm_graph/Utils/Utils.hpp"
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
-Type mlir::vllm_graph::convertTorchvTypeTovLLMvType(Type type, MLIRContext *context){
+Type mlir::diffusion_graph::convertTorchvTypeToDGvType(Type type, MLIRContext *context){
 
     auto torchvTensor = cast<mlir::torch::Torch::ValueTensorType>(type);
     if(torchvTensor){
@@ -12,12 +12,12 @@ Type mlir::vllm_graph::convertTorchvTypeTovLLMvType(Type type, MLIRContext *cont
         if(elemType && elemType.isF64())
             elemType = Float32Type::get(context);
         
-        vllm_graph::ValueTensorType vLLMvTensor;
-        vLLMvTensor = vLLMvTensor.get(context, 
+        diffusion_graph::ValueTensorType DGvTensor;
+        DGvTensor = DGvTensor.get(context, 
                         torchvTensor.getOptionalSizes(), 
                         elemType, 
                         torchvTensor.getOptionalSparsity());
-        opType = cast<Type>(vLLMvTensor);
+        opType = cast<Type>(DGvTensor);
         return opType;
     }
 
@@ -25,7 +25,7 @@ Type mlir::vllm_graph::convertTorchvTypeTovLLMvType(Type type, MLIRContext *cont
         return type;
 }
 
-RankedTensorType mlir::vllm_graph::convertTorchvTypeToTensorType(Type type){
+RankedTensorType mlir::diffusion_graph::convertTorchvTypeToTensorType(Type type){
     
     auto TorchTensor = cast<mlir::torch::Torch::ValueTensorType>(type);
     Type elemType = TorchTensor.getOptionalDtype();
@@ -35,7 +35,7 @@ RankedTensorType mlir::vllm_graph::convertTorchvTypeToTensorType(Type type){
     return tensor;
 }
 
-Type mlir::vllm_graph::convertvLLMContainedType(Type type, 
+Type mlir::diffusion_graph::convertDGContainedType(Type type, 
                         MLIRContext *context){
     auto TorchList = cast<torch::Torch::ListType>(type);
 
@@ -47,7 +47,7 @@ Type mlir::vllm_graph::convertvLLMContainedType(Type type,
     else if(isa<torch::Torch::BoolType>(TorchList.getContainedType()))
         containedResultType = IntegerType::get(context, 1);
     else if(isa<torch::Torch::ValueTensorType>(TorchList.getContainedType())){
-        containedResultType = vllm_graph::convertTorchvTypeTovLLMvType(TorchList.getContainedType(), context);
+        containedResultType = diffusion_graph::convertTorchvTypeToDGvType(TorchList.getContainedType(), context);
     }
     else
         assert(false && "Type for the list not added");

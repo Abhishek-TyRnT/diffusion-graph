@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
 bool PDLInterpMatcher::executeInstruction(Operation* instrOp, InterpreterState& state) const {
     if (auto checkOpName = dyn_cast<CheckOperationNameOp>(instrOp)) {

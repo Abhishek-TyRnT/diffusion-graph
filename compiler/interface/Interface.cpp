@@ -21,7 +21,7 @@ diffusionGraphBase::diffusionGraphBase(){
     registerAllPasses();
     context = new MLIRContext(registry);
     passmanager = std::make_unique<PassManager>(OperationName("builtin.module", context));
-    createTorchTovLLMGraphPipeline(*passmanager);
+    createTorchToDiffusionGraphPipeline(*passmanager);
 }
 
 diffusionGraphBase::~diffusionGraphBase(){

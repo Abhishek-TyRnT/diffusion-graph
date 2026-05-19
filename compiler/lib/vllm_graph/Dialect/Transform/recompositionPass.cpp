@@ -15,7 +15,7 @@
 #include "PassDetail.hpp"
 #include <iostream>
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 using namespace std;
 
 //TODO: push these functions in utils file
@@ -37,9 +37,9 @@ struct RecomposeSimpleOps : public OpRewritePattern<RootOp> {
     LogicalResult matchAndRewrite(RootOp op, PatternRewriter &rewriter) const override;
 };
 
-bool isPatternUpsampleNearestFunc(vllm_graph::BroadCastIndexOp op, SmallVector<Operation*> &patternOpsToRecompose, vector<int64_t> &resizeDims){
+bool isPatternUpsampleNearestFunc(diffusion_graph::BroadCastIndexOp op, SmallVector<Operation*> &patternOpsToRecompose, vector<int64_t> &resizeDims){
 
-    vllm_graph::ListOp IndexList = op.getOperands()[1].getDefiningOp<vllm_graph::ListOp>();
+    diffusion_graph::ListOp IndexList = op.getOperands()[1].getDefiningOp<diffusion_graph::ListOp>();
 
     if(!IndexList)
         return false;
@@ -56,29 +56,29 @@ bool isPatternUpsampleNearestFunc(vllm_graph::BroadCastIndexOp op, SmallVector<O
 
     Value BatchDim = IndexListRange[0];
 
-    if(!BatchDim.getDefiningOp<vllm_graph::UnsqueezeOp>())
+    if(!BatchDim.getDefiningOp<diffusion_graph::UnsqueezeOp>())
         return false;
 
-    vllm_graph::UnsqueezeOp BatchDimUnSqueezeOp1 = BatchDim.getDefiningOp<vllm_graph::UnsqueezeOp>();
+    diffusion_graph::UnsqueezeOp BatchDimUnSqueezeOp1 = BatchDim.getDefiningOp<diffusion_graph::UnsqueezeOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(BatchDimUnSqueezeOp1));
 
     BatchDim = BatchDimUnSqueezeOp1.getOperand(0);
     
-    if(!BatchDim.getDefiningOp<vllm_graph::UnsqueezeOp>())
+    if(!BatchDim.getDefiningOp<diffusion_graph::UnsqueezeOp>())
         return false;
 
-    vllm_graph::UnsqueezeOp BatchDimUnSqueezeOp2 = BatchDim.getDefiningOp<vllm_graph::UnsqueezeOp>();
+    diffusion_graph::UnsqueezeOp BatchDimUnSqueezeOp2 = BatchDim.getDefiningOp<diffusion_graph::UnsqueezeOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(BatchDimUnSqueezeOp2));
 
     BatchDim = BatchDimUnSqueezeOp2.getOperand(0);
 
     
-    if(!BatchDim.getDefiningOp<vllm_graph::UnsqueezeOp>())
+    if(!BatchDim.getDefiningOp<diffusion_graph::UnsqueezeOp>())
         return false;
 
-    vllm_graph::UnsqueezeOp BatchDimUnSqueezeOp3 = BatchDim.getDefiningOp<vllm_graph::UnsqueezeOp>();
+    diffusion_graph::UnsqueezeOp BatchDimUnSqueezeOp3 = BatchDim.getDefiningOp<diffusion_graph::UnsqueezeOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(BatchDimUnSqueezeOp3));
 
@@ -86,44 +86,44 @@ bool isPatternUpsampleNearestFunc(vllm_graph::BroadCastIndexOp op, SmallVector<O
 
 
     
-    if(!BatchDim.getDefiningOp<vllm_graph::ArangeOp>())
+    if(!BatchDim.getDefiningOp<diffusion_graph::ArangeOp>())
         return false;
 
-    patternOpsToRecompose.push_back(cast<Operation*>(BatchDim.getDefiningOp<vllm_graph::ArangeOp>()));
+    patternOpsToRecompose.push_back(cast<Operation*>(BatchDim.getDefiningOp<diffusion_graph::ArangeOp>()));
 
     // Channel dimension pattern
     Value ChannelDim = IndexListRange[1];
 
     
-    if(!ChannelDim.getDefiningOp<vllm_graph::UnsqueezeOp>())
+    if(!ChannelDim.getDefiningOp<diffusion_graph::UnsqueezeOp>())
         return false;
 
-    vllm_graph::UnsqueezeOp ChannelDimUnSqueezeOp1 = ChannelDim.getDefiningOp<vllm_graph::UnsqueezeOp>();
+    diffusion_graph::UnsqueezeOp ChannelDimUnSqueezeOp1 = ChannelDim.getDefiningOp<diffusion_graph::UnsqueezeOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(ChannelDimUnSqueezeOp1));
 
     ChannelDim = ChannelDimUnSqueezeOp1.getOperand(0);
 
 
-    if(!ChannelDim.getDefiningOp<vllm_graph::UnsqueezeOp>())
+    if(!ChannelDim.getDefiningOp<diffusion_graph::UnsqueezeOp>())
         return false;
 
-    vllm_graph::UnsqueezeOp ChannelDimUnSqueezeOp2 = ChannelDim.getDefiningOp<vllm_graph::UnsqueezeOp>();
+    diffusion_graph::UnsqueezeOp ChannelDimUnSqueezeOp2 = ChannelDim.getDefiningOp<diffusion_graph::UnsqueezeOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(ChannelDimUnSqueezeOp2));
 
     ChannelDim = ChannelDimUnSqueezeOp2.getOperand(0);
 
 
-    if(!ChannelDim.getDefiningOp<vllm_graph::ArangeOp>())
+    if(!ChannelDim.getDefiningOp<diffusion_graph::ArangeOp>())
         return false;
 
-    patternOpsToRecompose.push_back(cast<Operation*>(ChannelDim.getDefiningOp<vllm_graph::ArangeOp>()));
+    patternOpsToRecompose.push_back(cast<Operation*>(ChannelDim.getDefiningOp<diffusion_graph::ArangeOp>()));
 
     //Height dimension pattern
     Value HeightDim = IndexListRange[3];
 
-    vllm_graph::ValueTensorType HeightDimValueTensorType = cast<vllm_graph::ValueTensorType>(HeightDim.getType());
+    diffusion_graph::ValueTensorType HeightDimValueTensorType = cast<diffusion_graph::ValueTensorType>(HeightDim.getType());
     ArrayRef<int64_t> HeightDimShape = HeightDimValueTensorType.getSizes();
 
     // Dims not present, Can't work on dynamic dims yet
@@ -132,45 +132,45 @@ bool isPatternUpsampleNearestFunc(vllm_graph::BroadCastIndexOp op, SmallVector<O
 
     resizeDims.push_back(HeightDimShape[0]);
     
-    if(!HeightDim.getDefiningOp<vllm_graph::DtypeCastOp>())
+    if(!HeightDim.getDefiningOp<diffusion_graph::DtypeCastOp>())
         return false;
 
-    vllm_graph::DtypeCastOp HeightDimDtypeCastOp = HeightDim.getDefiningOp<vllm_graph::DtypeCastOp>();
+    diffusion_graph::DtypeCastOp HeightDimDtypeCastOp = HeightDim.getDefiningOp<diffusion_graph::DtypeCastOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(HeightDimDtypeCastOp));
 
     HeightDim = HeightDimDtypeCastOp.getOperand(0);
 
 
-    if(!HeightDim.getDefiningOp<vllm_graph::MulOp>())
+    if(!HeightDim.getDefiningOp<diffusion_graph::MulOp>())
         return false;
 
-    vllm_graph::MulOp HeightDimMulOp = HeightDim.getDefiningOp<vllm_graph::MulOp>();
+    diffusion_graph::MulOp HeightDimMulOp = HeightDim.getDefiningOp<diffusion_graph::MulOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(HeightDimMulOp));
 
     HeightDim = HeightDimMulOp.getOperand(0);
 
 
-    if(!HeightDim.getDefiningOp<vllm_graph::AddOp>())
+    if(!HeightDim.getDefiningOp<diffusion_graph::AddOp>())
         return false;
 
-    vllm_graph::AddOp HeightDimAddOp = HeightDim.getDefiningOp<vllm_graph::AddOp>();
+    diffusion_graph::AddOp HeightDimAddOp = HeightDim.getDefiningOp<diffusion_graph::AddOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(HeightDimAddOp));
 
     HeightDim = HeightDimAddOp.getOperand(0);
 
 
-    if(!HeightDim.getDefiningOp<vllm_graph::ArangeOp>())
+    if(!HeightDim.getDefiningOp<diffusion_graph::ArangeOp>())
         return false;
 
-    patternOpsToRecompose.push_back(cast<Operation*>(HeightDim.getDefiningOp<vllm_graph::ArangeOp>()));
+    patternOpsToRecompose.push_back(cast<Operation*>(HeightDim.getDefiningOp<diffusion_graph::ArangeOp>()));
 
     //Width dimension pattern
     Value WidthDim = IndexListRange[2];
 
-    vllm_graph::ValueTensorType WidthDimValueTensorType = cast<vllm_graph::ValueTensorType>(WidthDim.getType());
+    diffusion_graph::ValueTensorType WidthDimValueTensorType = cast<diffusion_graph::ValueTensorType>(WidthDim.getType());
     ArrayRef<int64_t> WidthDimShape = WidthDimValueTensorType.getSizes();
 
     // Dims not present, Can't work on dynamic dims yet
@@ -179,59 +179,59 @@ bool isPatternUpsampleNearestFunc(vllm_graph::BroadCastIndexOp op, SmallVector<O
 
     resizeDims.push_back(WidthDimShape[0]);
 
-    if(!WidthDim.getDefiningOp<vllm_graph::UnsqueezeOp>())
+    if(!WidthDim.getDefiningOp<diffusion_graph::UnsqueezeOp>())
         return false;
 
-    vllm_graph::UnsqueezeOp WidthDimUnSqueezeOp = WidthDim.getDefiningOp<vllm_graph::UnsqueezeOp>();
+    diffusion_graph::UnsqueezeOp WidthDimUnSqueezeOp = WidthDim.getDefiningOp<diffusion_graph::UnsqueezeOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(WidthDimUnSqueezeOp));
 
     WidthDim = WidthDimUnSqueezeOp.getOperand(0);
 
-    if(!WidthDim.getDefiningOp<vllm_graph::DtypeCastOp>())
+    if(!WidthDim.getDefiningOp<diffusion_graph::DtypeCastOp>())
         return false;
 
-    vllm_graph::DtypeCastOp WidthDimDtypeCastOp = WidthDim.getDefiningOp<vllm_graph::DtypeCastOp>();
+    diffusion_graph::DtypeCastOp WidthDimDtypeCastOp = WidthDim.getDefiningOp<diffusion_graph::DtypeCastOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(WidthDimDtypeCastOp));
     WidthDim = WidthDimDtypeCastOp.getOperand(0);
 
 
-    if(!WidthDim.getDefiningOp<vllm_graph::MulOp>())
+    if(!WidthDim.getDefiningOp<diffusion_graph::MulOp>())
         return false;
 
-    vllm_graph::MulOp WidthDimMulOp = WidthDim.getDefiningOp<vllm_graph::MulOp>();
+    diffusion_graph::MulOp WidthDimMulOp = WidthDim.getDefiningOp<diffusion_graph::MulOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(WidthDimMulOp));
 
     WidthDim = WidthDimMulOp.getOperand(0);
 
 
-    if(!WidthDim.getDefiningOp<vllm_graph::AddOp>())
+    if(!WidthDim.getDefiningOp<diffusion_graph::AddOp>())
         return false;
 
-    vllm_graph::AddOp WidthDimAddOp = WidthDim.getDefiningOp<vllm_graph::AddOp>();
+    diffusion_graph::AddOp WidthDimAddOp = WidthDim.getDefiningOp<diffusion_graph::AddOp>();
 
     patternOpsToRecompose.push_back(cast<Operation*>(WidthDimAddOp));
 
     WidthDim = WidthDimAddOp.getOperand(0);
 
 
-    if(!WidthDim.getDefiningOp<vllm_graph::ArangeOp>())
+    if(!WidthDim.getDefiningOp<diffusion_graph::ArangeOp>())
         return false;
 
-    patternOpsToRecompose.push_back(cast<Operation*>(WidthDim.getDefiningOp<vllm_graph::ArangeOp>()));
+    patternOpsToRecompose.push_back(cast<Operation*>(WidthDim.getDefiningOp<diffusion_graph::ArangeOp>()));
 
     
     return true;
 }
 
-bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternOpsToErase, SmallVector<Value> &inputValues){
+bool isPatternSDPA(diffusion_graph::TransposeOp op, SmallVector<Operation*> &patternOpsToErase, SmallVector<Value> &inputValues){
     
     Value input = op.getOperand(0);
 
 
-    auto transpose2op = input.getDefiningOp<vllm_graph::TransposeOp>();
+    auto transpose2op = input.getDefiningOp<diffusion_graph::TransposeOp>();
     if(!transpose2op)
         return false;
     
@@ -239,7 +239,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     input = transpose2op.getOperand(0);
 
-    auto view1Op = input.getDefiningOp<vllm_graph::ViewOp>();
+    auto view1Op = input.getDefiningOp<diffusion_graph::ViewOp>();
     if(!view1Op)
         return false;
     
@@ -247,7 +247,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     input = view1Op.getOperand(0);
 
-    auto bmm1Op = input.getDefiningOp<vllm_graph::BMMOp>();
+    auto bmm1Op = input.getDefiningOp<diffusion_graph::BMMOp>();
     if(!bmm1Op)
         return false;
     
@@ -255,7 +255,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     Value value = bmm1Op.getOperand(1);
 
-    auto view2Op = value.getDefiningOp<vllm_graph::ViewOp>();
+    auto view2Op = value.getDefiningOp<diffusion_graph::ViewOp>();
     if(!view2Op)
         return false;
     
@@ -265,7 +265,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     input = bmm1Op.getOperand(0);
 
-    auto view3Op = input.getDefiningOp<vllm_graph::ViewOp>();
+    auto view3Op = input.getDefiningOp<diffusion_graph::ViewOp>();
     if(!view3Op)
         return false;
     
@@ -273,7 +273,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     input = view3Op.getOperand(0);
 
-    auto softmax_op = input.getDefiningOp<vllm_graph::SoftmaxOp>();
+    auto softmax_op = input.getDefiningOp<diffusion_graph::SoftmaxOp>();
     if(!softmax_op)
         return false;
 
@@ -281,7 +281,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     input = softmax_op.getOperand(0);
 
-    auto view4Op = input.getDefiningOp<vllm_graph::ViewOp>();
+    auto view4Op = input.getDefiningOp<diffusion_graph::ViewOp>();
     if(!view4Op)
         return false;
     
@@ -289,7 +289,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     input = view4Op.getOperand(0);
 
-    auto bmm2Op = input.getDefiningOp<vllm_graph::BMMOp>();
+    auto bmm2Op = input.getDefiningOp<diffusion_graph::BMMOp>();
     if(!bmm2Op)
         return false;
     
@@ -298,14 +298,14 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
     Value key = bmm2Op.getOperand(1);
     Value query = bmm2Op.getOperand(0);
 
-    auto view5Op = key.getDefiningOp<vllm_graph::ViewOp>();
+    auto view5Op = key.getDefiningOp<diffusion_graph::ViewOp>();
     if(!view5Op)
         return false;
     
     patternOpsToErase.push_back(cast<Operation*>(view5Op));
 
     key = view5Op.getOperand(0);
-    auto Mul1Op = key.getDefiningOp<vllm_graph::MulOp>();
+    auto Mul1Op = key.getDefiningOp<diffusion_graph::MulOp>();
     if(!Mul1Op)
         return false;
 
@@ -313,7 +313,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
     
     key = Mul1Op.getOperand(0);
 
-    auto transpose3Op = key.getDefiningOp<vllm_graph::TransposeOp>();
+    auto transpose3Op = key.getDefiningOp<diffusion_graph::TransposeOp>();
     if(!transpose3Op)
         return false;
 
@@ -321,7 +321,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     key = transpose3Op.getOperand(0);
 
-    auto view6Op = query.getDefiningOp<vllm_graph::ViewOp>();
+    auto view6Op = query.getDefiningOp<diffusion_graph::ViewOp>();
     if(!view6Op)
         return false;
     
@@ -329,7 +329,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 
     query = view6Op.getOperand(0);
 
-    auto Mul2Op = query.getDefiningOp<vllm_graph::MulOp>();
+    auto Mul2Op = query.getDefiningOp<diffusion_graph::MulOp>();
     if(!Mul2Op)
         return false;
     
@@ -345,7 +345,7 @@ bool isPatternSDPA(vllm_graph::TransposeOp op, SmallVector<Operation*> &patternO
 }
 
 template<>
-LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_graph::MatmulOp op, PatternRewriter &rewriter) const{
+LogicalResult RecomposeSimpleOps<diffusion_graph::MatmulOp>::matchAndRewrite(diffusion_graph::MatmulOp op, PatternRewriter &rewriter) const{
 
     Value res = op.getResult();
     MLIRContext *context = op.getContext();
@@ -353,7 +353,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         return rewriter.notifyMatchFailure(op, "Resulting op has many users, can't be fused");
 
     for(Operation *user_op : res.getUsers()){    
-        if(!mlir::isa<vllm_graph::AddOp>(*user_op))
+        if(!mlir::isa<diffusion_graph::AddOp>(*user_op))
             return rewriter.notifyMatchFailure(op, "successor op is not an addOp");
 
 
@@ -369,7 +369,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         Value input = op.getOperand(0);
         Value weight = op.getOperand(1);
 
-        vllm_graph::ValueTensorType inputType = mlir::cast<vllm_graph::ValueTensorType>(input.getType());
+        diffusion_graph::ValueTensorType inputType = mlir::cast<diffusion_graph::ValueTensorType>(input.getType());
 
         Type resultType = addRes.getType();
         Value dim0;
@@ -390,48 +390,48 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
         }
 
         ArrayRef<int64_t> input_shape = inputType.getSizes();
-        ArrayRef<int64_t> result_shape =  mlir::cast<vllm_graph::ValueTensorType>(resultType).getSizes();
+        ArrayRef<int64_t> result_shape =  mlir::cast<diffusion_graph::ValueTensorType>(resultType).getSizes();
         // Need to reshape incase the input has batch size.
         if(input_shape.size() == 3){
             // c Array is Added for casting purposes
             if(hasStaticShape(inputType.getSizes())){
                 int64_t new_input_size_c[] = {-1, input_shape[2]};
                 ArrayRef<int64_t> viewInput_size(new_input_size_c, 2);
-                auto vewInputType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
+                auto vewInputType = diffusion_graph::TupleType::get(context, rewriter.getIntegerType(64));
                 auto DenseInputType = RankedTensorType::get({2}, rewriter.getIntegerType(64));
                 auto denseAttr = DenseElementsAttr::get(DenseInputType, viewInput_size);
-                auto viewInputTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
+                auto viewInputTupleOp = rewriter.create<diffusion_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
                 
                 int64_t new_result_view_size_c[] = {input_shape[0] * input_shape[1], input_shape[2]};
                 ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
-                auto viewResultType = vllm_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
+                auto viewResultType = diffusion_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
 
-                input = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, input, viewInputTupleOp);
+                input = rewriter.create<diffusion_graph::ViewOp>(loc, viewResultType, input, viewInputTupleOp);
 
                 int64_t new_result_size_c[] = {result_shape[0]*result_shape[1], result_shape[2]};
                 ArrayRef<int64_t> ResultSize(new_result_size_c, 2);
-                resultType = vllm_graph::ValueTensorType::get(context, ResultSize, inputType.getDtype());
+                resultType = diffusion_graph::ValueTensorType::get(context, ResultSize, inputType.getDtype());
             } else {
-                size0 = rewriter.create<vllm_graph::SizeOp>(loc, intType, input, dim0);
-                size1 = rewriter.create<vllm_graph::SizeOp>(loc, intType, input, dim1);
-                size2 = rewriter.create<vllm_graph::SizeOp>(loc, intType, input, dim2);
-                Value MulOp = rewriter.create<vllm_graph::MulOp>(loc, intType, size0, size1);
+                size0 = rewriter.create<diffusion_graph::SizeOp>(loc, intType, input, dim0);
+                size1 = rewriter.create<diffusion_graph::SizeOp>(loc, intType, input, dim1);
+                size2 = rewriter.create<diffusion_graph::SizeOp>(loc, intType, input, dim2);
+                Value MulOp = rewriter.create<diffusion_graph::MulOp>(loc, intType, size0, size1);
                 Value value_array[] = {MulOp, size2}; 
                 ArrayRef<Value> Operand_array(value_array, 2);
                 ValueRange OperandList(Operand_array);
-                Type viewListResultType = vllm_graph::ListType::get(context, intType);
-                auto viewInputListOp = rewriter.create<vllm_graph::ListOp>(loc, viewListResultType, OperandList);
+                Type viewListResultType = diffusion_graph::ListType::get(context, intType);
+                auto viewInputListOp = rewriter.create<diffusion_graph::ListOp>(loc, viewListResultType, OperandList);
                 
                 int64_t new_result_view_size_c[] = {DYNAMIC_SIZE, input_shape[2]};
                 ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
-                auto viewResultType = vllm_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
+                auto viewResultType = diffusion_graph::ValueTensorType::get(context, viewResultSize, inputType.getDtype());
                 
-                input = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, input, viewInputListOp);
+                input = rewriter.create<diffusion_graph::ViewOp>(loc, viewResultType, input, viewInputListOp);
                  
             }
         }
         
-        vllm_graph::AddmmOp addmmOp = rewriter.create<vllm_graph::AddmmOp>(loc, resultType, bias, input, weight, alpha, beta);
+        diffusion_graph::AddmmOp addmmOp = rewriter.create<diffusion_graph::AddmmOp>(loc, resultType, bias, input, weight, alpha, beta);
         Value new_res = addmmOp.getResult();
         if(input_shape.size() == 3){
             if(hasStaticShape(inputType.getSizes())){
@@ -439,26 +439,26 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
                 RankedTensorType DenseInputType = RankedTensorType::get({3}, rewriter.getIntegerType(64));
                 auto denseAttr = DenseElementsAttr::get(DenseInputType, viewInput_size);
 
-                auto vewInputType = vllm_graph::TupleType::get(context, rewriter.getIntegerType(64));
-                auto viewInputTupleOp = rewriter.create<vllm_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
+                auto vewInputType = diffusion_graph::TupleType::get(context, rewriter.getIntegerType(64));
+                auto viewInputTupleOp = rewriter.create<diffusion_graph::ConstTupleOp>(unknownLoc, vewInputType, denseAttr);
 
-                auto viewResultType = vllm_graph::ValueTensorType::get(context, viewInput_size, inputType.getDtype());
-                new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputTupleOp);
+                auto viewResultType = diffusion_graph::ValueTensorType::get(context, viewInput_size, inputType.getDtype());
+                new_res = rewriter.create<diffusion_graph::ViewOp>(loc, viewResultType, new_res, viewInputTupleOp);
             } else {
-                size3 = rewriter.create<vllm_graph::SizeOp>(loc, intType, weight, dim1);
+                size3 = rewriter.create<diffusion_graph::SizeOp>(loc, intType, weight, dim1);
                 Value value_array[] = {size0, size1, size3}; 
                 ArrayRef<Value> Operand_array(value_array, 3);
                 ValueRange OperandList(Operand_array);
 
-                Type viewListResultType = vllm_graph::ListType::get(context, intType);
-                auto viewInputListOp = rewriter.create<vllm_graph::ListOp>(loc, viewListResultType, OperandList);
+                Type viewListResultType = diffusion_graph::ListType::get(context, intType);
+                auto viewInputListOp = rewriter.create<diffusion_graph::ListOp>(loc, viewListResultType, OperandList);
                 
                 // int64_t new_result_view_size_c[] = {DYNAMIC_SIZE, input_shape[2]};
                 // ArrayRef<int64_t> viewResultSize(new_result_view_size_c, 2);
-                auto vllm_resultType = cast<vllm_graph::ValueTensorType>(resultType);
-                auto viewResultType = vllm_graph::ValueTensorType::get(context, vllm_resultType.getSizes(), vllm_resultType.getDtype());
+                auto vllm_resultType = cast<diffusion_graph::ValueTensorType>(resultType);
+                auto viewResultType = diffusion_graph::ValueTensorType::get(context, vllm_resultType.getSizes(), vllm_resultType.getDtype());
                 
-                new_res = rewriter.create<vllm_graph::ViewOp>(loc, viewResultType, new_res, viewInputListOp);
+                new_res = rewriter.create<diffusion_graph::ViewOp>(loc, viewResultType, new_res, viewInputListOp);
             }
             
         }
@@ -474,7 +474,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::MatmulOp>::matchAndRewrite(vllm_gra
 }
 
 template<> 
-LogicalResult RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>::matchAndRewrite(vllm_graph::BroadCastIndexOp op, PatternRewriter &rewriter) const{
+LogicalResult RecomposeSimpleOps<diffusion_graph::BroadCastIndexOp>::matchAndRewrite(diffusion_graph::BroadCastIndexOp op, PatternRewriter &rewriter) const{
     
 
     Location loc = op.getLoc();
@@ -488,15 +488,15 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>::matchAndRewrite(
     // Lower to arith.constant with StringAttr - output is generic string
     llvm::StringRef str("nearest");
     auto stringAttr = rewriter.getStringAttr(str);
-    auto constantStringOp = rewriter.create<vllm_graph::ConstantStringOp>(loc, stringAttr);
+    auto constantStringOp = rewriter.create<diffusion_graph::ConstantStringOp>(loc, stringAttr);
 
     Value Input = op.getOperand(0);
     Value result = op.getResult();
     Type resultType = result.getType();
     Type InputType = Input.getType();
 
-    auto inputVllmType = cast<vllm_graph::ValueTensorType>(InputType);
-    auto resultVllmType = cast<vllm_graph::ValueTensorType>(resultType);
+    auto inputVllmType = cast<diffusion_graph::ValueTensorType>(InputType);
+    auto resultVllmType = cast<diffusion_graph::ValueTensorType>(resultType);
 
     auto inputShape = inputVllmType.getSizes();
     auto resultShape = resultVllmType.getSizes();
@@ -505,7 +505,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>::matchAndRewrite(
 
     auto ScaleFactorConstOp = rewriter.create<arith::ConstantOp>(loc, rewriter.getF32Type(), rewriter.getFloatAttr(rewriter.getF32Type(), scale_factor));
     
-    rewriter.replaceOpWithNewOp<vllm_graph::UpsampleOp>(op, resultType, Input, ScaleFactorConstOp, constantStringOp);
+    rewriter.replaceOpWithNewOp<diffusion_graph::UpsampleOp>(op, resultType, Input, ScaleFactorConstOp, constantStringOp);
 
     for ( Operation* op : patternOpsToRecompose){
         if(!op->hasSuccessors())
@@ -518,10 +518,10 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>::matchAndRewrite(
 }
 
 template<> 
-LogicalResult RecomposeSimpleOps<vllm_graph::LayerNormOp>::matchAndRewrite(vllm_graph::LayerNormOp op, PatternRewriter &rewriter) const{
+LogicalResult RecomposeSimpleOps<diffusion_graph::LayerNormOp>::matchAndRewrite(diffusion_graph::LayerNormOp op, PatternRewriter &rewriter) const{
     Operation* BroadCastOp = nullptr;
     for(auto* user_op : op->getUsers()){
-        if(auto user_op_cast = dyn_cast<vllm_graph::BroadCastIndexOp>(user_op)){
+        if(auto user_op_cast = dyn_cast<diffusion_graph::BroadCastIndexOp>(user_op)){
             BroadCastOp = user_op;
             break;
         }
@@ -535,7 +535,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::LayerNormOp>::matchAndRewrite(vllm_
 
     Value listOperand = BroadCastOp->getOperand(1);
     Value input = BroadCastOp->getOperand(0);
-    Operation* listOp = listOperand.getDefiningOp<vllm_graph::ListOp>();
+    Operation* listOp = listOperand.getDefiningOp<diffusion_graph::ListOp>();
     Value indices = listOp->getOperand(1);
 
     Location loc = BroadCastOp->getLoc();
@@ -543,7 +543,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::LayerNormOp>::matchAndRewrite(vllm_
     // (the LayerNormOp result) and 'indices' dominate the newly created ops.
     rewriter.setInsertionPoint(BroadCastOp);
     Value dim = rewriter.create<arith::ConstantIntOp>(loc, -1, rewriter.getIntegerType(32));
-    Value indexSelectResult = rewriter.create<vllm_graph::IndexSelectOp>(loc, resultType, input, dim, indices);
+    Value indexSelectResult = rewriter.create<diffusion_graph::IndexSelectOp>(loc, resultType, input, dim, indices);
 
     result.replaceAllUsesWith(indexSelectResult);
     
@@ -555,7 +555,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::LayerNormOp>::matchAndRewrite(vllm_
 
 
 template<> 
-LogicalResult RecomposeSimpleOps<vllm_graph::BMMOp>::matchAndRewrite(vllm_graph::BMMOp op, PatternRewriter &rewriter) const{
+LogicalResult RecomposeSimpleOps<diffusion_graph::BMMOp>::matchAndRewrite(diffusion_graph::BMMOp op, PatternRewriter &rewriter) const{
     
     Value input = op.getOperand(0);
     Value value = op.getOperand(1);
@@ -566,7 +566,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BMMOp>::matchAndRewrite(vllm_graph:
     Location loc = op.getLoc();
     MLIRContext *context = op.getContext();
 
-    auto softmax_op = input.getDefiningOp<vllm_graph::SoftmaxOp>();
+    auto softmax_op = input.getDefiningOp<diffusion_graph::SoftmaxOp>();
     if(!softmax_op){
         return failure();
     }
@@ -574,7 +574,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BMMOp>::matchAndRewrite(vllm_graph:
     input = softmax_op.getOperand(0);
 
 
-    auto bmm2_op = input.getDefiningOp<vllm_graph::BMMOp>();
+    auto bmm2_op = input.getDefiningOp<diffusion_graph::BMMOp>();
     if(!bmm2_op){
         return failure();
     }
@@ -583,14 +583,14 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BMMOp>::matchAndRewrite(vllm_graph:
     Value query = bmm2_op.getOperand(0);
     Value key = bmm2_op.getOperand(1);
 
-    auto mul1_op = query.getDefiningOp<vllm_graph::MulOp>();
+    auto mul1_op = query.getDefiningOp<diffusion_graph::MulOp>();
     if(!mul1_op){
         return failure();
     }
 
     query = mul1_op.getOperand(0);
 
-    auto mul2_op = key.getDefiningOp<vllm_graph::MulOp>();
+    auto mul2_op = key.getDefiningOp<diffusion_graph::MulOp>();
     if(!mul2_op){
         return failure();
     }
@@ -598,7 +598,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BMMOp>::matchAndRewrite(vllm_graph:
 
     key = mul2_op.getOperand(0);
 
-    auto transpose_op = key.getDefiningOp<vllm_graph::TransposeOp>();
+    auto transpose_op = key.getDefiningOp<diffusion_graph::TransposeOp>();
     if(!transpose_op){
         return failure();
     }
@@ -608,14 +608,14 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BMMOp>::matchAndRewrite(vllm_graph:
 
     Value falseOp = rewriter.create<arith::ConstantOp>(loc, rewriter.getI1Type(), rewriter.getBoolAttr(0));
     
-    Type NoneType = vllm_graph::NoneType::get(context);
+    Type NoneType = diffusion_graph::NoneType::get(context);
     Type f32Type = rewriter.getF32Type();
     
 
-    Value NoneOp = rewriter.create<vllm_graph::ConstantNoneOp>(loc, NoneType);
+    Value NoneOp = rewriter.create<diffusion_graph::ConstantNoneOp>(loc, NoneType);
     Value dropout = rewriter.create<arith::ConstantOp>(loc, f32Type, rewriter.getFloatAttr(f32Type, 0.0f));
 
-    Value newResult = rewriter.replaceOpWithNewOp<vllm_graph::ScaledDotProductAttentionOp>(op, resultType, query, key, value, NoneOp, dropout, falseOp, NoneOp, falseOp);
+    Value newResult = rewriter.replaceOpWithNewOp<diffusion_graph::ScaledDotProductAttentionOp>(op, resultType, query, key, value, NoneOp, dropout, falseOp, NoneOp, falseOp);
 
     rewriter.eraseOp(softmax_op);
     rewriter.eraseOp(bmm2_op);
@@ -629,7 +629,7 @@ LogicalResult RecomposeSimpleOps<vllm_graph::BMMOp>::matchAndRewrite(vllm_graph:
 
 
 template<>
-LogicalResult RecomposeSimpleOps<vllm_graph::TransposeOp>::matchAndRewrite(vllm_graph::TransposeOp op, PatternRewriter &rewriter) const{
+LogicalResult RecomposeSimpleOps<diffusion_graph::TransposeOp>::matchAndRewrite(diffusion_graph::TransposeOp op, PatternRewriter &rewriter) const{
 
     SmallVector<Operation*> patternOpsToDrop;
     SmallVector<Value> inputValues;
@@ -648,14 +648,14 @@ LogicalResult RecomposeSimpleOps<vllm_graph::TransposeOp>::matchAndRewrite(vllm_
 
     Value falseOp = rewriter.create<arith::ConstantOp>(loc, rewriter.getI1Type(), rewriter.getBoolAttr(0));
     
-    Type NoneType = vllm_graph::NoneType::get(context);
+    Type NoneType = diffusion_graph::NoneType::get(context);
     Type f32Type = rewriter.getF32Type();
     
 
-    Value NoneOp = rewriter.create<vllm_graph::ConstantNoneOp>(loc, NoneType);
+    Value NoneOp = rewriter.create<diffusion_graph::ConstantNoneOp>(loc, NoneType);
     Value dropout = rewriter.create<arith::ConstantOp>(loc, f32Type, rewriter.getFloatAttr(f32Type, 0.0f));
 
-    Value newResult = rewriter.replaceOpWithNewOp<vllm_graph::ScaledDotProductAttentionOp>(op, resultType, query, key, value, NoneOp, dropout, falseOp, NoneOp, falseOp);
+    Value newResult = rewriter.replaceOpWithNewOp<diffusion_graph::ScaledDotProductAttentionOp>(op, resultType, query, key, value, NoneOp, dropout, falseOp, NoneOp, falseOp);
 
     for(auto* DropOp : patternOpsToDrop){
         if(!DropOp->hasSuccessors())
@@ -671,7 +671,7 @@ namespace{
 class RecomposeSimpleOpsToComplex : public RecomposeSimpleOpsToComplexPassBase<RecomposeSimpleOpsToComplex> {
 public:
     void getDependentDialects(DialectRegistry &registry) const override {
-        registry.insert<vllm_graph::vLLMGraphIRDialect>();
+        registry.insert<diffusion_graph::DiffusionGraphIRDialect>();
         registry.insert<func::FuncDialect>();
         registry.insert<arith::ArithDialect>();
     }
@@ -679,15 +679,15 @@ public:
     void runOnOperation() override{
         MLIRContext *context = &getContext();
         ConversionTarget target(*context);
-        target.addLegalDialect<vllm_graph::vLLMGraphIRDialect, arith::ArithDialect, func::FuncDialect>();
+        target.addLegalDialect<diffusion_graph::DiffusionGraphIRDialect, arith::ArithDialect, func::FuncDialect>();
 
         RewritePatternSet patterns(context);
 
-        patterns.add<RecomposeSimpleOps<vllm_graph::MatmulOp>>(context);
-        patterns.add<RecomposeSimpleOps<vllm_graph::BroadCastIndexOp>>(context);
-        patterns.add<RecomposeSimpleOps<vllm_graph::LayerNormOp>>(context);
-        patterns.add<RecomposeSimpleOps<vllm_graph::BMMOp>>(context);
-        patterns.add<RecomposeSimpleOps<vllm_graph::TransposeOp>>(context);
+        patterns.add<RecomposeSimpleOps<diffusion_graph::MatmulOp>>(context);
+        patterns.add<RecomposeSimpleOps<diffusion_graph::BroadCastIndexOp>>(context);
+        patterns.add<RecomposeSimpleOps<diffusion_graph::LayerNormOp>>(context);
+        patterns.add<RecomposeSimpleOps<diffusion_graph::BMMOp>>(context);
+        patterns.add<RecomposeSimpleOps<diffusion_graph::TransposeOp>>(context);
 
         GreedyRewriteConfig config;
         config.useTopDownTraversal = true;
@@ -703,7 +703,7 @@ public:
 };
 } //namespace
 
-std::unique_ptr<OperationPass<func::FuncOp>> mlir::vllm_graph::createRecomposeSimpleOpsToComplexOps(){
+std::unique_ptr<OperationPass<func::FuncOp>> mlir::diffusion_graph::createRecomposeSimpleOpsToComplexOps(){
     return std::make_unique<RecomposeSimpleOpsToComplex>();
 }
 

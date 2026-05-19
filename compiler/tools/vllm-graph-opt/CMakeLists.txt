@@ -11,7 +11,7 @@ target_link_libraries(vllm-graph-opt PRIVATE
   MLIROptLib
   MLIRTransforms
   vLLMGraphInitAll
-  vLLMGraphIRDialect
+  DiffusionGraphIRDialect
   vLLMGraphConversionPasses
   TorchMLIRTorchDialect
   ${dependency_libraries}

@@ -13,7 +13,7 @@ using namespace mlir;
 using namespace mlir::diffusion_graph;
 
 #define GET_OP_CLASSES
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.cpp.inc"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.cpp.inc"
 
 ParseResult diffusion_graph::parseDefaultDiffusionGraphOp(OpAsmParser &parser,
                                        OperationState &result, int numOperands,

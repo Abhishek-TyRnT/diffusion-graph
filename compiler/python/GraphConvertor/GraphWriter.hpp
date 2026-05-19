@@ -1,5 +1,5 @@
-#ifndef VLLM_GRAPH_GRAPH_WRITER_H
-#define VLLM_GRAPH_GRAPH_WRITER_H
+#ifndef DIFFUSION_GRAPH_GRAPH_WRITER_H
+#define DIFFUSION_GRAPH_GRAPH_WRITER_H
 
 #include <unordered_map>
 #include <variant>

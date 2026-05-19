@@ -32,7 +32,7 @@ OpFoldResult ValueTensorLiteralOp::fold(FoldAdaptor adaptor) {
 }
 
 OpFoldResult ConstantNoneOp::fold(FoldAdaptor adaptor) {
-  return TypeAttr::get(vllm_graph::NoneType::get(getContext()));
+  return TypeAttr::get(diffusion_graph::NoneType::get(getContext()));
 }
 
 OpFoldResult ConstantDeviceOp::fold(FoldAdaptor adaptor){
@@ -59,7 +59,7 @@ OpFoldResult SizeOp::fold(FoldAdaptor adaptor){
     }
     
     
-    auto type = cast<vllm_graph::ValueTensorType>(input.getType());
+    auto type = cast<diffusion_graph::ValueTensorType>(input.getType());
     ArrayRef<int64_t> sizes = type.getSizes();
 
     if(sizes[dim] == DYNAMIC_SIZE)

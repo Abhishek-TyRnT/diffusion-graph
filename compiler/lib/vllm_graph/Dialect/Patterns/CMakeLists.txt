@@ -9,7 +9,7 @@ add_mlir_library(
 
     LINK_LIBS PUBLIC
 
-    vLLMGraphIRDialect
+    DiffusionGraphIRDialect
     MLIRPDLInterpDialect
     MLIRPDLDialect
     MLIRIR

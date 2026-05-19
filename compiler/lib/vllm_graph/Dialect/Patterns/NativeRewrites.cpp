@@ -2,11 +2,11 @@
 #include "mlir/IR/IRMapping.h"
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
-bool mlir::vllm_graph::createPoolingFunc(Value rootOpResult, PatternRewriter& rewriter){
+bool mlir::diffusion_graph::createPoolingFunc(Value rootOpResult, PatternRewriter& rewriter){
     
-    auto indexSelectOp = dyn_cast<vllm_graph::IndexSelectOp>(rootOpResult.getDefiningOp());
+    auto indexSelectOp = dyn_cast<diffusion_graph::IndexSelectOp>(rootOpResult.getDefiningOp());
 
     if(!indexSelectOp){
         return false;
@@ -110,9 +110,9 @@ bool mlir::vllm_graph::createPoolingFunc(Value rootOpResult, PatternRewriter& re
 
 }
 
-bool mlir::vllm_graph::createCLIPPoolingFunc(Value rootOpResult, PatternRewriter& rewriter){
+bool mlir::diffusion_graph::createCLIPPoolingFunc(Value rootOpResult, PatternRewriter& rewriter){
     
-    auto indexSelectOp = dyn_cast<vllm_graph::IndexSelectOp>(rootOpResult.getDefiningOp());
+    auto indexSelectOp = dyn_cast<diffusion_graph::IndexSelectOp>(rootOpResult.getDefiningOp());
 
     if(!indexSelectOp){
         return false;
@@ -128,14 +128,14 @@ bool mlir::vllm_graph::createCLIPPoolingFunc(Value rootOpResult, PatternRewriter
     Value arg = indexSelectOp.getSelf();
     Value indices = indexSelectOp.getIndices();
 
-    auto maxDimOp = indices.getDefiningOp<vllm_graph::MaxDimOp>();
+    auto maxDimOp = indices.getDefiningOp<diffusion_graph::MaxDimOp>();
     if(!maxDimOp){
         return false;
     }
 
     Value input = maxDimOp.getOperands()[0];
 
-    auto castOp = input.getDefiningOp<vllm_graph::DtypeCastOp>();
+    auto castOp = input.getDefiningOp<diffusion_graph::DtypeCastOp>();
     if(!castOp){
         return false;
     }

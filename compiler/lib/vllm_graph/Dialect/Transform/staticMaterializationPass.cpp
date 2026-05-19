@@ -16,7 +16,7 @@
 
 using namespace mlir;
 using namespace llvm;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
 
 namespace {
@@ -31,7 +31,7 @@ struct StaticOpMaterializationPattern : public OpRewritePattern<StaticOp> {
 
 
 template<>
-LogicalResult StaticOpMaterializationPattern<vllm_graph::ArangeOp>::matchAndRewrite(vllm_graph::ArangeOp op, PatternRewriter &rewriter) const {
+LogicalResult StaticOpMaterializationPattern<diffusion_graph::ArangeOp>::matchAndRewrite(diffusion_graph::ArangeOp op, PatternRewriter &rewriter) const {
 
     Value start = op.getOperands()[0];
     Value end = op.getOperands()[1];
@@ -66,12 +66,12 @@ LogicalResult StaticOpMaterializationPattern<vllm_graph::ArangeOp>::matchAndRewr
 
             ArrayRef<float> range_array(rangeVal.data(), rangeVal.size());
             int64_t size_arr[] = {static_cast<int64_t>(rangeVal.size())};
-            auto RangeType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(size_arr, 1), rewriter.getF32Type());
+            auto RangeType = diffusion_graph::ValueTensorType::get(context, ArrayRef<int64_t>(size_arr, 1), rewriter.getF32Type());
         
             ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(size_arr, 1), rewriter.getF32Type());
             auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
 
-            rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
+            rewriter.replaceOpWithNewOp<diffusion_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
             
         } else if(dtype_val == 4) {
         
@@ -82,12 +82,12 @@ LogicalResult StaticOpMaterializationPattern<vllm_graph::ArangeOp>::matchAndRewr
 
             ArrayRef<int32_t> range_array(rangeVal.data(), rangeVal.size());
             int64_t size_arr[] = {static_cast<int64_t>(rangeVal.size())};
-            auto RangeType = vllm_graph::ValueTensorType::get(context, ArrayRef<int64_t>(size_arr, 1), rewriter.getIntegerType(32));
+            auto RangeType = diffusion_graph::ValueTensorType::get(context, ArrayRef<int64_t>(size_arr, 1), rewriter.getIntegerType(32));
         
             ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(size_arr, 1),rewriter.getIntegerType(32));
             auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
 
-            rewriter.replaceOpWithNewOp<vllm_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
+            rewriter.replaceOpWithNewOp<diffusion_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
         } else {
         
             return rewriter.notifyMatchFailure(op, "dtypes other than float32 or int32, not supported yet\n");
@@ -106,9 +106,9 @@ LogicalResult StaticOpMaterializationPattern<vllm_graph::ArangeOp>::matchAndRewr
 
 namespace {
 struct StaticOpMaterialization
-    : public mlir::vllm_graph::StaticOpMaterializationPassBase<StaticOpMaterialization> {
+    : public mlir::diffusion_graph::StaticOpMaterializationPassBase<StaticOpMaterialization> {
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
-        registry.insert<vllm_graph::vLLMGraphIRDialect>();
+        registry.insert<diffusion_graph::DiffusionGraphIRDialect>();
         registry.insert<func::FuncDialect>();
         registry.insert<arith::ArithDialect>();
   }
@@ -116,11 +116,11 @@ struct StaticOpMaterialization
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     ConversionTarget target(*context);
-    target.addLegalDialect<vllm_graph::vLLMGraphIRDialect, arith::ArithDialect, func::FuncDialect>();
+    target.addLegalDialect<diffusion_graph::DiffusionGraphIRDialect, arith::ArithDialect, func::FuncDialect>();
 
     RewritePatternSet patterns(context);
 
-    patterns.add<StaticOpMaterializationPattern<vllm_graph::ArangeOp>>(context);
+    patterns.add<StaticOpMaterializationPattern<diffusion_graph::ArangeOp>>(context);
 
     GreedyRewriteConfig config;
     config.maxIterations = 2;
@@ -135,7 +135,7 @@ struct StaticOpMaterialization
 
 } //namespace 
 
-std::unique_ptr<OperationPass<func::FuncOp>> mlir::vllm_graph::createStaticOpMaterializationPass(){
+std::unique_ptr<OperationPass<func::FuncOp>> mlir::diffusion_graph::createStaticOpMaterializationPass(){
     return std::make_unique<StaticOpMaterialization>();
 }
 

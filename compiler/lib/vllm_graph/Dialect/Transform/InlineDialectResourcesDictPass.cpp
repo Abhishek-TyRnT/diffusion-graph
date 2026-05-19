@@ -58,7 +58,7 @@ LogicalResult InLineDict(ModuleOp &module){
 
 
 namespace {
-class InlineDialectResourcesDict : public vllm_graph::InlineDialectResourcesDictPassBase<InlineDialectResourcesDict> {
+class InlineDialectResourcesDict : public diffusion_graph::InlineDialectResourcesDictPassBase<InlineDialectResourcesDict> {
 public:
     void getDependentDialects(DialectRegistry &registry) const override {
         registry.insert<func::FuncDialect>();
@@ -75,6 +75,6 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<ModuleOp>> mlir::vllm_graph::createInlineDialectResourcesDictPass(){
+std::unique_ptr<OperationPass<ModuleOp>> mlir::diffusion_graph::createInlineDialectResourcesDictPass(){
     return std::make_unique<InlineDialectResourcesDict>();
 }

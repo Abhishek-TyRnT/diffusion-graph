@@ -6,10 +6,10 @@
 using namespace mlir;
 
 int main(int argc, char **argv) {
-    mlir::vllm_graph::registerAllPasses();
+    mlir::diffusion_graph::registerAllPasses();
 
     DialectRegistry registry;
-    mlir::vllm_graph::registerAllDialects(registry);
+    mlir::diffusion_graph::registerAllDialects(registry);
     return mlir::asMainReturnCode(mlir::MlirOptMain(
       argc, argv, "MLIR modular optimizer driver\n", registry));
     return 0;

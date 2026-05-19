@@ -1,6 +1,6 @@
 
 
-add_mlir_library(vLLMGraphIRDialect
+add_mlir_library(DiffusionGraphIRDialect
   vLLMGraphDialect.cpp
   vLLMGraphOps.cpp
   vLLMGraphOpsODSGenerated.cpp
@@ -11,8 +11,8 @@ add_mlir_library(vLLMGraphIRDialect
   ${PROJECT_SOURCE_DIR}/include/vllm_graph/Dialect
 
   DEPENDS
-  MLIRvLLMGraphOpsIncGen
-  MLIRvLLMGraphTypesIncGen
+  MLIRDiffusionGraphOpsIncGen
+  MLIRDiffusionGraphTypesIncGen
   
 
   LINK_LIBS PUBLIC

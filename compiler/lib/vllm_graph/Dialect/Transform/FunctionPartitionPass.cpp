@@ -15,7 +15,7 @@
 #include <filesystem>
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
 std::string getRootPath() {
     Dl_info info;
@@ -81,7 +81,7 @@ public:
 };
 
 namespace {
-class vLLMFunctionPartitioningPass : public vLLMFunctionPartitioningPassBase<vLLMFunctionPartitioningPass> {
+class diffusionGraphFunctionPartitioningPass : public diffusionGraphFunctionPartitioningPassBase<diffusionGraphFunctionPartitioningPass> {
 public:
 
     void getDependentDialects(DialectRegistry &registry) const override {
@@ -89,7 +89,7 @@ public:
                         arith::ArithDialect, 
                         pdl::PDLDialect, 
                         pdl_interp::PDLInterpDialect,
-                        vllm_graph::vLLMGraphIRDialect>();
+                        diffusion_graph::DiffusionGraphIRDialect>();
     }
 
     void runOnOperation() override {
@@ -119,6 +119,6 @@ public:
 };
 } //namespace
 
-std::unique_ptr<OperationPass<ModuleOp>> mlir::vllm_graph::createvLLMFunctionPartitionPass(){
-    return std::make_unique<vLLMFunctionPartitioningPass>();
+std::unique_ptr<OperationPass<ModuleOp>> mlir::diffusion_graph::createDiffusionGraphFunctionPartitionPass(){
+    return std::make_unique<diffusionGraphFunctionPartitioningPass>();
 }

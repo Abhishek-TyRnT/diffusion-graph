@@ -19,7 +19,7 @@
 #include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
 
 #define GET_OP_CLASSES
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.h.inc"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.h.inc"
 
 namespace mlir {
 namespace diffusion_graph {

@@ -21,7 +21,7 @@ using namespace mlir::diffusion_graph;
 #include "vllm_graph/Dialect/IR/DiffusionGraphIRDialect.cpp.inc"
 
 #define GET_TYPEDEF_CLASSES
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.cpp.inc"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.cpp.inc"
 
 
 Type diffusion_graph::parseDiffusionGraphDialectType(AsmParser &parser){
@@ -58,11 +58,11 @@ void DiffusionGraphIRDialect::printType(Type type, DialectAsmPrinter &printer) c
 void DiffusionGraphIRDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.cpp.inc"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.cpp.inc"
         >();
     addTypes<
 #define GET_TYPEDEF_LIST
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.cpp.inc"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.cpp.inc"
       >();
     
 }

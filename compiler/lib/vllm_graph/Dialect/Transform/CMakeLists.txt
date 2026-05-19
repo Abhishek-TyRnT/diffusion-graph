@@ -20,7 +20,7 @@ add_mlir_library(vLLMGraphTransformPasses
   MLIRTransforms
   MLIRRewrite
   TorchMLIRTorchDialect
-  vLLMGraphIRDialect
+  DiffusionGraphIRDialect
   vLLMGraphTorchTovLLMGraph
   vLLMGraphPatternInterpreter
   vLLMGraphUtils

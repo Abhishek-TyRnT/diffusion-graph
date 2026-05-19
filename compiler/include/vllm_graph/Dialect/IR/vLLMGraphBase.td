@@ -1,7 +1,7 @@
 
 
-#ifndef VLLM_GRAPH_BASE
-#define VLLM_GRAPH_BASE
+#ifndef DIFFUSION_GRAPH_BASE
+#define DIFFUSION_GRAPH_BASE
 
 include "mlir/IR/OpBase.td"
 

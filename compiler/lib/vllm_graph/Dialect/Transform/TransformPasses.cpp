@@ -13,7 +13,7 @@
 #include <vector>
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
 //TODO: Unify type conversion across all passes
 class vLLMGraphConversion : public TypeConverter {
@@ -30,7 +30,7 @@ public:
 
         // Convert f32 to f64
         addConversion([this, context](torch::Torch::ValueTensorType type) -> std::optional<Type> {
-            return convertTorchvTypeTovLLMvType(type, context);      
+            return convertTorchvTypeToDGvType(type, context);      
         });
 
         addConversion([context](torch::Torch::FloatType type) -> std::optional<Type> {
@@ -42,7 +42,7 @@ public:
         });
 
         addConversion([context](torch::Torch::StringType type) -> std::optional<Type> {
-            return vllm_graph::StringType::get(context);
+            return diffusion_graph::StringType::get(context);
         });
 
         addConversion([context](torch::Torch::BoolType type) -> std::optional<Type> {
@@ -50,12 +50,12 @@ public:
         });
 
         addConversion([context](torch::Torch::ListType type) -> std::optional<Type> {
-            auto containedType = convertvLLMContainedType(type, context);
-            return vllm_graph::ListType::get(context, containedType);
+            auto containedType = convertDGContainedType(type, context);
+            return diffusion_graph::ListType::get(context, containedType);
         });
 
         addConversion([context](torch::Torch::NoneType type) -> std::optional<Type> {
-            return vllm_graph::NoneType::get(context);
+            return diffusion_graph::NoneType::get(context);
         });
 
     }
@@ -140,7 +140,7 @@ void replaceFuncDtypes(func::FuncOp &op, vLLMGraphConversion &typeConverter)
         mlir::Location loc = mlir::UnknownLoc::get(context);
         if(std::find(removedArgIndices.begin(), removedArgIndices.end(), i) != removedArgIndices.end())
             offset += 1;
-        auto castOp = builder.create<vllm_graph::CastOp>(loc, oldArgTypes[i + offset], arg);
+        auto castOp = builder.create<diffusion_graph::CastOp>(loc, oldArgTypes[i + offset], arg);
         mlir::Operation *genCastOp = castOp.getOperation();
         mlir::Value castOpResult = castOp.getResult();
         arg.replaceAllUsesExcept(castOpResult, genCastOp);
@@ -161,7 +161,7 @@ void replaceFuncDtypes(func::FuncOp &op, vLLMGraphConversion &typeConverter)
                 mlir::Value returnValue = returnOperation->getOperand(i);
                 builder.setInsertionPoint(returnOp);
                 mlir::Location returnloc = returnOp.getLoc();
-                auto returnCastOp = builder.create<vllm_graph::CastOp>(returnloc, newResultTypes[i], returnValue);
+                auto returnCastOp = builder.create<diffusion_graph::CastOp>(returnloc, newResultTypes[i], returnValue);
                 returnOperation->setOperand(i, returnCastOp);
             }
             
@@ -188,7 +188,7 @@ namespace {
 class ConvertGlobalTorchGraph : public ConvertGlobalFunctionPassBase<ConvertGlobalTorchGraph> {
 public:
     void getDependentDialects(DialectRegistry &registry) const override {
-        registry.insert<vllm_graph::vLLMGraphIRDialect>();
+        registry.insert<diffusion_graph::DiffusionGraphIRDialect>();
         registry.insert<func::FuncDialect>();
 
     }
@@ -202,7 +202,7 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<ModuleOp>> mlir::vllm_graph::createConvertGlobalFunctionPass(){
+std::unique_ptr<OperationPass<ModuleOp>> mlir::diffusion_graph::createConvertGlobalFunctionPass(){
     return std::make_unique<ConvertGlobalTorchGraph>();
 }
 

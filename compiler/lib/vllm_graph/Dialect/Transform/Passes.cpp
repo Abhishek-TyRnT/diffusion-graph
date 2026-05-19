@@ -4,17 +4,17 @@
 #include "mlir/Transforms/Passes.h"
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
-void mlir::vllm_graph::registervLLMGraphPasses(){
+void mlir::diffusion_graph::registerDiffusionGraphPasses(){
     ::registerPasses();
 }
 
-void mlir::vllm_graph::createTorchTovLLMGraphPipeline(PassManager &pm){
+void mlir::diffusion_graph::createTorchToDiffusionGraphPipeline(PassManager &pm){
 
     pm.addPass(createConvertGlobalFunctionPass());
     mlir::OpPassManager &FuncOpPM = pm.nest<mlir::func::FuncOp>();
-    FuncOpPM.addPass(createTorchTovLLMGraph());
+    FuncOpPM.addPass(createTorchToDiffusionGraph());
 
     // pm.addPass(createCanonicalizerPass());
     FuncOpPM.addPass(createCanonicalizerPass());
@@ -22,7 +22,7 @@ void mlir::vllm_graph::createTorchTovLLMGraphPipeline(PassManager &pm){
     FuncOpPM.addPass(createRecomposeSimpleOpsToComplexOps());
     FuncOpPM.addPass(createStaticOpMaterializationPass());
     FuncOpPM.addPass(createContiguousInsertionPass());
-    pm.addPass(createvLLMFunctionPartitionPass());
+    pm.addPass(createDiffusionGraphFunctionPartitionPass());
     pm.addPass(createCanonicalizerPass());
 
 }

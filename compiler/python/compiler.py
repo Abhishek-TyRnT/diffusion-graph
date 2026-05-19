@@ -1,4 +1,4 @@
-from graph_compiler import vLLMGraph
+from graph_compiler import diffusionGraph
 import torch
 from torch.nn import Module
 from torch_mlir.fx import export_and_import
@@ -25,7 +25,7 @@ DECOMPOSITION_OPS = [torch.ops.aten._scaled_dot_product_flash_attention_for_cpu,
                     
 class GraphCompiler:
     def __init__(self, weight_path: str, debug: bool = False):
-        self.compiler = vLLMGraph(weight_path)
+        self.compiler = diffusionGraph(weight_path)
         self.debug = debug
         self.weight_path = weight_path
         self.backend_legal_ops = BACKEND_END_LEGAL_OPS

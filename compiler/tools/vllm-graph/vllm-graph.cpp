@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
         llvm::errs() << "Input File not provided" << "\n";
         std::exit(-1);
     }
-    mlir::vllm_graph::vLLMGraphBase graph;
+    mlir::diffusion_graph::diffusionGraphBase graph;
     OwningOpRef<mlir::ModuleOp> moduleOp = graph.parseFromFile(argv[1]);
     graph.convert(moduleOp);
     llvm::outs() << *moduleOp << "\n";

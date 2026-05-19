@@ -115,14 +115,14 @@ Type meetTensorTypes(BaseTensorType lhs, BaseTensorType rhs);
 } // namespace mlir
 
 #define GET_TYPEDEF_CLASSES
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.h.inc"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.h.inc"
 
 //===----------------------------------------------------------------------===//
 // Inline definitions
 //===----------------------------------------------------------------------===//
 
 namespace mlir {
-namespace vllm_graph {
+namespace diffusion_graph {
 
 inline std::optional<ArrayRef<int64_t>>
 BaseTensorType::getOptionalSizes() const {

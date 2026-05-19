@@ -7,7 +7,7 @@ add_mlir_library(vLLMGraphUtils
 
     LINK_LIBS PUBLIC
     MLIRIR
-    vLLMGraphIRDialect
+    DiffusionGraphIRDialect
     TorchMLIRTorchDialect
     MLIRTransforms
 )

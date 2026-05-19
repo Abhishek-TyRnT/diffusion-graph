@@ -16,7 +16,7 @@
 
 using namespace mlir;
 using namespace llvm;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 namespace {
 
 template<typename FragmenterOp>
@@ -28,49 +28,49 @@ struct FragmentationPattern : public OpRewritePattern<FragmenterOp> {
 
 
 template<>
-LogicalResult FragmentationPattern<vllm_graph::LayerNormOp>::matchAndRewrite(vllm_graph::LayerNormOp op, PatternRewriter &rewriter) const {
+LogicalResult FragmentationPattern<diffusion_graph::LayerNormOp>::matchAndRewrite(diffusion_graph::LayerNormOp op, PatternRewriter &rewriter) const {
 
     Location loc = op.getLoc();
     Value result = op.getResult();
     Value input = op.getOperand(0);
     
-    auto viewOp = input.getDefiningOp<vllm_graph::ViewOp>();
+    auto viewOp = input.getDefiningOp<diffusion_graph::ViewOp>();
     if(!viewOp) return failure();
     
     Value viewResult = viewOp.getResult();
-    auto contiguousOp = rewriter.create<vllm_graph::ContiguousOp>(loc, viewResult.getType(), viewResult);
+    auto contiguousOp = rewriter.create<diffusion_graph::ContiguousOp>(loc, viewResult.getType(), viewResult);
     op->setOperand(0, contiguousOp.getResult());
     return success();
 }
 
 template<>
-LogicalResult FragmentationPattern<vllm_graph::Conv2DOp>::matchAndRewrite(vllm_graph::Conv2DOp op, PatternRewriter &rewriter) const {
+LogicalResult FragmentationPattern<diffusion_graph::Conv2DOp>::matchAndRewrite(diffusion_graph::Conv2DOp op, PatternRewriter &rewriter) const {
 
     Location loc = op.getLoc();
     Value result = op.getResult();
     Value input = op.getOperand(0);
     
-    auto permuteOp = input.getDefiningOp<vllm_graph::PermuteOp>();
+    auto permuteOp = input.getDefiningOp<diffusion_graph::PermuteOp>();
     if(!permuteOp) return failure();
     
     Value permuteResult = permuteOp.getResult();
-    auto contiguousOp = rewriter.create<vllm_graph::ContiguousOp>(loc, permuteResult.getType(), permuteResult);
+    auto contiguousOp = rewriter.create<diffusion_graph::ContiguousOp>(loc, permuteResult.getType(), permuteResult);
     op->setOperand(0, contiguousOp.getResult());
     return success();
 }
 
 template<>
-LogicalResult FragmentationPattern<vllm_graph::AddmmOp>::matchAndRewrite(vllm_graph::AddmmOp op, PatternRewriter &rewriter) const {
+LogicalResult FragmentationPattern<diffusion_graph::AddmmOp>::matchAndRewrite(diffusion_graph::AddmmOp op, PatternRewriter &rewriter) const {
 
     Location loc = op.getLoc();
     Value result = op.getResult();
     Value input = op.getOperand(1);
     // llvm::outs() << input << "\n";
-    auto viewOp = input.getDefiningOp<vllm_graph::ViewOp>();
+    auto viewOp = input.getDefiningOp<diffusion_graph::ViewOp>();
     if(!viewOp) return failure();
     
     Value viewResult = viewOp.getResult();
-    auto contiguousOp = rewriter.create<vllm_graph::ContiguousOp>(loc, viewResult.getType(), viewResult);
+    auto contiguousOp = rewriter.create<diffusion_graph::ContiguousOp>(loc, viewResult.getType(), viewResult);
     op->setOperand(1, contiguousOp.getResult());
     return success();
 }
@@ -80,10 +80,10 @@ LogicalResult FragmentationPattern<vllm_graph::AddmmOp>::matchAndRewrite(vllm_gr
 namespace {
 
 struct ContiguousInsertionPass : 
-    public mlir::vllm_graph::ContiguousInsertionPassBase<ContiguousInsertionPass> {
+    public mlir::diffusion_graph::ContiguousInsertionPassBase<ContiguousInsertionPass> {
 
     void getDependentDialects(mlir::DialectRegistry &registry) const override {
-        registry.insert<vllm_graph::vLLMGraphIRDialect>();
+        registry.insert<diffusion_graph::DiffusionGraphIRDialect>();
         registry.insert<func::FuncDialect>();
         registry.insert<arith::ArithDialect>();
     }
@@ -92,9 +92,9 @@ struct ContiguousInsertionPass :
 
         RewritePatternSet patterns(&getContext());
 
-        // patterns.add<FragmentationPattern<vllm_graph::LayerNormOp>>(&getContext());
-        patterns.add<FragmentationPattern<vllm_graph::Conv2DOp>>(&getContext());
-        // patterns.add<FragmentationPattern<vllm_graph::AddmmOp>>(&getContext());
+        // patterns.add<FragmentationPattern<diffusion_graph::LayerNormOp>>(&getContext());
+        patterns.add<FragmentationPattern<diffusion_graph::Conv2DOp>>(&getContext());
+        // patterns.add<FragmentationPattern<diffusion_graph::AddmmOp>>(&getContext());
 
         GreedyRewriteConfig config;
         config.maxIterations = 2;
@@ -108,7 +108,7 @@ struct ContiguousInsertionPass :
 
 }
 
-std::unique_ptr<OperationPass<func::FuncOp>> mlir::vllm_graph::createContiguousInsertionPass(){
+std::unique_ptr<OperationPass<func::FuncOp>> mlir::diffusion_graph::createContiguousInsertionPass(){
     return std::make_unique<ContiguousInsertionPass>();
 }
 

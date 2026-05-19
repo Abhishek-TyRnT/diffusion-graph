@@ -20,7 +20,7 @@ include "vllm_graph/Dialect/IR/vLLMGraphBase.td"
 
 class diffusion_Type<string name, string typeMnemonic,
                  string baseCppClass = "::mlir::Type">
-    : TypeDef<vLLMGraphIR_Dialect, name, [], baseCppClass> {
+    : TypeDef<DiffusionGraphIR_Dialect, name, [], baseCppClass> {
   let mnemonic = typeMnemonic;
 }
 
@@ -56,7 +56,7 @@ class OptionalArrayRefTorchParameter<string arrayOf, string desc = ""> :
 }
 
 class AnyTorchTensorType<string name, string typeMnemonic>
-    : diffusion_Type<name, typeMnemonic, "::mlir::vllm_graph::BaseTensorType"> {
+    : diffusion_Type<name, typeMnemonic, "::mlir::diffusion_graph::BaseTensorType"> {
   let summary = "Multi-dimensional array modeling Torch's Tensor type";
   let description = [{
     Syntax:
@@ -199,7 +199,7 @@ def Torch_ValueTensorType : AnyTorchTensorType<"ValueTensor", "vtensor"> {
 }
 
 def AnyTorchTensorType : Type<
-    CPred<"isa<::mlir::vllm_graph::BaseTensorType>($_self)">,
+    CPred<"isa<::mlir::diffusion_graph::BaseTensorType>($_self)">,
     "Any Torch tensor type"
 >;
 
@@ -217,13 +217,13 @@ def Torch_OptionalType : diffusion_TypeWithContainedType<"Optional", "optional">
 }
 
 def Torch_ListType : diffusion_TypeWithContainedType<"List", "list"> {
-  let summary = "!vllm_graph.list<T>";
+  let summary = "!diffusion_graph.list<T>";
   let description = [{
   }];
 }
 
 def Torch_TupleType : diffusion_Type<"Tuple", "tuple"> {
-  let summary = "!vllm_graph.tuple<T1, T2, T3>";
+  let summary = "!diffusion_graph.tuple<T1, T2, T3>";
   let description = [{
     Tuple type with 0-N ordered contained types.
   }];
@@ -489,7 +489,7 @@ def AnyTorchType : AnyTypeOf<[
 
 def AnyTorchListType : ListOf<[AnyType], "Any Torch list Type">;
 
-// Creating option between RankedTensorType and vllm_graph.vtensor Type
+// Creating option between RankedTensorType and diffusion_graph.vtensor Type
 def TorchTypeOrTensorType : AnyTypeOf<[
    Torch_ValueTensorType,
    I32Tensor,

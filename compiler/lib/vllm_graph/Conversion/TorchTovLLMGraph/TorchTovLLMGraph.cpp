@@ -1568,7 +1568,7 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<func::FuncOp>> mlir::diffusion_graph::createTorchTovLLMGraph()
+std::unique_ptr<OperationPass<func::FuncOp>> mlir::diffusion_graph::createTorchToDiffusionGraph()
 {
      return std::make_unique<ConvertTorchToDiffusionGraph>();
 }

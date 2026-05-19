@@ -18,7 +18,7 @@
 
 
 using namespace mlir;
-using namespace mlir::vllm_graph;
+using namespace mlir::diffusion_graph;
 
 //===----------------------------------------------------------------------===//
 // isValidSubtype
@@ -139,7 +139,7 @@ parseMultipleContainedTypes(AsmParser &parser) {
   if (!parser.parseOptionalGreater())
     return containedTypes;
   do {
-    Type containedType = parsevLLMGraphDialectType(parser);
+    Type containedType = parseDiffusionGraphDialectType(parser);
     if (!containedType)
       return std::nullopt;
     containedTypes.push_back(containedType);
@@ -153,7 +153,7 @@ static void printMultipleContainedTypes(AsmPrinter &printer,
                                         ArrayRef<Type> containedTypes) {
   printer << "<";
   llvm::interleaveComma(containedTypes, printer, [&](Type type) {
-    printvLLMGraphDialectType(type, printer);
+    printDiffusionGraphDialectType(type, printer);
   });
   printer << ">";
 }
@@ -305,7 +305,7 @@ verifyTensorType(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
-Type parseDiffusionGraphDialectType(MLIRContext *context, AsmParser &parser,
+Type parseDiffusionTensorType(MLIRContext *context, AsmParser &parser,
                      GetTensorTypeFn getTensorType) {
   llvm::SMLoc startLoc = parser.getCurrentLocation();
   if (parser.parseOptionalLess())
@@ -376,7 +376,7 @@ Type parseDiffusionGraphDialectType(MLIRContext *context, AsmParser &parser,
   return getTensorType(context, optionalSizes, optionalDtype, optionalSparsity);
 }
 
-static void printDiffusionGraphDialectType(AsmPrinter &printer,
+static void printDiffusionTensorType(AsmPrinter &printer,
                             std::optional<ArrayRef<int64_t>> optionalSizes,
                             Type optionalDtype, Attribute optionalSparsity) {
   if (!optionalSizes && !optionalDtype)
@@ -434,7 +434,7 @@ diffusion_graph::NonValueTensorType::verify(function_ref<InFlightDiagnostic()> e
 
 Type diffusion_graph::NonValueTensorType::parse(AsmParser &parser) {
   MLIRContext *context = parser.getContext();
-  return parsevLLMTensorType(
+  return parseDiffusionTensorType(
       context, parser,
       [](MLIRContext *context, std::optional<ArrayRef<int64_t>> optionalSizes,
          Type optionalType, Attribute optionalSparsity) {
@@ -444,7 +444,7 @@ Type diffusion_graph::NonValueTensorType::parse(AsmParser &parser) {
 }
 
 void diffusion_graph::NonValueTensorType::print(AsmPrinter &printer) const {
-  printvLLMTensorType(printer, getOptionalSizes(), getOptionalDtype(),
+  printDiffusionTensorType(printer, getOptionalSizes(), getOptionalDtype(),
                   getOptionalSparsity());
 }
 
@@ -509,7 +509,7 @@ diffusion_graph::ValueTensorType::verify(function_ref<InFlightDiagnostic()> emit
 
 Type ValueTensorType::parse(AsmParser &parser) {
   MLIRContext *context = parser.getContext();
-  return parsevLLMTensorType(
+  return parseDiffusionTensorType(
       context, parser,
       [](MLIRContext *context, std::optional<ArrayRef<int64_t>> optionalSizes,
          Type optionalType, Attribute optionalSparsity) {
@@ -519,7 +519,7 @@ Type ValueTensorType::parse(AsmParser &parser) {
 }
 
 void ValueTensorType::print(AsmPrinter &printer) const {
-  printvLLMTensorType(printer, getOptionalSizes(), getOptionalDtype(),
+  printDiffusionTensorType(printer, getOptionalSizes(), getOptionalDtype(),
                   getOptionalSparsity());
 }
 

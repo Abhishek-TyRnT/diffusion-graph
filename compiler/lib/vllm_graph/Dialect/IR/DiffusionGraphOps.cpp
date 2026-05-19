@@ -1,7 +1,7 @@
 
 
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"

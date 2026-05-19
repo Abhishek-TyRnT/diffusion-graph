@@ -4,7 +4,7 @@ set(InterpreterFiles
 )
 
 add_mlir_library(
-    vLLMGraphPatternInterpreter
+    DiffusionGraphPatternInterpreter
     ${InterpreterFiles}
 
     LINK_LIBS PUBLIC

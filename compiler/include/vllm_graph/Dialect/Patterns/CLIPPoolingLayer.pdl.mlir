@@ -4,9 +4,9 @@
 #include "mlir/Dialect/Arith/IR/ArithOps.td"
 
 // Include your custom dialect here
-#include "vllm_graph/Dialect/IR/vLLMGraphBase.td"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.td"
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.td"
+#include "vllm_graph/Dialect/IR/DiffusionGraphBase.td"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.td"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.td"
 
 Rewrite CreateCLIPPoolingFunc(ops: Value);
 

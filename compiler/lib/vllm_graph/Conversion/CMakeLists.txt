@@ -1,12 +1,12 @@
 
 add_subdirectory(TorchTovLLMGraph)
 
-set(linked_libs vLLMGraphTorchTovLLMGraph)
-add_mlir_library(vLLMGraphConversionPasses
+set(linked_libs DiffusionGraphTorchToDiffusionGraph)
+add_mlir_library(DiffusionGraphConversionPasses
   Passes.cpp
 
   DEPENDS
-  vLLMGraphConversionTorchTovLLMGraphPassIncGen
+  DiffusionGraphConversionTorchToDiffusionGraphPassIncGen
 
   LINK_LIBS PUBLIC
   ${linked_libs}

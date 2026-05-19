@@ -1,11 +1,11 @@
-add_mlir_conversion_library(vLLMGraphTorchTovLLMGraph
-  TorchTovLLMGraph.cpp
+add_mlir_conversion_library(DiffusionGraphTorchToDiffusionGraph
+  TorchToDiffusionGraph.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${PROJECT_SOURCE_DIR}/include/vllm_graph/Conversion
 
   DEPENDS
-  vLLMGraphConversionTorchTovLLMGraphPassIncGen
+  DiffusionGraphConversionTorchToDiffusionGraphPassIncGen
 
   LINK_LIBS PUBLIC
   MLIRIR
@@ -15,5 +15,5 @@ add_mlir_conversion_library(vLLMGraphTorchTovLLMGraph
   DiffusionGraphIRDialect
   TorchMLIRTorchDialect
   MLIRArithDialect
-  vLLMGraphUtils
+  DiffusionGraphUtils
 )

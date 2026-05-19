@@ -1,5 +1,5 @@
-#ifndef VLLM_GRAPH_DIALECT_TRANSFORM_PASSES_H_
-#define VLLM_GRAPH_DIALECT_TRANSFORM_PASSES_H_
+#ifndef DIFFUSION_GRAPH_DIALECT_TRANSFORM_PASSES_H_
+#define DIFFUSION_GRAPH_DIALECT_TRANSFORM_PASSES_H_
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Pass/Pass.h"
@@ -34,8 +34,8 @@ void registerDiffusionGraphPasses();
 #define GEN_PASS_REGISTRATION
 #include "vllm_graph/Dialect/Transform/Passes.h.inc"
 
-} //vllm_graph
+} //diffusion_graph
 } //mlir
 
-#endif //VLLM_GRAPH_DIALECT_TRANSFORM_PASSES_H_
+#endif //DIFFUSION_GRAPH_DIALECT_TRANSFORM_PASSES_H_
 

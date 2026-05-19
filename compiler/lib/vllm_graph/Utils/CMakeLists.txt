@@ -1,5 +1,5 @@
 
-add_mlir_library(vLLMGraphUtils
+add_mlir_library(DiffusionGraphUtils
     Utils.cpp
 
     ADDITIONAL_HEADER_DIRS

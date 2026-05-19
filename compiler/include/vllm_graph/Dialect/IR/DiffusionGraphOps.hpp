@@ -14,9 +14,9 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Bytecode/BytecodeOpInterface.h"
 
-#include "vllm_graph/Dialect/IR/vLLMGraphTrait.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTrait.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
 
 #define GET_OP_CLASSES
 #include "vllm_graph/Dialect/IR/DiffusionGraphOps.h.inc"

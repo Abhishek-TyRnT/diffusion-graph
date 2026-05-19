@@ -32,7 +32,7 @@ from test_models import *
      [NewGELUActivation, (),  (torch.randn(3, 256, 1024),), "cuda"],
      [Embedding, (2, 3), (torch.tensor([0, 1]), ), "cuda"],
      [Permute, ((0, 2, 1),), (torch.randn(8, 100, 50),), "cuda"],
-     pytest.param(SliceTensorDim1axis, (1, 10, 2), (torch.randn(1, 20),), "cuda", marks=pytest.mark.xfail),
+     pytest.param(SliceTensorDim1axis, (1, 10, 1), (torch.randn(1, 20),), "cuda", marks=pytest.mark.xfail),
      [UnSqueezeOp, (1,), (torch.randn(2, 8),), "cuda"],
      [SqueezeOp, (1,), (torch.randn(2, 8),), "cuda"],
      [Where, (), (torch.randn(5, 1, 8) < 0.5 , torch.rand(5, 1, 8), torch.tensor(5.)), "cuda"],

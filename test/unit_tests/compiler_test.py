@@ -48,7 +48,7 @@ def test_vllm_graph_compiler_from_mlir(filename):
     root_folder = os.path.dirname(__file__)
     root_folder = os.path.dirname(root_folder)
 
-    cmd = ["vllm-graph" ,f"{root_folder}/examples/{filename}"]
+    cmd = ["diffusion-graph" ,f"{root_folder}/examples/{filename}"]
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = process.returncode
 
@@ -60,22 +60,22 @@ def test_vllm_graph_compiler_from_mlir(filename):
     
     
 @pytest.mark.parametrize("model, pass_list, model_args, inputs",(
-    [Add, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"],
+    [Add, ["convert-global-function-pass","func.func(convert-torch-to-diffusion-graph)"],
             (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
-     [LinearModule, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"],
+     [LinearModule, ["convert-global-function-pass","func.func(convert-torch-to-diffusion-graph, recompose-simple-ops-to-complex)"],
       (10, 5), (torch.randn(1, 224, 10),)],
-     [ReluModule, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
+     [ReluModule, ["convert-global-function-pass","func.func(convert-torch-to-diffusion-graph)"], 
         (), (torch.randn(1, 10, 5))],
-     [Softmax, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
+     [Softmax, ["convert-global-function-pass","func.func(convert-torch-to-diffusion-graph)"], 
         (1,), (torch.randn(1, 10, 5))],
-     [Transpose, ["convert-global-function-pass","func.func(convert-torch-to-vllm-graph)"], 
+     [Transpose, ["convert-global-function-pass","func.func(convert-torch-to-diffusion-graph)"], 
         (1, 0), (torch.randn(25, 10),)],
-    [AttentionHead,  ["convert-global-function-pass","inline-dialect-resource-dict-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)"], 
+    [AttentionHead,  ["convert-global-function-pass","inline-dialect-resource-dict-pass", "func.func(convert-torch-to-diffusion-graph, recompose-simple-ops-to-complex)"], 
         (256, 512, 256), (torch.randn(3, 256, 256), torch.randn(3, 256, 256), torch.randn(3, 256, 256))],
     [NewGELUActivation, ["convert-global-function-pass"], (), (torch.randn(3, 256, 1024),)],
-    [Cast, ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, recompose-simple-ops-to-complex)", "canonicalize" ],
+    [Cast, ["convert-global-function-pass", "func.func(convert-torch-to-diffusion-graph, recompose-simple-ops-to-complex)", "canonicalize" ],
      (torch.bool,), (torch.randint(0,1, (2, 5), dtype=torch.int64),)],
-    [UpsampleNearest2d, ["convert-global-function-pass", "func.func(convert-torch-to-vllm-graph, static-op-materialization-pass)", "canonicalize" ],
+    [UpsampleNearest2d, ["convert-global-function-pass", "func.func(convert-torch-to-diffusion-graph, static-op-materialization-pass)", "canonicalize" ],
      (2,), (torch.randn(1, 32, 16, 16),)],
      ))
 def test_vllm_graph_compiler_passes_from_models(model,
@@ -97,7 +97,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
     
     passes = ",".join(pass_list)
     
-    cmd = f'vllm-graph-opt --pass-pipeline="builtin.module({passes})" --mlir-elide-resource-strings-if-larger=20 --mlir-elide-elementsattrs-if-larger=20 {filename}'
+    cmd = f'diffusion-graph-opt --pass-pipeline="builtin.module({passes})" --mlir-elide-resource-strings-if-larger=20 --mlir-elide-elementsattrs-if-larger=20 {filename}'
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     exit_code = process.returncode
 
@@ -162,7 +162,7 @@ def test_vllm_graph_compiler_from_models(model,
     with open(filename , "w") as f:
         f.write(str(torchIR))
     
-    cmd = ["vllm-graph" ,filename]
+    cmd = ["diffusion-graph" ,filename]
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = process.returncode
 
@@ -201,7 +201,7 @@ def test_vllm_graph_compiler_partioning(model,
     with open(filename , "w") as f:
         f.write(str(torchIR))
     
-    cmd = ["vllm-graph" ,filename]
+    cmd = ["diffusion-graph" ,filename]
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = process.returncode
 
@@ -261,7 +261,7 @@ def test_diffusion_graph_submodules(model,
     with open(filename , "w") as f:
         f.write(str(torchIR))
     
-    cmd = ["vllm-graph" ,filename]
+    cmd = ["diffusion-graph" ,filename]
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     exit_code = process.returncode
 

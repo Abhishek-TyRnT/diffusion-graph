@@ -2,11 +2,10 @@
 #include "PassDetail.hpp"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphDialect.hpp"
 #include "vllm_graph/Dialect/Transform/Passes.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
 #include "vllm_graph/Dialect/Patterns/PatternInterpreter.hpp"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include <unistd.h>
@@ -23,7 +22,7 @@ std::string getRootPath() {
     dladdr((void*)&getRootPath, &info);
     
     std::string fname(info.dli_fname);
-    if(fname != "vllm-graph" && fname != "vllm-graph-opt"){
+    if(fname != "diffusion-graph" && fname != "diffusion-graph-opt"){
         auto so_dir = std::filesystem::canonical(fname).parent_path();
         so_dir = so_dir.parent_path();
         return so_dir.string();

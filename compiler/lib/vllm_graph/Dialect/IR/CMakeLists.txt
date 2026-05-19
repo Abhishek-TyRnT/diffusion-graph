@@ -1,10 +1,10 @@
 
 
 add_mlir_library(DiffusionGraphIRDialect
-  vLLMGraphDialect.cpp
-  vLLMGraphOps.cpp
-  vLLMGraphOpsODSGenerated.cpp
-  vLLMGraphTypes.cpp
+  DiffusionGraphDialect.cpp
+  DiffusionGraphOps.cpp
+  DiffusionGraphOpsODSGenerated.cpp
+  DiffusionGraphTypes.cpp
 
 
   ADDITIONAL_HEADER_DIRS

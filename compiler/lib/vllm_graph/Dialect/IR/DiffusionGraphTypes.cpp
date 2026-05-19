@@ -7,13 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
 #include "mlir/Support/TypeID.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Attributes.h"
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphDialect.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
 #include "llvm/ADT/STLExtras.h"
 
 

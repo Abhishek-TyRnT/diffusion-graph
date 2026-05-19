@@ -1,10 +1,10 @@
 #ifndef DIFFUSION_GRAPH_UTILS_UTILS_H_
 #define DIFFUSION_GRAPH_UTILS_UTILS_H_
 
-#include "vllm_graph/Conversion/TorchTovLLMGraph.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
+#include "vllm_graph/Conversion/TorchToDiffusionGraph.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphDialect.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchOps.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"

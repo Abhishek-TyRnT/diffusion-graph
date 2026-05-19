@@ -1,9 +1,9 @@
 
-#include "vllm_graph/Conversion/TorchTovLLMGraph.hpp"
+#include "vllm_graph/Conversion/TorchToDiffusionGraph.hpp"
 #include "../PassDetail.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphDialect.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
 #include "vllm_graph/Utils/Utils.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchOps.h"

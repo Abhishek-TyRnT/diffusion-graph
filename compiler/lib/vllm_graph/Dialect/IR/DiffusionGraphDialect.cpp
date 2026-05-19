@@ -1,5 +1,5 @@
 
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphDialect.hpp"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Types.h"
@@ -7,8 +7,8 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Transforms/InliningUtils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
 
 
 

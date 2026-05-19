@@ -1,6 +1,6 @@
 
-#ifndef VLLM_GRAPH_DIALECT_VLLM_GRAPH_IR_H
-#define VLLM_GRAPH_DIALECT_VLLM_GRAPH_IR_H
+#ifndef DIFFUSION_GRAPH_DIALECT_DIFFUSION_GRAPH_IR_H
+#define DIFFUSION_GRAPH_DIALECT_DIFFUSION_GRAPH_IR_H
 
 #include "mlir/IR/Dialect.h"
 #include "vllm_graph/Dialect/IR/DiffusionGraphIRDialect.h.inc"

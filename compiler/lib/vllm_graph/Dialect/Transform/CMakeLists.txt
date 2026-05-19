@@ -1,4 +1,4 @@
-add_mlir_library(vLLMGraphTransformPasses
+add_mlir_library(DiffusionGraphTransformPasses
   Passes.cpp
   TransformPasses.cpp
   recompositionPass.cpp
@@ -11,7 +11,7 @@ add_mlir_library(vLLMGraphTransformPasses
   ${PROJECT_SOURCE_DIR}/include/vllm_graph/Dialect/Transform
 
   DEPENDS
-  vLLMGraphTransformPassIncGen
+  DiffusionGraphTransformPassIncGen
 
   LINK_LIBS PUBLIC
   MLIRIR
@@ -21,7 +21,7 @@ add_mlir_library(vLLMGraphTransformPasses
   MLIRRewrite
   TorchMLIRTorchDialect
   DiffusionGraphIRDialect
-  vLLMGraphTorchTovLLMGraph
-  vLLMGraphPatternInterpreter
-  vLLMGraphUtils
+  DiffusionGraphTorchToDiffusionGraph
+  DiffusionGraphPatternInterpreter
+  DiffusionGraphUtils
 )

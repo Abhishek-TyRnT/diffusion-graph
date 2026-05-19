@@ -7,9 +7,9 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphDialect.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
 
 namespace mlir {
 namespace diffusion_graph{

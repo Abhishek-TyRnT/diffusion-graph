@@ -4,9 +4,9 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "vllm_graph/Dialect/Transform/Passes.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphTypes.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphDialect.hpp"
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphDialect.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
 #include "torch-mlir/Dialect/Torch/IR/TorchTypes.h"
 #include "vllm_graph/Utils/Utils.hpp"
 

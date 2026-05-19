@@ -2,7 +2,7 @@
 #ifndef DIFFUSIONGRAPH_OPS
 #define DIFFUSIONGRAPH_OPS
 
-include "vllm_graph/Dialect/IR/vLLMGraphBase.td"
+include "vllm_graph/Dialect/IR/DiffusionGraphBase.td"
 include "mlir/Bytecode/BytecodeOpInterface.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/OpAsmInterface.td"
@@ -11,7 +11,7 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "vllm_graph/Dialect/IR/vLLMGraphTypes.td"
+include "vllm_graph/Dialect/IR/DiffusionGraphTypes.td"
 include "mlir/IR/OpBase.td"
 
 
@@ -19,7 +19,7 @@ class DiffusionGraph_Op<string mnenomic, list<Trait> traits = []>
     : Op<DiffusionGraphIR_Dialect, mnenomic, traits> {
 }
 
-include "vllm_graph/Dialect/IR/GeneratedvLLMGraphOps.td"
+include "vllm_graph/Dialect/IR/GeneratedDiffusionGraphOps.td"
 
 def diffusion_ConstantDeviceOp : DiffusionGraph_Op<"constant.device",
     [Pure,

@@ -11,8 +11,8 @@ set(LinkedLibs
    MLIRSparseTensorDialect
 
    # Conversion Passes
-   vLLMGraphConversionPasses
-   vLLMGraphTransformPasses
+   DiffusionGraphConversionPasses
+   DiffusionGraphTransformPasses
 
    # MLIR Transforms
    MLIRTransforms
@@ -21,7 +21,7 @@ set(LinkedLibs
    TorchMLIRTorchUtils
    )
 
-add_mlir_library(vLLMGraphInitAll
+add_mlir_library(DiffusionGraphInitAll
 InitAll.cpp
 
 LINK_LIBS PUBLIC

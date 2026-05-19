@@ -12,7 +12,7 @@
 
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/DialectBase.td"
-include "vllm_graph/Dialect/IR/vLLMGraphBase.td"
+include "vllm_graph/Dialect/IR/DiffusionGraphBase.td"
 
 //===----------------------------------------------------------------------===//
 // Type defs

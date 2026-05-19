@@ -1,4 +1,4 @@
-#include "vllm_graph/Dialect/IR/vLLMGraphOps.hpp"
+#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"

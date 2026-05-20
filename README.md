@@ -74,8 +74,8 @@ Inside Docker container
 
 ```
 
-build llvm
-build compiler
+build_llvm
+build_compiler
 
 ```
 

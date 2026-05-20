@@ -4,7 +4,7 @@ import os
 import sys
 from torch_mlir.fx import export_and_import
 # from torch.utils._pytree import register_dataclass_as_pytree_node
-from vllm_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS
+from diffusion_graph import BACKEND_END_LEGAL_OPS, DECOMPOSITION_OPS
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.attention_processor import Attention
 from diffusers.models.attention import FeedForward, BasicTransformerBlock
@@ -42,7 +42,7 @@ from test_models import *
      "transpose_static_shapes.mlir",
      "NewGELUActivation.mlir"
      ])
-def test_vllm_graph_compiler_from_mlir(filename):
+def test_diffusion_graph_compiler_from_mlir(filename):
     #TODO: Add lit test for verification            llvm::outs() << getOperation() << "\n";
 
     root_folder = os.path.dirname(__file__)
@@ -78,7 +78,7 @@ def test_vllm_graph_compiler_from_mlir(filename):
     [UpsampleNearest2d, ["convert-global-function-pass", "func.func(convert-torch-to-diffusion-graph, static-op-materialization-pass)", "canonicalize" ],
      (2,), (torch.randn(1, 32, 16, 16),)],
      ))
-def test_vllm_graph_compiler_passes_from_models(model,
+def test_diffusion_graph_compiler_passes_from_models(model,
                                                 pass_list,
                                                 model_args,
                                                 inputs):
@@ -141,7 +141,7 @@ def test_vllm_graph_compiler_passes_from_models(model,
     [PermuteLayerNorm, ((0, 2, 3, 1), (2, 16, 8)), (torch.randn(2, 8, 4, 4),)],
     [PermuteConv2D, ((0, 3, 1, 2), 3, 16, 3, 1, 1), (torch.randn(2, 4, 4, 3),)],
      ))
-def test_vllm_graph_compiler_from_models(model,
+def test_diffusion_graph_compiler_from_models(model,
                                         model_args,
                                         inputs):
     backend_legal_ops = BACKEND_END_LEGAL_OPS
@@ -176,7 +176,7 @@ def test_vllm_graph_compiler_from_models(model,
     pytest.param(PoolingLayer, (8, ), (torch.randn(3, 8, 8), ), { "inputs" : { 1 : Dim("hidden_size", min = 1, max = 100)}}, marks=pytest.mark.xfail),
     [CLIPPoolingLayer, (8, ), (torch.randn(1, 8, 8), torch.randint(0, 100, (1, 8))), {}],
 ))
-def test_vllm_graph_compiler_partioning(model,
+def test_diffusion_graph_compiler_partioning(model,
                                         model_args,
                                         inputs,
                                         dynamic_dims):

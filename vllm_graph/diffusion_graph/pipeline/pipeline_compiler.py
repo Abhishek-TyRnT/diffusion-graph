@@ -1,7 +1,7 @@
 import torch
 from diffusers import StableDiffusionPipeline
-from vllm_graph.model_wrappers import MethodWrapper
-from vllm_graph.pipeline.model_compiler import DiffusionGraphCompiler
+from diffusion_graph.model_wrappers import MethodWrapper
+from diffusion_graph.pipeline.model_compiler import DiffusionGraphCompiler
 
 import gc
 import os

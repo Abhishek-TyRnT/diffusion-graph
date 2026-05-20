@@ -2,9 +2,9 @@ from transformers.modeling_outputs import BaseModelOutput
 import torch
 
 
-def validate_outputs(vllm_graph_output, regular_output, atol = 1e-3) -> bool:
+def validate_outputs(diffusion_graph_output, regular_output, atol = 1e-3) -> bool:
     if(isinstance(regular_output, tuple)):
-        if (len(vllm_graph_output) != len(regular_output)):
+        if (len(diffusion_graph_output) != len(regular_output)):
             new_regular_output = []
             for tensor in regular_output:
                 if(isinstance(tensor, tuple)):
@@ -13,8 +13,8 @@ def validate_outputs(vllm_graph_output, regular_output, atol = 1e-3) -> bool:
                     new_regular_output.append(tensor)
             regular_output = new_regular_output
         
-        assert len(vllm_graph_output) == len(regular_output), "No of outputs donot match"
-        for (vllm_tensor, tensor) in zip(vllm_graph_output, regular_output):
+        assert len(diffusion_graph_output) == len(regular_output), "No of outputs donot match"
+        for (vllm_tensor, tensor) in zip(diffusion_graph_output, regular_output):
             if(vllm_tensor is None and tensor is None):
                 continue
             if not torch.allclose(vllm_tensor, tensor, atol = atol):
@@ -22,7 +22,7 @@ def validate_outputs(vllm_graph_output, regular_output, atol = 1e-3) -> bool:
         
         return True
     if(isinstance(regular_output, BaseModelOutput)):
-        return torch.allclose(vllm_graph_output, regular_output.last_hidden_state, atol = atol)
+        return torch.allclose(diffusion_graph_output, regular_output.last_hidden_state, atol = atol)
     
     else:
-        return torch.allclose(vllm_graph_output, regular_output, atol = atol)
+        return torch.allclose(diffusion_graph_output, regular_output, atol = atol)

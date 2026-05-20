@@ -3,8 +3,8 @@ import os
 import sys
 import json
 import torch
-from vllm_graph.reconstruct import reconstruct_model
-from vllm_graph.pipeline.model_compiler import DiffusionGraphCompiler
+from diffusion_graph.reconstruct import reconstruct_model
+from diffusion_graph.pipeline.model_compiler import DiffusionGraphCompiler
 from transformers.modeling_outputs import BaseModelOutput
 from typing import Dict, List, Optional, Tuple, Union
 from torch.export import Dim
@@ -117,10 +117,10 @@ def test_graph_compiler_to_model(model,
     model_compiler.store_graph_dict()
     IRdict = model_compiler.get_graph_dict()
     reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
-    vllm_graph_output = reconstructed_model["main"](*inputs)
+    diffusion_graph_output = reconstructed_model["main"](*inputs)
     normal_output = torch_model(*inputs)
 
-    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+    assert validate_outputs(diffusion_graph_output, normal_output), f"Test failed validation check"
 
     
 @pytest.mark.parametrize("model, model_args, inputs, dynamic_dims",(
@@ -145,8 +145,8 @@ def test_graph_compiler_function_partioning_to_model(model,
     hidden_states = reconstructed_model["main"](*inputs)
     pooling_output = reconstructed_model["compute_pooling_layer"](hidden_states)
 
-    vllm_graph_output = hidden_states , pooling_output
+    diffusion_graph_output = hidden_states , pooling_output
     normal_output = torch_model(*inputs)
 
-    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+    assert validate_outputs(diffusion_graph_output, normal_output), f"Test failed validation check"
 

@@ -1,9 +1,9 @@
 import torch
 import os
 import json
-from vllm_graph.reconstruct import reconstruct_model
-from vllm_graph.model_wrappers import VaeEncoderWrapper, VaeDecoderWrapper, CLIPWrapper, UNetWrapper
-from vllm_graph.steppers.stepper import PNDMStepper
+from diffusion_graph.reconstruct import reconstruct_model
+from diffusion_graph.model_wrappers import VaeEncoderWrapper, VaeDecoderWrapper, CLIPWrapper, UNetWrapper
+from diffusion_graph.steppers.stepper import PNDMStepper
 from transformers import CLIPTokenizer
 from torch import fft
 import numpy as np

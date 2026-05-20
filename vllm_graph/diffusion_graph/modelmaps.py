@@ -1,5 +1,5 @@
 import torch
-from vllm_graph import funcs
+from diffusion_graph import funcs
 import operator
 
 TYPE_MAP = {

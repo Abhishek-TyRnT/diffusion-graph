@@ -1,6 +1,6 @@
 import pytest
 import torch
-from vllm_graph.steppers.stepper import PNDMStepper
+from diffusion_graph.steppers.stepper import PNDMStepper
 from diffusers import PNDMScheduler
 
 @pytest.mark.parametrize("diffusers_scheduler, diffusion_graph_scheduler, kwargs, shape, num_of_steps",(

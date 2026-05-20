@@ -1,9 +1,9 @@
 import pytest
 import json
 import torch
-from vllm_graph.reconstruct import reconstruct_model
-from vllm_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
-from vllm_graph.model_wrappers import MethodWrapper
+from diffusion_graph.reconstruct import reconstruct_model
+from diffusion_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
+from diffusion_graph.model_wrappers import MethodWrapper
 from transformers import AutoTokenizer, CLIPTextModel
 from test_utils import validate_outputs
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps

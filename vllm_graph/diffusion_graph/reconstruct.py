@@ -1,8 +1,8 @@
 from torch.fx import Graph
 from torch.export.graph_signature import InputKind
 from compiler import GraphCompiler
-from vllm_graph.modelmaps import TYPE_MAP, OP_MAP
-from vllm_graph.utils import read_pb
+from diffusion_graph.modelmaps import TYPE_MAP, OP_MAP
+from diffusion_graph.utils import read_pb
 import torch
 import numpy as np
 import json

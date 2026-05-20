@@ -2,8 +2,8 @@ import pytest
 import torch
 import matplotlib.pyplot as plt
 from diffusers import StableDiffusionPipeline
-from vllm_graph.pipeline.pipeline_compiler import DiffusionPipelineCompiler
-from vllm_graph.pipeline.pipeline_runner import DiffusionGraphRunner
+from diffusion_graph.pipeline.pipeline_compiler import DiffusionPipelineCompiler
+from diffusion_graph.pipeline.pipeline_runner import DiffusionGraphRunner
 import os
 import time
 

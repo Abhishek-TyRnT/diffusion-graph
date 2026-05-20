@@ -1,5 +1,5 @@
 #include "Interface.hpp"
-#include "vllm_graph/Dialect/Transform/Passes.hpp"
+#include "diffusion_graph/Dialect/Transform/Passes.hpp"
 #include "InitAll.hpp"
 #include "mlir/IR/MLIRContext.h"
 #include "llvm/Support/SourceMgr.h"

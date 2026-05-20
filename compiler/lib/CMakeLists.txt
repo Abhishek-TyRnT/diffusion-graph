@@ -1,5 +1,5 @@
 
-add_subdirectory(vllm_graph)
+add_subdirectory(diffusion_graph)
 
 set(LinkedLibs
     MLIRFuncDialect

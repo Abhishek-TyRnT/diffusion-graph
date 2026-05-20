@@ -5,8 +5,8 @@
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.hpp"
-#include "vllm_graph/Dialect/IR/DiffusionGraphOps.hpp"
+#include "diffusion_graph/Dialect/IR/DiffusionGraphTypes.hpp"
+#include "diffusion_graph/Dialect/IR/DiffusionGraphOps.hpp"
 
 using namespace mlir;
 

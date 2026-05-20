@@ -1,18 +1,18 @@
-add_llvm_executable(vllm-graph-opt vllm-graph-opt.cpp)
+add_llvm_executable(diffusion-graph-opt diffusion-graph-opt.cpp)
 
-install(TARGETS vllm-graph-opt
+install(TARGETS diffusion-graph-opt
 EXPORT vLLLMGraphTargets
 RUNTIME DESTINATION ${LLVM_TOOLS_INSTALL_DIR}
-COMPONENT vllm-graph-opt)
+COMPONENT diffusion-graph-opt)
 
 set(dependency_libraries)
 
-target_link_libraries(vllm-graph-opt PRIVATE
+target_link_libraries(diffusion-graph-opt PRIVATE
   MLIROptLib
   MLIRTransforms
-  vLLMGraphInitAll
-  vLLMGraphIRDialect
-  vLLMGraphConversionPasses
+  DiffusionGraphInitAll
+  DiffusionGraphIRDialect
+  DiffusionGraphConversionPasses
   TorchMLIRTorchDialect
   ${dependency_libraries}
 )

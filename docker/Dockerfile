@@ -38,16 +38,16 @@ RUN git clone -b v30.1 https://github.com/protocolbuffers/protobuf.git && \
     cmake --build . --target install
 
 
-ENV TORCH_MLIR_PATH="/home/${username}/vllm-project/build/external/torch-mlir/python_packages/torch_mlir"
-ENV VLLM_COMPILER="/home/${username}/vllm-project/build/python"
-ENV VLLM_SDK="/home/${username}/vllm-project/vllm_graph"
+ENV TORCH_MLIR_PATH="/home/${username}/diffusion-project/build/external/torch-mlir/python_packages/torch_mlir"
+ENV DIFFUSION_GRAPH_COMPILER="/home/${username}/diffusion-project/build/python"
+ENV DIFFUSION_GRAPH_SDK="/home/${username}/diffusion-project/diffusion_graph"
 RUN mkdir /llvm-build && \
     chown ${username} /llvm-build && \
     mkdir /home/${username} && \
     chown ${username} /home/${username} && \
-    echo "#!/bin/bash \nsource /home/${username}/vllm-project/scripts/build" >> /home/${username}/.bashrc && \
-    echo "export PYTHONPATH=${TORCH_MLIR_PATH}:${VLLM_COMPILER}:${VLLM_SDK}" >> /home/${username}/.bashrc && \
-    echo "export PATH=$PATH:/home/${username}/vllm-project/build/bin" >> /home/${username}/.bashrc && \
+    echo "#!/bin/bash \nsource /home/${username}/diffusion-project/scripts/build" >> /home/${username}/.bashrc && \
+    echo "export PYTHONPATH=${TORCH_MLIR_PATH}:${DIFFUSION_GRAPH_COMPILER}:${DIFFUSION_GRAPH_SDK}" >> /home/${username}/.bashrc && \
+    echo "export PATH=$PATH:/home/${username}/diffusion-project//build/bin:/llvm_build/llvm-project/build/bin" >> /home/${username}/.bashrc && \
     chown ${username} /home/${username}/.bashrc && \
     chmod +x /home/${username}/.bashrc
 

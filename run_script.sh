@@ -1,8 +1,8 @@
 #!/bin/bash
 
-IMAGE_NAME="${IMAGE_NAME:-vllm_graph}"
+IMAGE_NAME="${IMAGE_NAME:-diffusion_graph}"
 TAG="${TAG:-dev}"
-CONTAINER_NAME="${CONTAINER_NAME:-vllm_graph_${USER}}"  # Use $USER for the current user
+CONTAINER_NAME="${CONTAINER_NAME:-diffusion_graph_${USER}}"  # Use $USER for the current user
 VOLUME_NAME="${VOLUME_NAME:-llvm-project}"
 
 user=$(whoami)
@@ -24,7 +24,7 @@ run() {
     then
         docker start -i ${CONTAINER_NAME}
     else
-        docker run -it -v $(pwd):/home/${user}/vllm-project \
+        docker run -it -v $(pwd):/home/${user}/diffusion-project \
                 -v $VOLUME_NAME:/llvm-build \
                 --name $CONTAINER_NAME \
                 --user $(id -u) \

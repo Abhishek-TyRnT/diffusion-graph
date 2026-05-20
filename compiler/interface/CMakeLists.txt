@@ -1,12 +1,12 @@
 
-add_mlir_library(vLLMGraphCompiler
+add_mlir_library(DiffusionGraphCompiler
     Interface.cpp
 
     LINK_LIBS PUBLIC
-    vLLMGraphInitAll
+    DiffusionGraphInitAll
     MLIRPass
     MLIRSparseTensorDialect
-    vLLMGraphTransformPasses
+    DiffusionGraphTransformPasses
     TorchMLIRTorchUtils
     MLIRSparseTensorUtils
     TorchMLIRTorchDialect

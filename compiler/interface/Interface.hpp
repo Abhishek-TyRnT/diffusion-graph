@@ -1,5 +1,5 @@
-#ifndef VLLM_GRAPH_INTERFACE_H_
-#define VLLM_GRAPH_INTERFACE_H_
+#ifndef DIFFUSION_GRAPH_INTERFACE_H_
+#define DIFFUSION_GRAPH_INTERFACE_H_
 
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -13,16 +13,16 @@
 using namespace mlir;
 
 namespace mlir{
-namespace vllm_graph{
+namespace diffusion_graph{
 
-class vLLMGraphBase{
+class diffusionGraphBase{
 
 public:
-    vLLMGraphBase();
+    diffusionGraphBase();
     void convert(OwningOpRef<mlir::ModuleOp> &module);
     OwningOpRef<mlir::ModuleOp> parse(std::string IR);
     OwningOpRef<mlir::ModuleOp> parseFromFile(std::string IRFile);
-    ~vLLMGraphBase();
+    ~diffusionGraphBase();
 
 protected:
     MLIRContext *context;

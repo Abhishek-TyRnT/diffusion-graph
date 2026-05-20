@@ -1,18 +1,18 @@
 
-add_subdirectory(vllm_graph)
+add_subdirectory(diffusion_graph)
 
 set(LinkedLibs
     MLIRFuncDialect
     MLIRIR
     
    # Dialects
-   vLLMGraphIRDialect
+   DiffusionGraphIRDialect
    TorchMLIRTorchDialect
    MLIRSparseTensorDialect
 
    # Conversion Passes
-   vLLMGraphConversionPasses
-   vLLMGraphTransformPasses
+   DiffusionGraphConversionPasses
+   DiffusionGraphTransformPasses
 
    # MLIR Transforms
    MLIRTransforms
@@ -21,7 +21,7 @@ set(LinkedLibs
    TorchMLIRTorchUtils
    )
 
-add_mlir_library(vLLMGraphInitAll
+add_mlir_library(DiffusionGraphInitAll
 InitAll.cpp
 
 LINK_LIBS PUBLIC

@@ -1,10 +1,10 @@
 torch==2.4.0
-numpy
-pybind11
-ninja
-pytest
-protobuf
-nanobind
+numpy==2.2.6
+pybind11==3.0.1
+ninja==1.13.0
+pytest==9.0.2
+protobuf==6.33.5
+nanobind==2.11.0
 setuptools>=61
 cmake>=3.26
 diffusers==0.36.0

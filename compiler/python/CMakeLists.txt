@@ -1,9 +1,9 @@
 
 add_subdirectory(GraphConvertor)
-pybind11_add_module(graph_compiler vLLMGraphBindings.cpp)
+pybind11_add_module(graph_compiler DiffusionGraphBindings.cpp)
 install(TARGETS graph_compiler DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)
 target_link_libraries(graph_compiler PRIVATE
-    vLLMGraphCompiler
+    DiffusionGraphCompiler
     MLIRCAPIIR
     GraphWriter
   )

@@ -1,10 +1,10 @@
-#ifndef VLLM_GRAPH_INITALl_H
-#define VLLM_GRAPH_INITALl_H
+#ifndef DIFFUSION_GRAPH_INITALl_H
+#define DIFFUSION_GRAPH_INITALl_H
 
 #include "mlir/IR/Dialect.h"
 
 namespace mlir {
-namespace vllm_graph{
+namespace diffusion_graph{
 
 // Registers all dialects that this project produces and any dependencies.
 void registerAllDialects(mlir::DialectRegistry &registry);

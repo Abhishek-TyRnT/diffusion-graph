@@ -1,9 +1,9 @@
 import pytest
 import json
 import torch
-from vllm_graph.reconstruct import reconstruct_model
-from vllm_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
-from vllm_graph.model_wrappers import MethodWrapper
+from diffusion_graph.reconstruct import reconstruct_model
+from diffusion_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
+from diffusion_graph.model_wrappers import MethodWrapper
 from transformers import AutoTokenizer, CLIPTextModel
 from test_utils import validate_outputs
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
@@ -113,16 +113,16 @@ def test_diffusers_submodule_layers(model,
 
     with profile(activities=activities, profile_memory=True) as prof1:
         torch.cuda.reset_peak_memory_stats()
-        vllm_graph_output = reconstructed_model["main"](*new_input)
+        diffusion_graph_output = reconstructed_model["main"](*new_input)
         peak_vllm = torch.cuda.max_memory_allocated()
 
     
     print(f"Peak memory for original model: {peak_original / (1024 * 1024)} MB")
     print(f"Peak memory for vllm graph: {peak_vllm / (1024 * 1024)} MB")
-    prof1.export_chrome_trace(f"{tmp_folder}/{torch_model.__class__.__name__}/vllm_graph_trace.json")
+    prof1.export_chrome_trace(f"{tmp_folder}/{torch_model.__class__.__name__}/diffusion_graph_trace.json")
     prof2.export_chrome_trace(f"{tmp_folder}/{torch_model.__class__.__name__}/torch_trace.json")
     print("Outputs validated!")
-    assert validate_outputs(vllm_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
+    assert validate_outputs(diffusion_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs",(
         (CLIPTextEmbeddings, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)),), {}),
@@ -157,10 +157,10 @@ def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
     reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     print("Model reconstructed!")
     
-    vllm_graph_output = reconstructed_model["main"](*new_input)
+    diffusion_graph_output = reconstructed_model["main"](*new_input)
     normal_output = torch_model(*inputs, **input_kwargs)
     print("Outputs validated!")
-    assert validate_outputs(vllm_graph_output, normal_output), f"Test failed validation check"
+    assert validate_outputs(diffusion_graph_output, normal_output), f"Test failed validation check"
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, method",
     (
@@ -205,10 +205,10 @@ def test_diffusers_vae(model,
     new_input = [tensor.to(device) for tensor in new_input]
     inputs = [tensor.to(device) if isinstance(tensor, torch.Tensor) else [t.to(device) for t in tensor] for tensor in inputs]
 
-    vllm_graph_output = reconstructed_model["main"](*new_input)
+    diffusion_graph_output = reconstructed_model["main"](*new_input)
     normal_output = torch_model(*inputs, **input_kwargs)
     print("Outputs validated!")
-    assert validate_outputs(vllm_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
+    assert validate_outputs(diffusion_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
 
 @pytest.mark.parametrize("model_name, text, model_class, device",
     (
@@ -255,13 +255,13 @@ def test_hf_models(model_name, text, model_class, device):
         if(hasattr(reconstructed_model, "compute_pooling_layer")):
             hidden_states = reconstructed_model["main"](inputs['input_ids'], input_kwargs['attention_mask'])
             # pooling_output = reconstructed_model.compute_pooling_layer(hidden_states)
-            vllm_graph_output = (hidden_states, pooling_output)
+            diffusion_graph_output = (hidden_states, pooling_output)
         else:
-            vllm_graph_output = reconstructed_model["main"](inputs['input_ids'], input_kwargs['attention_mask'])
+            diffusion_graph_output = reconstructed_model["main"](inputs['input_ids'], input_kwargs['attention_mask'])
 
-    prof1.export_chrome_trace("vllm_graph_trace.json")
+    prof1.export_chrome_trace("diffusion_graph_trace.json")
 
-    assert validate_outputs(vllm_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
+    assert validate_outputs(diffusion_graph_output, normal_output, atol=1e-6), f"Test failed validation check"
 
 
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, dynamic_dims, device",(
@@ -309,7 +309,7 @@ def test_full_diffusers_model(model,
     with torch.no_grad():
         with profile(activities=activities, profile_memory=True) as prof1:
 
-            vllm_graph_output = reconstructed_model["main"](*new_input)
+            diffusion_graph_output = reconstructed_model["main"](*new_input)
 
         del reconstructed_model["main"]
         torch.cuda.empty_cache()
@@ -325,4 +325,4 @@ def test_full_diffusers_model(model,
     prof2.export_chrome_trace(f"{tmp_folder}/{model_name}/torch_trace.json")
     # breakpoint()
     print("Outputs validated!")
-    assert validate_outputs(vllm_graph_output, normal_output[0], atol = 1e-5), f"Test failed validation check"
+    assert validate_outputs(diffusion_graph_output, normal_output[0], atol = 1e-5), f"Test failed validation check"

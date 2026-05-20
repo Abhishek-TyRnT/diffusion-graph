@@ -1,8 +1,8 @@
 import pytest
 import torch
 import gc
-from vllm_graph.reconstruct import reconstruct_model
-from vllm_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
+from diffusion_graph.reconstruct import reconstruct_model
+from diffusion_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
 from test_utils import validate_outputs
 from transformers import AutoTokenizer, CLIPTextModel
 from diffusers.models import UNet2DConditionModel

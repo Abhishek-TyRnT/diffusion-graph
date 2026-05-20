@@ -141,7 +141,7 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             llvm::raw_string_ostream os(elementTypeName);
             elementType.print(os); // Prints the element type
 
-            map["vllm_graph_type"] = "vllm_graph.vtensor";
+            map["diffusion_graph_type"] = "diffusion_graph.vtensor";
             map["dtype"] = elementTypeName;
             map["output_shape"] = shapeVec;
             map["op_name"] = op->getName().getStringRef().str();
@@ -157,7 +157,7 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             llvm::raw_string_ostream os(elementTypeName);
             elementType.print(os); // Prints the element type
 
-            map["vllm_graph_type"] = "tensor";
+            map["diffusion_graph_type"] = "tensor";
             map["dtype"] = elementTypeName;
             map["output_shape"] = shapeVec;
             map["op_name"] = op->getName().getStringRef().str();
@@ -167,7 +167,7 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             std::string elementTypeName;
             llvm::raw_string_ostream os(elementTypeName);
             tupleType.getContainedTypes()[0].print(os);
-            map["vllm_graph_type"] = "tuple";
+            map["diffusion_graph_type"] = "tuple";
             map["dtype"] = elementTypeName;
             map["op_name"] = op->getName().getStringRef().str();
         }
@@ -176,7 +176,7 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             std::string elementTypeName;
             llvm::raw_string_ostream os(elementTypeName);
             listType.getContainedType().print(os);
-            map["vllm_graph_type"] = "list";
+            map["diffusion_graph_type"] = "list";
             map["dtype"] = elementTypeName;
             map["op_name"] = op->getName().getStringRef().str();
         }
@@ -185,7 +185,7 @@ void GraphWriter::addOp(mlir::Operation *op, SubGraphMap &subGraph){
             std::string elementTypeName;
             llvm::raw_string_ostream os(elementTypeName);
             resType.print(os);
-            map["vllm_graph_type"] = "scalar";
+            map["diffusion_graph_type"] = "scalar";
             map["dtype"] = elementTypeName;
             map["op_name"] = op->getName().getStringRef().str();
         }
@@ -302,7 +302,7 @@ void GraphWriter::build(mlir::OwningOpRef<mlir::ModuleOp> &module,
                 llvm::raw_string_ostream os(elementTypeName);
                 elementType.print(os); // Prints the element type
 
-                map["vllm_graph_type"] = "vllm_graph.vtensor";
+                map["diffusion_graph_type"] = "diffusion_graph.vtensor";
                 map["dtype"] = elementTypeName;
                 map["shape"] = shapeVec;
                 std::vector<std::string> input_nodes = {};

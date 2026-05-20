@@ -41,13 +41,13 @@ class ParameterModel(torch.nn.Module):
                 self.register_buffer(arg_dict[buffer]["target"], value, persistent = True)
 
         for constant in self.graph_dict["constants"]:
-            if(self.graph_dict[constant]["dtype"] == "!vllm_graph.none"):
+            if(self.graph_dict[constant]["dtype"] == "!diffusion_graph.none"):
                 ssa_id = constant.replace(".","_")
                 var_name = f"weight_{ssa_id}"
                 setattr(self, var_name, None)
                 continue
 
-            if(self.graph_dict[constant]["dtype"] == "!vllm_graph.str"):
+            if(self.graph_dict[constant]["dtype"] == "!diffusion_graph.str"):
                 ssa_id = constant.replace(".","_")
                 var_name = f"weight_{ssa_id}"
                 setattr(self, var_name, self.graph_dict[constant]["value"])
@@ -68,7 +68,7 @@ class ParameterModel(torch.nn.Module):
             
             dtype = self.graph_dict[constant]['dtype']
 
-            if(self.graph_dict[constant]["vllm_graph_type"] == "tuple"):
+            if(self.graph_dict[constant]["diffusion_graph_type"] == "tuple"):
                 ssa_id = constant.replace(".","_")
                 var_name = f"weight_{ssa_id}"
                 setattr(self, var_name, tuple(data))
@@ -124,19 +124,19 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             graph_nodes[node] = graph.placeholder(node)
         
         elif node_type == "arith.constant" or \
-                node_type == "vllm_graph.vllm.const_tuple" or \
-                node_type == "vllm_graph.constant.tensor" or \
-                node_type == "vllm_graph.constant.none" or \
-                node_type == "vllm_graph.constant.string":
+                node_type == "diffusion_graph.torch.const_tuple" or \
+                node_type == "diffusion_graph.constant.tensor" or \
+                node_type == "diffusion_graph.constant.none" or \
+                node_type == "diffusion_graph.constant.string":
             ssa_id = node.replace(".","_")
             graph_nodes[node] = graph.get_attr(f"weight_{ssa_id}")
         
-        elif node_type == "vllm_graph.vllm.list_op":
+        elif node_type == "diffusion_graph.list_op":
             ssa_id = node.split(".")[0]
             list_nodes = [graph_nodes[inp] for inp in graph_dict[node]['input_nodes']]
             graph_nodes[node] = list_nodes
 
-        elif node_type in ["vllm_graph.vllm.add", "vllm_graph.vllm.sub"]:
+        elif node_type in ["diffusion_graph.torch.add", "diffusion_graph.torch.sub"]:
             add_func = OP_MAP.get(node_type, None)
             input_args = []
             input_kwargs = {}
@@ -150,21 +150,21 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             
             graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
 
-        elif node_type == "vllm_graph.vllm.addmm":
+        elif node_type == "diffusion_graph.torch.addmm":
             add_func = OP_MAP.get(node_type, None)
             input_args = []
             input_kwargs = {}
             for inp in graph_dict[node]['input_nodes']:
-                if graph_dict[inp]["vllm_graph_type"] == "scalar" and input_kwargs.get("alpha", None) is None:
+                if graph_dict[inp]["diffusion_graph_type"] == "scalar" and input_kwargs.get("alpha", None) is None:
                     input_kwargs["alpha"] = graph_nodes[inp]
                 
-                elif graph_dict[inp]["vllm_graph_type"] == "scalar":
+                elif graph_dict[inp]["diffusion_graph_type"] == "scalar":
                     input_kwargs["beta"] = graph_nodes[inp]
                 else:
                     input_args.append(graph_nodes[inp])
             
             graph_nodes[node] = graph.call_function(add_func, args=tuple(input_args), kwargs = input_kwargs)
-        elif node_type == "vllm_graph.vllm.scaled_dot_product_attention":
+        elif node_type == "diffusion_graph.torch.scaled_dot_product_attention":
             attn_func = OP_MAP.get(node_type, None)
             input_args = []
             input_kwargs = {}
@@ -178,7 +178,7 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
                 i+=1
             graph_nodes[node] = graph.call_function(attn_func, args=tuple(input_args), kwargs = input_kwargs)
 
-        elif node_type == "vllm_graph.vllm.gelu":
+        elif node_type == "diffusion_graph.torch.gelu":
             gelu_func = OP_MAP.get(node_type, None)
             input_args = []
             for inp in graph_dict[node]['input_nodes'][:1]:
@@ -187,7 +187,7 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             input_kwargs = {"approximate":graph_nodes[graph_dict[node]['input_nodes'][1]]}
             graph_nodes[node] = graph.call_function(gelu_func, args=tuple(input_args), kwargs = input_kwargs)
             
-        elif node_type == "vllm_graph.vllm.ones":
+        elif node_type == "diffusion_graph.torch.ones":
             ones_func = OP_MAP.get(node_type, None)
             i = 0
             input_kwargs = {}
@@ -202,7 +202,7 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             input_kwargs['device'] = graph.get_attr("device")
             graph_nodes[node] = graph.call_function(ones_func, args=tuple(input_args), kwargs = input_kwargs)
                 
-        elif node_type == "vllm_graph.vllm.upsample":
+        elif node_type == "diffusion_graph.torch.upsample":
             upsample_func = OP_MAP.get(node_type, None)
             i = 0
             input_kwargs = {}

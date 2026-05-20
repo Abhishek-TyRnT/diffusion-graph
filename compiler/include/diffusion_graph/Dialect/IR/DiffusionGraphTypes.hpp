@@ -111,11 +111,11 @@ public:
 /// ways in different situations.
 Type meetTensorTypes(BaseTensorType lhs, BaseTensorType rhs);
 
-} // namespace vllm
+} // namespace diffusion_graph
 } // namespace mlir
 
 #define GET_TYPEDEF_CLASSES
-#include "vllm_graph/Dialect/IR/DiffusionGraphTypes.h.inc"
+#include "diffusion_graph/Dialect/IR/DiffusionGraphTypes.h.inc"
 
 //===----------------------------------------------------------------------===//
 // Inline definitions

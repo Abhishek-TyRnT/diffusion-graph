@@ -2,6 +2,3 @@
 	path = external/torch-mlir
 	url = https://github.com/Abhishek-TyRnT/torch-mlir.git
 	branch = master
-[submodule "external/vllm"]
-	path = external/vllm
-	url = git@github.com:Abhishek-TyRnT/vllm.git

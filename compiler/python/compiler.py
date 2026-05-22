@@ -1,16 +1,13 @@
 from graph_compiler import diffusionGraph
 import torch
 from torch.nn import Module
+import sys
+import os
+current_path = os.path.dirname(__file__)
+sys.path.append(os.path.join(current_path, "external"))
 from torch_mlir.fx import export_and_import
 from torch._decomp import get_decompositions
-from torch_mlir._mlir_libs._mlir.ir import DenseResourceElementsAttr
-import os
-from torch._decomp import register_decomposition
-from torch_mlir._mlir_libs._mlir.ir import WalkResult
 import gc
-# Register a no-op decomposition for upsample_nearest2d.vec
-from torch.library import impl
-import re
 
 BACKEND_END_LEGAL_OPS = ["aten.softmax.int", "aten.native_layer_norm", 
                         "aten._softmax", "aten.dropout", 

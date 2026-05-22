@@ -54,8 +54,8 @@ class CustomBuildPy(build_py):
 
         # 4. Copy build/external/torch-mlir to self.build_lib/external/torch-mlir
         print("Copying torch-mlir build files to self.build_lib/external/torch-mlir...")
-        src_external = f'{home_diffusion_project}/build/external/torch-mlir'
-        dest_external = os.path.join(self.build_lib, 'external', 'torch-mlir')
+        src_external = f'{home_diffusion_project}/build/external/torch-mlir/python_packages/torch_mlir/torch_mlir'
+        dest_external = os.path.join(self.build_lib, 'external', 'torch_mlir')
         
         if os.path.exists(dest_external):
             shutil.rmtree(dest_external)

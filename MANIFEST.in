@@ -1,0 +1,4 @@
+prune test
+prune docs
+prune docker
+prune scripts

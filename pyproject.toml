@@ -1,0 +1,26 @@
+[build-system]
+requires = [
+    "setuptools>=61.0.0",
+    "wheel",
+    "pybind11>=3.0.1",
+    "ninja>=1.13.0",
+    "cmake>=3.26",
+    "nanobind==2.11.0",
+    "torch==2.4.0"
+    ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "diffusion-graph"
+version = "0.1.0"
+description = "Python runtime and C++ compiler for diffusion-graph"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+dependencies = [
+    "torch>=2.4.0",
+    "numpy>=2.2.6",
+    "protobuf>=6.33.5",
+    "diffusers==0.36.0",
+    "transformers==4.38.2"
+]

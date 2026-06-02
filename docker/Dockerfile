@@ -13,7 +13,9 @@ RUN apt update && \
                     curl \
                     unzip \
                     valgrind \
-                    libnuma-dev
+                    libnuma-dev \
+                    python3-venv \
+                    patchelf
 
 
 COPY requirements.txt /opt/requirements.txt

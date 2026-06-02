@@ -12,6 +12,7 @@
 #include <string>
 #include <dlfcn.h>
 #include <filesystem>
+#include <iostream>
 
 using namespace mlir;
 using namespace mlir::diffusion_graph;
@@ -24,7 +25,9 @@ std::string getRootPath() {
     std::string fname(info.dli_fname);
     if(fname != "diffusion-graph" && fname != "diffusion-graph-opt"){
         auto so_dir = std::filesystem::canonical(fname).parent_path();
-        so_dir = so_dir.parent_path();
+        if(so_dir.filename().string() == "python"){
+            so_dir = so_dir.parent_path();
+        }
         return so_dir.string();
     } else {
         char buffer[1024];

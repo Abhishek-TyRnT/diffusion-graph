@@ -6,4 +6,7 @@ test.cpp
 weight.h5
 temp_files
 build
-build_vllm
+dist/
+diffusion_graph/diffusion_graph.egg-info
+diffusion_graph_paths.pth
+CMakeLists.txt

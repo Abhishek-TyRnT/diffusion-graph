@@ -1,3 +1,5 @@
+# DEPRECATED
+
 # vLLM-Graph Design
 
 vllm-graph generates a vllm supported torch fx Graph to run using vllm runtime. vllm-graph provides flexibility to run almost any model using the vllm runtime irrespective of the format of the model (ex :- pytorch, tflite, onnx-model).

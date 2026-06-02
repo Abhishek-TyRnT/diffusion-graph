@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(vllm-graph-compiler)
+project(diffusion-graph-compiler)
 
 list(APPEND CMAKE_PREFIX_PATH ${PYBIND11_PATH})
 set(PYBIND11_FINDPYTHON ON)

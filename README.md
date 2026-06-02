@@ -93,23 +93,26 @@ python
 ```
 from diffusers import StableDiffusionPipeline
 from diffusion_graph.pipeline.pipeline_compiler import DiffusionPipelineCompiler
-from diffusion_graph.pipeline.pipeline_runner import DiffusionGraphRunner
+import torch
 
-artifact_path = <artifact path>
+artifact_path = "./aritfacts_paths"
 device = "cuda"
 num_inference_steps = 50
 tokenizer = "openai/clip-vit-large-patch14"
 model_id = "runwayml/stable-diffusion-v1-5"
+model_name = "compiled_sd_v1-5"
+image_shape = (512, 512)
 pipe = StableDiffusionPipeline.from_pretrained(
         model_id,
         torch_dtype=torch.float32,
         safety_checker=None
     )
 
-dg_compiler = DiffusionPipelineCompiler(model_name, tmp_folder, debug=False)
-dg_compiler.compile(pipeline, image_shape)
+dg_compiler = DiffusionPipelineCompiler(model_name, artifact_path, debug=False)
+dg_compiler.compile(pipe, image_shape)
 
-runner = DiffusionGraphRunner(artifact_path, device, num_inference_steps, tokenizer)
+model_path = f"{artifact_path}/{model_name}"
+runner = DiffusionGraphRunner(model_path, device, num_inference_steps, tokenizer)
 runner.load_pipeline()
 
 image = runner.generate(prompt)

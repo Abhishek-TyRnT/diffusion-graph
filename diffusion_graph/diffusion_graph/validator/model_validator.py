@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Optional
 import torch
-import torch.fx as fx
 from torch.fx import Graph, GraphModule, Node
 import traceback
+from typing import Any
+
 
 @dataclass
 class TensorContract:
@@ -22,7 +23,6 @@ class ViolationReport:
     kind: str            # "shape" | "dtype" | "rank"
     expected: object
     actual: object
-    input_or_output: str # "input" | "output"
     index: int
 
 ContractMap = dict[str, TensorContract]
@@ -61,7 +61,9 @@ def extract_contracts(bytecode: dict) -> ContractMap:
 
     for ssa_id, op_info in bytecode.items():
         if ssa_id in ['results',
-                'entrypoint']:
+                'entrypoint',
+                'arg_dict',
+                'constants']:
                     continue
         
         _visit_op(ssa_id, op_info, op_counters, contracts, shaped_type_to_parts)
@@ -78,13 +80,7 @@ def _visit_op(ssa_id, op_info, counters, contracts, shaped_type_to_parts):
     counters[op_type] += 1
 
     try:
-        in_shapes, in_dtypes, out_shapes, out_dtypes = [], [], [], []
-
-        # for operand in op.operation.operands:
-        #     if ir.ShapedType.isinstance(operand.type):
-        #         shape, dtype = shaped_type_to_parts(operand.type)
-        #         in_shapes.append(shape)
-        #         in_dtypes.append(dtype)
+        out_shapes, out_dtypes = [], []
 
         shape, dtype = shaped_type_to_parts(op_info)
         out_shapes.append(shape)
@@ -93,8 +89,8 @@ def _visit_op(ssa_id, op_info, counters, contracts, shaped_type_to_parts):
         loc = ssa_id
         contracts[key] = TensorContract(
             op_name=key,
-            input_dtypes=in_dtypes,
             output_dtypes=out_dtypes,
+            output_shapes=out_shapes,
             location=loc,
         )
     except Exception:
@@ -137,7 +133,6 @@ def _check_tensor(
             kind="rank",
             expected=expected_shape,
             actual=actual_shape,
-            input_or_output=io_label,
             index=idx,
         ))
         return  # Shape comparison would be meaningless
@@ -154,7 +149,6 @@ def _check_tensor(
                 kind="shape",
                 expected=expected_shape,
                 actual=actual_shape,
-                input_or_output=io_label,
                 index=idx,
             ))
             break
@@ -168,7 +162,6 @@ def _check_tensor(
             kind="dtype",
             expected=expected_dtype,
             actual=actual_dtype,
-            input_or_output=io_label,
             index=idx,
         ))
 
@@ -262,11 +255,6 @@ def _runtime_checker(
     # Return original value unmodified
     return tensor_or_tuple
 
-import logging
-from typing import Any
-
-log = logging.getLogger(__name__)
-
 
 class ContractValidator:
     """
@@ -294,7 +282,11 @@ class ContractValidator:
         Does NOT modify the original graph module.
         """
         import copy
-        instrumented_gm = copy.deepcopy(self.original_gm)
+        temp_validation_graph = copy.deepcopy(self.original_gm.graph)
+        instrumented_gm = torch.fx.GraphModule(
+            self.original_gm,  # use original as the root — weights are shared, not copied
+            temp_validation_graph
+        )
         instrument_graph(
             instrumented_gm, 
             self.contracts, 
@@ -306,8 +298,8 @@ class ContractValidator:
             with torch.no_grad():
                 instrumented_gm(**dummy_inputs)
         except Exception as e:
-            log.error(f"Dummy run crashed before all checks completed: {e}")
-            log.debug(traceback.format_exc())
+            print(f"Dummy run crashed before all checks completed: {e}")
+            print(traceback.format_exc())
 
         self._validated = True
         self._report_violations()
@@ -321,25 +313,13 @@ class ContractValidator:
 
         return self.violations
 
-    def get_production_graph(self) -> GraphModule:
-        """
-        Returns the original, unmodified graph ready for production.
-        Only call after run_validation() — enforced by assertion.
-        """
-        assert self._validated, (
-            "Call run_validation() before get_production_graph(). "
-            "The dummy run must complete (even with violations) so you "
-            "can make an informed decision about whether to proceed."
-        )
-        return self.original_gm
-
     def _report_violations(self):
         if not self.violations:
-            log.info("✓ All MLIR contracts satisfied.")
+            print("✓ All MLIR contracts satisfied.")
             return
 
-        log.warning(f"✗ {len(self.violations)} contract violation(s) found:\n")
-        log.warning(self._format_violations())
+        print(f"\033[31m✗ {len(self.violations)} contract violation(s) found:\n\033[0m")
+        print(self._format_violations())
 
     def _format_violations(self) -> str:
         lines = []
@@ -353,7 +333,7 @@ class ContractValidator:
         return "\n".join(lines)
 
 def build_validated_engine(
-    mlir_module: ir.Module,
+    bytecode: dict,
     fx_graph_module: GraphModule,
     user_dummy_inputs: dict | None = None,
     strict_dynamic: bool = False,
@@ -364,8 +344,8 @@ def build_validated_engine(
     Full pipeline: extract → instrument → validate → strip → return.
     """
     # 1. Extract contracts from the MLIR module
-    contracts = extract_contracts(mlir_module)
-    log.info(f"Extracted {len(contracts)} op contracts from MLIR module.")
+    contracts = extract_contracts(bytecode)
+    print(f"Extracted {len(contracts)} op contracts from MLIR module.")
 
     # 2. Build or accept dummy inputs
     if user_dummy_inputs is None:
@@ -384,7 +364,4 @@ def build_validated_engine(
     )
     violations = validator.run_validation(dummy_inputs)
 
-    # 4. Return clean production graph
-    production_gm = validator.get_production_graph()
-    log.info("Returning clean production graph (no checker overhead).")
-    return production_gm, violations
+    return violations

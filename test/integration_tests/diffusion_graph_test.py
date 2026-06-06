@@ -5,6 +5,7 @@ import json
 import torch
 from diffusion_graph.reconstruct import reconstruct_model
 from diffusion_graph.pipeline.model_compiler import DiffusionGraphCompiler
+from diffusion_graph.validator.model_validator import build_validated_engine
 from transformers.modeling_outputs import BaseModelOutput
 from typing import Dict, List, Optional, Tuple, Union
 from torch.export import Dim
@@ -150,3 +151,22 @@ def test_graph_compiler_function_partioning_to_model(model,
 
     assert validate_outputs(diffusion_graph_output, normal_output), f"Test failed validation check"
 
+
+@pytest.mark.parametrize("model, model_args, inputs",(
+    [Add, (), (torch.randn(224, 10, 3), torch.randn(224, 10, 3))],
+))
+def test_model_ops_shapes_and_dtype_validation(model, model_args, inputs):
+    if len(model_args) == 0:
+        torch_model = model()
+    else:
+        torch_model = model(*model_args)
+    
+    tmp_folder = f"./temp_files"
+
+    model_compiler = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
+    model_compiler.compile(torch_model, inputs)
+    IRdict = model_compiler.get_graph_dict()
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
+    violations = build_validated_engine(IRdict, reconstructed_model['main'], user_dummy_inputs=inputs)
+
+    assert len(violations) == 0, f"Test failed validation check"

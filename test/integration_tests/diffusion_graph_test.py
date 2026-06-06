@@ -166,7 +166,9 @@ def test_model_ops_shapes_and_dtype_validation(model, model_args, inputs):
     model_compiler = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
     model_compiler.compile(torch_model, inputs)
     IRdict = model_compiler.get_graph_dict()
+    model_compiler.store_graph_dict()
     reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
+    x = (torch.randn(224, 10, 4), torch.randn(224, 10, 4))
     violations = build_validated_engine(IRdict, reconstructed_model['main'], user_dummy_inputs=inputs)
 
     assert len(violations) == 0, f"Test failed validation check"

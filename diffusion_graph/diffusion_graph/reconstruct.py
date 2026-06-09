@@ -1,4 +1,4 @@
-from torch.fx import Graph
+from torch.fx import Graph, Node
 from torch.export.graph_signature import InputKind
 from compiler import GraphCompiler
 from diffusion_graph.modelmaps import TYPE_MAP, OP_MAP
@@ -228,7 +228,8 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
             
             graph_nodes[node] = graph.call_function(op_func, args=tuple(input_args))
         
-        graph_nodes[node].name = node.replace(".","_")
+        if(isinstance(graph_nodes[node], Node)):
+            graph_nodes[node].name = node.replace(".","_")
         #Keep this code snippet for future debugging
         # func = lambda name, exp_shape, x : print(f"Op Name :- {name}, Expected Shape :- {exp_shape}, Actual Shape :- {x.shape if hasattr(x, 'shape') else x}")
         # graph.call_function(
@@ -244,6 +245,7 @@ def construct_graph(graph_dict: dict, arg_dict: dict, nodes: list[str], results:
         for result_ssa_id in results:
             result_nodes.append(graph_nodes[result_ssa_id])
         graph.output(result_nodes)
+    
     graph.lint()
     return graph
 

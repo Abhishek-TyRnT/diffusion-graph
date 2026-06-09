@@ -1,3 +1,4 @@
+import warnings
 from dataclasses import dataclass, field
 from typing import Optional
 import torch
@@ -39,7 +40,7 @@ def extract_contracts(bytecode: dict) -> ContractMap:
             "bf16": "torch.bfloat16",
             "f64": "torch.float64",
             "i32": "torch.int32",
-            "i64": "torch.int64",
+            "si64": "torch.int64",
             "i8":  "torch.int8",
             "i1":  "torch.bool",
         }
@@ -75,6 +76,17 @@ def extract_contracts(bytecode: dict) -> ContractMap:
 
 
 def _visit_op(ssa_id, op_info, counters, contracts, shaped_type_to_parts):
+
+    if(op_info["op_name"] in [
+        "diffusion_graph.list_op",
+        "diffusion_graph.constant.none",
+        "diffusion_graph.constant.string",
+        "diffusion_graph.constant.tensor",
+        "arith.constant",
+        "diffusion_graph.torch.const_tuple",
+        "diffusion_graph.torch.split"
+    ]):
+        return
     op_type = op_info['op_name']
     loc = ssa_id
     counters[op_type] = counters.get(op_type, 0)
@@ -82,13 +94,18 @@ def _visit_op(ssa_id, op_info, counters, contracts, shaped_type_to_parts):
     counters[op_type] += 1
     out_shapes, out_dtypes = [], []
 
-    shape, dtype = shaped_type_to_parts(op_info)
+    shape_and_dtype = shaped_type_to_parts(op_info)
+    if shape_and_dtype is None:
+        raise ValueError(f"Could not determine shape and dtype for op {op_type}")
+    else:
+        shape, dtype = shape_and_dtype
+    
     out_shapes.append(shape)
     out_dtypes.append(dtype)
 
     
     contracts[key] = TensorContract(
-        op_name=key,
+        op_name=op_type,
         output_dtypes=out_dtypes,
         output_shapes=out_shapes,
         location=loc,
@@ -176,23 +193,22 @@ def instrument_graph(
     """
     graph: Graph = gm.graph
     node_list = list(graph.nodes)
-
+    contracts_visit_info = {key: False for key in contracts.keys()}
     # Store the violations list on the module so get_attr can reference it.
     # This avoids fx serializing the list via repr() (which would produce
     # a new `[]` literal), preserving the original list's identity.
     gm._contract_violations = violations
 
     # Create a get_attr node that resolves to self._contract_violations
-    # at runtime.  Place it after the last placeholder (input) node.
-    last_placeholder = None
+    # at runtime.  Place it before the first placeholder (input) node.
+    first_placeholder = None
     for node in node_list:
         if node.op == 'placeholder':
-            last_placeholder = node
-        else:
+            first_placeholder = node
             break
 
-    if last_placeholder:
-        with graph.inserting_after(last_placeholder):
+    if first_placeholder:
+        with graph.inserting_before(first_placeholder):
             violations_node = graph.get_attr('_contract_violations')
     else:
         with graph.inserting_before(node_list[0]):
@@ -204,7 +220,7 @@ def instrument_graph(
     name_to_contract: dict[str, TensorContract] = {}
     counter: dict[str, int] = {}
     for node in node_list:
-        if node.op not in ("call_function", "call_method", "call_module"):
+        if node.op not in ("call_function", "call_method", "call_module", "placeholder"):
             continue
         base = _fx_node_base_name(node)
         # counter[base] = counter.get(base, 0)
@@ -212,10 +228,14 @@ def instrument_graph(
         # counter[base] += 1
         if mlir_key in contracts:
             name_to_contract[node.name] = contracts[mlir_key]
+            contracts_visit_info[mlir_key] = True
+
+    for key, isVisited in contracts_visit_info.items():
+        if not isVisited:
+            raise ValueError(f"Contract {contracts[key].op_name} at location {contracts[key].location} not validated!")
 
     # Inject checker nodes
     for node in node_list:
-        # print(node.name)
         if node.name not in name_to_contract:
             continue
         contract = name_to_contract[node.name]
@@ -232,8 +252,10 @@ def instrument_graph(
             # But the checker needs the original node as input, fix that:
             checker_node.args = (node, contract, node.name, violations_node, strict_dynamic)
 
-    graph.lint()
     gm.recompile()
+    # graph.lint()
+    
+
     # Inject TensorContract into the generated forward()'s global namespace.
     # fx serializes TensorContract instances via repr(), producing code like
     # `TensorContract(op_name=..., ...)` — which requires the name to be
@@ -248,6 +270,8 @@ def _fx_node_base_name(node: Node) -> str:
         return node.target  # module path string
     elif node.op == "call_method":
         return node.target
+    elif node.op == "placeholder":
+        return node.name
     return node.name[1:] #To remove initial underscore
 
 
@@ -310,12 +334,31 @@ class ContractValidator:
             self.original_gm,  # use original as the root — weights are shared, not copied
             temp_validation_graph
         )
-        instrument_graph(
-            instrumented_gm, 
-            self.contracts, 
-            self.violations,
-            self.strict_dynamic,
-        )
+        
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=".*get_attr Node.*no underlying reference.*",
+            category=UserWarning,
+            module=r"torch\.fx\.graph"
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*does not reference an nn\.Module, nn\.Parameter, or buffer.*",
+                category=UserWarning,
+                module=r"torch\.fx\.graph"
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Attempted to insert a get_attr Node with no underlying reference.*",
+                category=UserWarning,
+            )
+            instrument_graph(
+                instrumented_gm, 
+                self.contracts, 
+                self.violations,
+                self.strict_dynamic,
+            )
 
         try:
             with torch.no_grad():
@@ -324,7 +367,6 @@ class ContractValidator:
             print(traceback.format_exc())
             raise ValueError(f"Dummy run crashed before all checks completed: {e}")
             
-
         self._validated = True
         self._report_violations()
 

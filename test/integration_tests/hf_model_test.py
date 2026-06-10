@@ -79,10 +79,10 @@ def test_diffusers_submodule_layers(model,
     print("Model eval finished!")
     # breakpoint()
     tmp_folder = f"./temp_files"
-    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
-    vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
+    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
+    dg_graph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
     print("Model compiled!")
-    IRdict = vllmgraph.get_graph_dict()
+    IRdict = dg_graph.get_graph_dict()
     new_input = []
 
     #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
@@ -139,14 +139,13 @@ def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
         torch_model = model(*model_args, **model_kwargs)
     
     torch_model.eval()
-    print(torch_model)
     print("Model eval finished!")
     # breakpoint()
     tmp_folder = f"./temp_files"
-    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
-    vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = {}, )
+    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
+    dg_graph.compile(torch_model, inputs, input_kwargs, dynamic_dims = {}, )
     print("Model compiled!")
-    IRdict = vllmgraph.get_graph_dict()
+    IRdict = dg_graph.get_graph_dict()
     new_input = []
 
     #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
@@ -185,10 +184,10 @@ def test_diffusers_vae(model,
     print("Model eval finished!")
     # breakpoint()
     tmp_folder = f"/tmp"
-    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
-    vllmgraph.compile(torch_model, inputs, input_kwargs)
+    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
+    dg_graph.compile(torch_model, inputs, input_kwargs)
     print("Model compiled!")
-    IRdict = vllmgraph.get_graph_dict()
+    IRdict = dg_graph.get_graph_dict()
     new_input = []
 
     #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
@@ -214,8 +213,6 @@ def test_diffusers_vae(model,
 
 @pytest.mark.parametrize("model_name, text, model_class, device",
     (
-    # pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)),  "Hello, my dog is cute", AlbertModel, "cuda", marks = pytest.mark.xfail()),
-    # pytest.param("albert/albert-base-v2",(torch.zeros(1, 100, dtype = torch.int32), torch.zeros(1, 100, dtype = torch.int32)), "Hello, my dog is cute", AlbertForMaskedLM, "cuda", marks = pytest.mark.xfail()),
     ["openai/clip-vit-large-patch14", "Hello, my dog is cute", CLIPTextModel, "cuda"],
     ["openai/clip-vit-large-patch14", "", CLIPTextModel, "cuda"],
     ))
@@ -227,11 +224,11 @@ def test_hf_models(model_name, text, model_class, device):
     #model(**inputs)
     tmp_folder = f"./temp_files"
 
-    vllmgraph = DiffusionGraphCompiler(model_name,temp_directory = tmp_folder, debug = True)
+    dg_graph = DiffusionGraphCompiler(model_name,temp_directory = tmp_folder, debug = True)
     input_kwargs = {"return_dict" : False, "attention_mask" : inputs['attention_mask']}
-    vllmgraph.compile(model, (inputs['input_ids'], ), input_kwargs)
+    dg_graph.compile(model, (inputs['input_ids'], ), input_kwargs)
     
-    compiled_model_dict = vllmgraph.get_graph_dict()
+    compiled_model_dict = dg_graph.get_graph_dict()
     
     if("compute_pooling_layer" in compiled_model_dict):
         compiled_model_dict.pop("compute_pooling_layer")
@@ -288,11 +285,10 @@ def test_full_diffusers_model(model,
     print("Model eval finished!")
 
     tmp_folder = f"./temp_files"
-    vllmgraph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
-    vllmgraph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
+    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
+    dg_graph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
     print("Model compiled!")
-    IRdict = vllmgraph.get_graph_dict()
-    # vllmgraph.store_graph_dict()
+    IRdict = dg_graph.get_graph_dict()
     new_input = []
     for tensor in inputs:
         if(isinstance(tensor, tuple) or isinstance(tensor, list)):
@@ -300,7 +296,7 @@ def test_full_diffusers_model(model,
         else:
             new_input.append(tensor.to(device))
 
-    del vllmgraph
+    del dg_graph
     gc.collect()
     reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
     print("Model reconstructed!")
@@ -377,4 +373,139 @@ def test_diffusers_submodule_shape_and_dtype_validation(model, model_args, model
 
     assert len(violations) == 0, f"Test failed validation check"
     
+
+@pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs",(
+        (CLIPTextEmbeddings, (CLIPTextConfig(),), {}, (torch.randint(0, 1000, (1, 77)),), {}),
+        (CLIPAttention, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
+        (CLIPMLP, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512), ), {}),
+        (CLIPEncoder, (CLIPTextConfig(),), {}, (torch.randn(1, 32, 512),), {}),
+    ))
+def test_hf_submodules_shape_and_dtype_validation(model, model_args, model_kwargs, inputs, input_kwargs):
+    if len(model_args) == 0:
+        torch_model = model(**model_kwargs)
+    else:
+        torch_model = model(*model_args, **model_kwargs)
     
+    torch_model.eval()
+    print("Model eval finished!")
+    # breakpoint()
+    tmp_folder = f"./temp_files"
+    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
+    dg_graph.compile(torch_model, inputs, input_kwargs, dynamic_dims = {}, )
+    print("Model compiled!")
+    IRdict = dg_graph.get_graph_dict()
+    new_input = []
+
+    #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
+    for tensor in inputs:
+        if(isinstance(tensor, tuple) or isinstance(tensor, list)):
+            new_input.extend(tensor)
+        else:
+            new_input.append(tensor)
+
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
+    violations = build_validated_engine(IRdict, reconstructed_model['main'], user_dummy_inputs=new_input)
+
+    assert len(violations) == 0, f"Test failed validation check"
+
+
+@pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, method",
+    (
+        [AutoencoderKL, (), {}, (torch.randn(1, 4, 64, 64), ), {'return_dict': False}, "decode"],
+        [AutoencoderKL, (), {}, (torch.randn(1, 3, 64, 64), ), {}, "_encode"],
+    ))  
+def test_vae_shape_and_dtype_validation(model, model_args, model_kwargs, inputs, input_kwargs, method):
+    if len(model_args) == 0:
+        torch_model = model(**model_kwargs)
+    else:
+        torch_model = model(*model_args, **model_kwargs)
+
+    torch_model = MethodWrapper(torch_model, method)
+    torch_model.eval()
+    print("Model eval finished!")
+    # breakpoint()
+    tmp_folder = f"/tmp"
+    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
+    dg_graph.compile(torch_model, inputs, input_kwargs)
+    print("Model compiled!")
+    IRdict = dg_graph.get_graph_dict()
+    new_input = []
+
+    #TODO: Need to deal with this anamoly, where tuple of tensors are flattened by the compiler.
+    for tensor in inputs:
+        if(isinstance(tensor, tuple) or isinstance(tensor, list)):
+            new_input.extend(tensor)
+        else:
+            new_input.append(tensor)
+
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
+    violations = build_validated_engine(IRdict, reconstructed_model['main'], user_dummy_inputs=new_input)
+
+    assert len(violations) == 0, f"Test failed validation check"
+
+@pytest.mark.parametrize("model_name, text, model_class",
+    (
+       pytest.param("openai/clip-vit-large-patch14", "Hello, my dog is cute", CLIPTextModel, marks=pytest.mark.xfail),
+    ))
+def test_hf_models_shape_and_dtype_validation(model_name, text, model_class):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = model_class.from_pretrained(model_name, attn_implementation = None)
+    max_length = model.config.max_position_embeddings
+    inputs = tokenizer(text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt", return_attention_mask = True)
+    #model(**inputs)
+    tmp_folder = f"./temp_files"
+
+    dg_graph = DiffusionGraphCompiler(model_name,temp_directory = tmp_folder, debug = True)
+    input_kwargs = {"return_dict" : False, "attention_mask" : inputs['attention_mask']}
+    dg_graph.compile(model, (inputs['input_ids'], ), input_kwargs)
+    dg_graph.store_graph_dict()
+    compiled_model_dict = dg_graph.get_graph_dict()
+    
+    if("compute_pooling_layer" in compiled_model_dict):
+        compiled_model_dict.pop("compute_pooling_layer")
+
+    reconstructed_model = reconstruct_model(compiled_model_dict, f"{tmp_folder}/{model_name}")
+    violations = build_validated_engine(compiled_model_dict, reconstructed_model['main'], user_dummy_inputs=(inputs['input_ids'], inputs['attention_mask']))
+
+    assert len(violations) == 0, f"Test failed validation check"
+
+@pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, dynamic_dims",(
+    # [UNet2DModel, (64,), {}, (torch.randn(1, 3, 64, 64), torch.randint(0, 100, (1,))), {'return_dict': False}, {}, "cuda"],
+    [UNet2DConditionModel, (64,), {"cross_attention_dim" : 768}, (torch.randn(2, 4, 64, 64), torch.randint(0, 100, (2,)), torch.randn(2, 77, 768)), {'return_dict': False}, {}],
+))
+def test_full_diffusers_model_shape_and_dtype_validation(model, 
+                    model_args, 
+                    model_kwargs, 
+                    inputs, 
+                    input_kwargs, 
+                    dynamic_dims):
+    
+    if len(model_args) == 0:
+        torch_model = model(**model_kwargs)
+    else:
+        torch_model = model(*model_args, **model_kwargs)
+    
+    torch_model.eval()
+    model_name = torch_model.__class__.__name__
+    print("Model eval finished!")
+
+    tmp_folder = f"./temp_files"
+    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug = True)
+    dg_graph.compile(torch_model, inputs, input_kwargs, dynamic_dims = dynamic_dims)
+    print("Model compiled!")
+    IRdict = dg_graph.get_graph_dict()
+    new_input = []
+    for tensor in inputs:
+        if(isinstance(tensor, tuple) or isinstance(tensor, list)):
+            new_input.extend(tensor)
+        else:
+            new_input.append(tensor)
+
+    del dg_graph
+    gc.collect()
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
+    print("Model reconstructed!")
+    violations = build_validated_engine(IRdict, reconstructed_model['main'], user_dummy_inputs=new_input)
+
+    assert len(violations) == 0, f"Test failed validation check"
+

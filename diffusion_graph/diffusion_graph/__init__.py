@@ -10,3 +10,6 @@ from diffusion_graph.pipeline.pipeline_compiler import *
 from diffusion_graph.pipeline.pipeline_runner import *
 
 from diffusion_graph.steppers.stepper import *
+
+from diffusion_graph.validator.model_validator import *
+

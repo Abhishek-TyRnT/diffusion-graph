@@ -3,6 +3,8 @@ import json
 import torch
 from diffusion_graph.reconstruct import reconstruct_model
 from diffusion_graph.pipeline.pipeline_compiler import DiffusionGraphCompiler
+from diffusion_graph.validator.model_validator import build_validated_engine
+
 from diffusion_graph.model_wrappers import MethodWrapper
 from transformers import AutoTokenizer, CLIPTextModel
 from test_utils import validate_outputs
@@ -326,3 +328,53 @@ def test_full_diffusers_model(model,
     # breakpoint()
     print("Outputs validated!")
     assert validate_outputs(diffusion_graph_output, normal_output[0], atol = 1e-5), f"Test failed validation check"
+
+
+
+@pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs",(
+    [TimestepEmbedding, (16, 32), {}, (torch.randn(1, 32, 16), ), {}],
+    [Timesteps, (16, True, 0.1), {}, (torch.randint(0, 1000, (16,)), ), {}],
+    [Attention, (16,), {}, (torch.randn(1, 32, 16), ), {}],
+    [FeedForward, (16,), {}, (torch.randn(1, 32, 16), ), {}],
+    [BasicTransformerBlock, (16, 8, 16,), {}, (torch.randn(1, 32, 16), ), {}],
+    [Transformer2DModel, (16, 88, 32, 32), {}, (torch.randn(1, 32, 16, 16), ), {'return_dict': False}],
+    [ResnetBlock2D, (), {'in_channels': 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}],
+    [CrossAttnDownBlock2D, (32, 32, 512), {"cross_attention_dim": 128}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512), torch.randn(1, 16, 128)), {}],
+    [Downsample2D, (32, ), {'use_conv': True}, (torch.randn(1, 32, 16, 16), ), {}],
+    [DownBlock2D, (32, 32, 512), {}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}],
+    [Upsample2D, (32, ), {'use_conv': True}, (torch.randn(1, 32, 16, 16), ), {}],
+    [UpBlock2D, (32, 32, 32, 512), {}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512)), {}],
+    [CrossAttnUpBlock2D, (32, 32, 32, 512), {"cross_attention_dim": 32}, (torch.randn(1, 32, 16, 16), (torch.randn(1, 32, 16, 16),), torch.randn(1, 512),), {}],
+    [UNetMidBlock2D, (32, 512), {"attention_head_dim": 32}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}],
+    [UpDecoderBlock2D, (32, 32), {"temb_channels": 512}, (torch.randn(1, 32, 16, 16), torch.randn(1, 512)), {}],
+    [Decoder, (), {}, (torch.randn(1, 3, 64, 64), ), {}],
+    [DownEncoderBlock2D, (32, 32), {}, (torch.randn(1, 32, 16, 16), ), {}],
+    [Encoder, (), {}, (torch.randn(1, 3, 64, 64), ), {}],
+))  
+def test_diffusers_submodule_shape_and_dtype_validation(model, model_args, model_kwargs, inputs, input_kwargs):
+    
+    if len(model_args) == 0:
+        torch_model = model(**model_kwargs)
+    else:
+        torch_model = model(*model_args, **model_kwargs)
+    
+    tmp_folder = f"./temp_files"
+
+    model_compiler = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug=True)
+    model_compiler.compile(torch_model, inputs, input_kwargs)
+    
+    new_input = []
+    for tensor in inputs:
+        if(isinstance(tensor, tuple) or isinstance(tensor, list)):
+            new_input.extend([t for t in tensor])
+        else:
+            new_input.append(tensor)
+    
+    IRdict = model_compiler.get_graph_dict()
+    model_compiler.store_graph_dict()
+    reconstructed_model = reconstruct_model(IRdict, f"{tmp_folder}/{torch_model.__class__.__name__}")
+    violations = build_validated_engine(IRdict, reconstructed_model['main'], user_dummy_inputs=new_input)
+
+    assert len(violations) == 0, f"Test failed validation check"
+    
+    

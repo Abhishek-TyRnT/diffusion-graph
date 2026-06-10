@@ -14,6 +14,7 @@ class TensorContract:
     output_shapes: list[tuple[int, ...]]
     # input_dtypes: list[str]
     output_dtypes: list[str]
+    dg_output_type: str
     location: str         # MLIR location string for error reporting
 
 @dataclass  
@@ -109,6 +110,7 @@ def _visit_op(ssa_id, op_info, counters, contracts, shaped_type_to_parts):
         output_dtypes=out_dtypes,
         output_shapes=out_shapes,
         location=loc,
+        dg_output_type=op_info['diffusion_graph_type']
     )
 
 
@@ -286,6 +288,28 @@ def _runtime_checker(
     Runs at dummy-forward time. Validates outputs against contract,
     then passes the tensor through unchanged.
     """
+    dg_type = contract.dg_output_type
+    dg_type_mapping ={
+        "diffusion_graph.vtensor": torch.Tensor,
+        "list": list,
+        "tuple": tuple,
+        "scalar": torch.Tensor
+    }
+
+    if(not isinstance(tensor_or_tuple, dg_type_mapping.get(dg_type, None))):
+        violations.append(
+            ViolationReport(
+                fx_node_name=fx_node_name,
+                mlir_op_name=contract.op_name,
+                mlir_location=contract.location,
+                kind="dtype",
+                expected=dg_type,
+                actual=type(tensor_or_tuple),
+                index=None,
+            )
+        )
+        return tensor_or_tuple
+
     outputs = tensor_or_tuple if isinstance(tensor_or_tuple, (list, tuple)) else [tensor_or_tuple]
 
     for idx, (tensor, exp_shape, exp_dtype) in enumerate(
@@ -364,11 +388,12 @@ class ContractValidator:
             with torch.no_grad():
                 instrumented_gm(*dummy_inputs)
         except Exception as e:
+            self._report_violations()
             print(traceback.format_exc())
             raise ValueError(f"Dummy run crashed before all checks completed: {e}")
             
         self._validated = True
-        self._report_violations()
+        # self._report_violations()
 
         if self.raise_on_violation and self.violations:
             summary = self._format_violations()

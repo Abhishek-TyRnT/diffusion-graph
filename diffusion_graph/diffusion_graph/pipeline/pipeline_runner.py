@@ -192,6 +192,20 @@ class DiffusionGraphRunner:
             }
             return log
     
+    def _decode_latent(self, latent):
+        latent = (1 / self.vae_scaling_factor) * latent
+        image = self.vae_decoder(latent)
+        return image
+
+    def _post_process_image(self, image):
+        image = (image *0.5 + 0.5)
+        image = image.clip(0, 1)
+        image = image[0]
+        image = image.permute(1 ,2 , 0)
+        image = image.cpu().numpy()
+        image = (image * 255).round().astype(np.uint8)
+        return image
+    
     def run_denoising_loop(self, sample, 
                         text_embeddings, 
                         uncond_text_embeddings, 
@@ -213,7 +227,7 @@ class DiffusionGraphRunner:
                 yield sample, timestep
         
         if not stream:
-            return sample
+            yield sample
 
 
     @torch.inference_mode()
@@ -282,16 +296,10 @@ class DiffusionGraphRunner:
         text_embeddings = text_embeddings.to(self.device)
         uncond_text_embeddings = uncond_text_embeddings.to(self.device)
         sample = self.generate_sample()
-        sample = self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
+        sample, = self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
         
-        sample = (1 / self.vae_scaling_factor) * sample
-        image = self.vae_decoder(sample)
-        image = (image *0.5 + 0.5)
-        image = image.clip(0, 1)
-        image = image[0]
-        image = image.permute(1 ,2 , 0)
-        image = image.cpu().numpy()
-        image = (image * 255).round().astype(np.uint8)
+        image = self._decode_latent(sample)
+        image = self._post_process_image(image)
         return image
     
     def generate_stream(self,
@@ -359,16 +367,9 @@ class DiffusionGraphRunner:
             codec="libx264",
             format="FFMPEG"
         )
-        for image, timestep in self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta, stream=True):
-            sample = image
-            sample = (1 / self.vae_scaling_factor) * sample
-            image = self.vae_decoder(sample)
-            image = (image *0.5 + 0.5)
-            image = image.clip(0, 1)
-            image = image[0]
-            image = image.permute(1 ,2 , 0)
-            image = image.cpu().numpy()
-            image = (image * 255).round().astype(np.uint8)
+        for latent, timestep in self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta, stream=True):
+            image = self._decode_latent(latent)
+            image = self._post_process_image(image)
             image = add_text(image, f"Step {timestep}")
             writer.append_data(image)
 

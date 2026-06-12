@@ -163,11 +163,11 @@ def test_stable_diffusion_inference(model_path, model_name,
     root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     artifact_path = os.path.join(root_path, model_path)
     
-    runner = DiffusionGraphRunner(artifact_path, device, num_inference_steps, tokenizer)
+    runner = DiffusionGraphRunner(artifact_path, device, tokenizer)
     runner.load_pipeline()
 
     start_time = time.perf_counter()
-    image = runner.generate(prompt, negative_prompt, **extra_kwargs)
+    image = runner.generate(prompt, negative_prompt, num_inference_steps, **extra_kwargs)
     end_time = time.perf_counter()
     print(f"Time taken: {end_time - start_time}")
 

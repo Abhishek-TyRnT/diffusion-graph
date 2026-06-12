@@ -8,7 +8,8 @@ from transformers import CLIPTokenizer
 from torch import fft
 import numpy as np
 import math
-
+import imageio.v2 as imageio
+from PIL import Image, ImageDraw, ImageFont
 from diffusers import schedulers as diffusers_schedulers
 
 WRAPPER_MAP = {
@@ -63,7 +64,7 @@ def adaptive_projected_guidance(
     return pred_guided
 
 class DiffusionGraphRunner:
-    def __init__(self, artifact_directory: str, device:str, num_inference_steps:int, tokenizer:str):
+    def __init__(self, artifact_directory: str, device:str, tokenizer:str):
         self.artifact_directory = artifact_directory
         self.graph_dict = None
         self.weights = None
@@ -79,7 +80,6 @@ class DiffusionGraphRunner:
             self.config = json.load(f)
         
         self.device = device
-        self.num_inference_steps = num_inference_steps
 
         self.tokenizer_name = tokenizer
         self.max_length = self.config["input_token_shape"][1]
@@ -124,12 +124,10 @@ class DiffusionGraphRunner:
         diffusers_scheduler_name = stepper_config["_class_name"]
         diffusers_scheduler_class = getattr(diffusers_schedulers, diffusers_scheduler_name)
         diffusers_scheduler = diffusers_scheduler_class.from_config(stepper_config)
-        diffusers_scheduler.set_timesteps(self.num_inference_steps, device=self.device)
+        # diffusers_scheduler.set_timesteps(self.num_inference_steps, device=self.device)
         # diffusers_scheduler.to(self.device)
 
         self.stepper = diffusers_scheduler
-        # stepper_class = StepperMap[diffusers_scheduler_name]
-        # self.stepper = stepper_class(diffusers_scheduler, self.num_inference_steps)
 
         self.vae_decoder.to(self.device)
         self.text_encoder.to(self.device)
@@ -190,41 +188,74 @@ class DiffusionGraphRunner:
                 "hf_ratio": hf_ratio,
             }
             return log
+    
+    def _decode_latent(self, latent):
+        latent = (1 / self.vae_scaling_factor) * latent
+        image = self.vae_decoder(latent)
+        return image
 
-    @torch.inference_mode()
-    def run(self, sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta):
-
+    def _post_process_image(self, image):
+        image = (image *0.5 + 0.5)
+        image = image.clip(0, 1)
+        image = image[0]
+        image = image.permute(1 ,2 , 0)
+        image = image.cpu().numpy()
+        image = (image * 255).round().astype(np.uint8)
+        return image
+    
+    def run_denoising_loop(self, sample, 
+                        text_embeddings, 
+                        uncond_text_embeddings, 
+                        guidance_scale, 
+                        do_adaptive_guidance, 
+                        eta,
+                        stream = False
+                        ):
+        
         print("Starting denoising process")
+        
+        # Pre-concatenate the text embeddings for efficiency
         multi_batch_text_embeddings = torch.cat([uncond_text_embeddings, text_embeddings], dim=0)
-        # multi_batch_text_embeddings = multi_batch_text_embeddings.contiguous()
-        #TODO: Convert this function into async generator
-        mb = None
+
         for timestep in self.stepper.timesteps:
             print(f"Denoising at timestep {timestep}")
-            multi_batch_sample = torch.cat([sample, sample], dim=0)
-            # if hasattr(self.stepper, "scale_model_input"):
-            #         multi_batch_sample = self.stepper.scale_model_input(multi_batch_sample, timestep)
-
-            timestep_tensor = torch.tensor([timestep], device=self.device)
-            batched_timestep = timestep_tensor.expand(2)
-            model_output = self.unet(multi_batch_sample, batched_timestep, multi_batch_text_embeddings)
-
-            uncond_model_output, model_output = model_output.chunk(2, dim=0)
-
-            if do_adaptive_guidance:
-                guided_model_output = adaptive_projected_guidance(model_output, uncond_model_output, 
-                                                                guidance_scale, eta = 0.2,
-                                                                momentum_buffer=None #Momentum currently not supported
-                                                                )
-            else:
-                guided_model_output = (1 - guidance_scale) * uncond_model_output + guidance_scale * model_output
-            sample = self.stepper.step(guided_model_output, timestep.item(), sample).prev_sample
+            sample = self.run_timestep(sample, timestep, multi_batch_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
+            if stream:
+                yield sample, timestep
         
-        print("Denoising process completed")
+        if not stream:
+            yield sample
+
+
+    @torch.inference_mode()
+    def run_timestep(self, sample, timestep, multi_batch_text_embeddings, guidance_scale, do_adaptive_guidance, eta):
+
+        # multi_batch_text_embeddings = multi_batch_text_embeddings.contiguous()
+        #TODO: Convert this function into async generator
+        multi_batch_sample = torch.cat([sample, sample], dim=0)
+        # if hasattr(self.stepper, "scale_model_input"):
+        #         multi_batch_sample = self.stepper.scale_model_input(multi_batch_sample, timestep)
+
+        timestep_tensor = torch.tensor([timestep], device=self.device)
+        batched_timestep = timestep_tensor.expand(2)
+        model_output = self.unet(multi_batch_sample, batched_timestep, multi_batch_text_embeddings)
+
+        uncond_model_output, model_output = model_output.chunk(2, dim=0)
+
+        if do_adaptive_guidance:
+            guided_model_output = adaptive_projected_guidance(model_output, uncond_model_output, 
+                                                            guidance_scale, eta = 0.2,
+                                                            momentum_buffer=None #Momentum currently not supported
+                                                            )
+        else:
+            guided_model_output = (1 - guidance_scale) * uncond_model_output + guidance_scale * model_output
+        sample = self.stepper.step(guided_model_output, timestep.item(), sample).prev_sample
+        
         return sample
     
     def generate(self, prompt: str, 
                     negative_prompt: str | None = None, 
+                    num_inference_steps: int  = 50,
                     guidance_scale: float = 7.5,
                     do_classifier_free_guidance: bool = True,
                     do_adaptive_guidance: bool = False,
@@ -234,6 +265,8 @@ class DiffusionGraphRunner:
         if do_adaptive_guidance and do_classifier_free_guidance:
             raise ValueError("Adaptive guidance and classifier free guidance cannot be used together")
         
+        self.stepper.set_timesteps(num_inference_steps, device=self.device)
+
         guidance_scale = torch.tensor(guidance_scale, device=self.device)
 
 
@@ -263,15 +296,83 @@ class DiffusionGraphRunner:
         text_embeddings = text_embeddings.to(self.device)
         uncond_text_embeddings = uncond_text_embeddings.to(self.device)
         sample = self.generate_sample()
-        sample = self.run(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
+        sample, = self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
         
-        sample = (1 / self.vae_scaling_factor) * sample
-        image = self.vae_decoder(sample)
-        image = (image *0.5 + 0.5)
-        image = image.clip(0, 1)
-        image = image[0]
-        image = image.permute(1 ,2 , 0)
-        image = image.cpu().numpy()
-        image = (image * 255).round().astype(np.uint8)
+        image = self._decode_latent(sample)
+        image = self._post_process_image(image)
         return image
+    
+    def generate_stream(self,
+                    file_path: str,
+                    prompt: str, 
+                    negative_prompt: str | None = None, 
+                    num_inference_steps: int  = 50,
+                    guidance_scale: float = 7.5,
+                    do_classifier_free_guidance: bool = True,
+                    do_adaptive_guidance: bool = False,
+                    eta: float = 0.1 ):
         
+        if do_adaptive_guidance and do_classifier_free_guidance:
+            raise ValueError("Adaptive guidance and classifier free guidance cannot be used together")
+        
+        guidance_scale = torch.tensor(guidance_scale, device=self.device)
+        self.stepper.set_timesteps(num_inference_steps, device=self.device)
+
+
+        input_tokens = self.tokenizer(prompt, 
+                        return_attention_mask=True, 
+                        padding="max_length", 
+                        truncation=True, 
+                        max_length=self.max_length, 
+                        return_tensors="pt")
+        
+        input_tokens = {k: v.to(self.device) for k, v in input_tokens.items()}
+        text_embeddings = self.text_encoder(**input_tokens)
+
+        if negative_prompt is None:
+            negative_prompt = ""
+
+        negative_input_tokens = self.tokenizer(negative_prompt, 
+                        return_attention_mask=True, 
+                        padding="max_length", 
+                        truncation=True, 
+                        max_length=self.max_length, 
+                        return_tensors="pt")
+        negative_input_tokens = {k: v.to(self.device) for k, v in negative_input_tokens.items()}
+
+        uncond_text_embeddings = self.text_encoder(**negative_input_tokens)
+
+        text_embeddings = text_embeddings.to(self.device)
+        uncond_text_embeddings = uncond_text_embeddings.to(self.device)
+        sample = self.generate_sample()
+        def add_text(frame, text):
+            # frame: numpy array (H, W, 3)
+            img = Image.fromarray(frame)
+
+            draw = ImageDraw.Draw(img)
+
+            # Default font
+            font = ImageFont.load_default()
+
+            draw.text(
+                (10, 10),      # upper-left corner
+                text,
+                fill=(255, 0, 0),
+                font=font
+            )
+
+            return np.array(img)
+        
+        writer = imageio.get_writer(
+            file_path,
+            fps=24,
+            codec="libx264",
+            format="FFMPEG"
+        )
+        for latent, timestep in self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta, stream=True):
+            image = self._decode_latent(latent)
+            image = self._post_process_image(image)
+            image = add_text(image, f"Step {timestep}")
+            writer.append_data(image)
+
+        writer.close()

@@ -133,7 +133,10 @@ class DiffusionGraphRunner:
         self.text_encoder.to(self.device)
         self.unet.to(self.device)
 
-        
+        if self.device == "cuda":
+            self.unet.generate_dummy_inputs(self.config['latent_shape'], self.config['hidden_state_shape'], do_classifier_free_guidance=True)
+            self.unet.capture_graph()
+            
         print("Pipeline constructed successfully")
 
     def generate_sample(self):

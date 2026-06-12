@@ -8,6 +8,7 @@ from transformers import CLIPTokenizer
 from torch import fft
 import numpy as np
 import math
+from tqdm import tqdm
 import imageio.v2 as imageio
 from PIL import Image, ImageDraw, ImageFont
 from diffusers import schedulers as diffusers_schedulers
@@ -86,8 +87,7 @@ class DiffusionGraphRunner:
         self.vae_scaling_factor = self.config["vae_downscaling_factor"]
 
     def load_tokenizer(self):
-        return CLIPTokenizer.from_pretrained(self.tokenizer_name, local_files_only=True #TODO: Remove this when we have a proper way to handle model loading
-        )
+        return CLIPTokenizer.from_pretrained(self.tokenizer_name)
 
     def load_model(self, config_path: str,):
 
@@ -214,11 +214,11 @@ class DiffusionGraphRunner:
         
         print("Starting denoising process")
         
+        
         # Pre-concatenate the text embeddings for efficiency
         multi_batch_text_embeddings = torch.cat([uncond_text_embeddings, text_embeddings], dim=0)
 
-        for timestep in self.stepper.timesteps:
-            print(f"Denoising at timestep {timestep}")
+        for timestep in tqdm(self.stepper.timesteps, desc="Denoising", unit="steps"):
             sample = self.run_timestep(sample, timestep, multi_batch_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
             if stream:
                 yield sample, timestep
@@ -230,7 +230,6 @@ class DiffusionGraphRunner:
     @torch.inference_mode()
     def run_timestep(self, sample, timestep, multi_batch_text_embeddings, guidance_scale, do_adaptive_guidance, eta):
 
-        # multi_batch_text_embeddings = multi_batch_text_embeddings.contiguous()
         #TODO: Convert this function into async generator
         multi_batch_sample = torch.cat([sample, sample], dim=0)
         # if hasattr(self.stepper, "scale_model_input"):

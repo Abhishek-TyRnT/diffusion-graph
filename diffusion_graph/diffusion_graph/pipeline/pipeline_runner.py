@@ -64,7 +64,7 @@ def adaptive_projected_guidance(
     return pred_guided
 
 class DiffusionGraphRunner:
-    def __init__(self, artifact_directory: str, device:str, num_inference_steps:int, tokenizer:str):
+    def __init__(self, artifact_directory: str, device:str, tokenizer:str):
         self.artifact_directory = artifact_directory
         self.graph_dict = None
         self.weights = None
@@ -80,7 +80,6 @@ class DiffusionGraphRunner:
             self.config = json.load(f)
         
         self.device = device
-        self.num_inference_steps = num_inference_steps
 
         self.tokenizer_name = tokenizer
         self.max_length = self.config["input_token_shape"][1]
@@ -125,12 +124,10 @@ class DiffusionGraphRunner:
         diffusers_scheduler_name = stepper_config["_class_name"]
         diffusers_scheduler_class = getattr(diffusers_schedulers, diffusers_scheduler_name)
         diffusers_scheduler = diffusers_scheduler_class.from_config(stepper_config)
-        diffusers_scheduler.set_timesteps(self.num_inference_steps, device=self.device)
+        # diffusers_scheduler.set_timesteps(self.num_inference_steps, device=self.device)
         # diffusers_scheduler.to(self.device)
 
         self.stepper = diffusers_scheduler
-        # stepper_class = StepperMap[diffusers_scheduler_name]
-        # self.stepper = stepper_class(diffusers_scheduler, self.num_inference_steps)
 
         self.vae_decoder.to(self.device)
         self.text_encoder.to(self.device)
@@ -258,6 +255,7 @@ class DiffusionGraphRunner:
     
     def generate(self, prompt: str, 
                     negative_prompt: str | None = None, 
+                    num_inference_steps: int  = 50,
                     guidance_scale: float = 7.5,
                     do_classifier_free_guidance: bool = True,
                     do_adaptive_guidance: bool = False,
@@ -267,6 +265,8 @@ class DiffusionGraphRunner:
         if do_adaptive_guidance and do_classifier_free_guidance:
             raise ValueError("Adaptive guidance and classifier free guidance cannot be used together")
         
+        self.stepper.set_timesteps(num_inference_steps, device=self.device)
+
         guidance_scale = torch.tensor(guidance_scale, device=self.device)
 
 
@@ -306,6 +306,7 @@ class DiffusionGraphRunner:
                     file_path: str,
                     prompt: str, 
                     negative_prompt: str | None = None, 
+                    num_inference_steps: int  = 50,
                     guidance_scale: float = 7.5,
                     do_classifier_free_guidance: bool = True,
                     do_adaptive_guidance: bool = False,
@@ -315,6 +316,7 @@ class DiffusionGraphRunner:
             raise ValueError("Adaptive guidance and classifier free guidance cannot be used together")
         
         guidance_scale = torch.tensor(guidance_scale, device=self.device)
+        self.stepper.set_timesteps(num_inference_steps, device=self.device)
 
 
         input_tokens = self.tokenizer(prompt, 

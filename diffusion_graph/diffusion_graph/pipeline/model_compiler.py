@@ -98,7 +98,7 @@ class DiffusionGraphCompiler:
                 self.graph_dict["main"]["arg_dict"][key]["value"] = path
 
         if(len(buffers) != 0):
-            np.savez(path, **buffers)
+            np.savez(f"{self.weights_directory}/buffers.npz", **buffers)
     
         with open(f"{self.weights_directory}/model.json",'w') as f:
             f.write(json.dumps(self.graph_dict, indent = 2))

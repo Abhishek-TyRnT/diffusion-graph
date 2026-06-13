@@ -110,7 +110,7 @@ class DiffusionGraphRunner:
         model = WRAPPER_MAP[model_name](model)
         return model
     
-    def load_pipeline(self):
+    def load_pipeline(self, capture_graph = True):
         print("Constructing pipeline")
 
         self.vae_decoder = self.load_model(os.path.join(self.artifact_directory, "vae_decoder/model.json"))
@@ -133,7 +133,7 @@ class DiffusionGraphRunner:
         self.text_encoder.to(self.device)
         self.unet.to(self.device)
 
-        if self.device == "cuda":
+        if capture_graph and self.device == "cuda":
             self.unet.generate_dummy_inputs(self.config['latent_shape'], self.config['hidden_state_shape'], do_classifier_free_guidance=True)
             self.unet.capture_graph()
             
@@ -251,7 +251,7 @@ class DiffusionGraphRunner:
                                                             )
         else:
             guided_model_output = (1 - guidance_scale) * uncond_model_output + guidance_scale * model_output
-        sample = self.stepper.step(guided_model_output, timestep.item(), sample).prev_sample
+        sample = self.stepper.step(guided_model_output, timestep, sample).prev_sample
         
         return sample
     

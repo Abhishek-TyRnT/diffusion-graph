@@ -32,7 +32,7 @@ class ParameterModel(torch.nn.Module):
                 #This is done to store register buffers during compilation
                 if(isinstance(arg_dict[buffer]["value"], str)):
                     if(buffer_dict is None):
-                        buffer_dict = np.load(arg_dict[buffer]["value"])
+                        buffer_dict = np.load(f"{weights_directory}/{arg_dict[buffer]['value']}")
                     
                     value = buffer_dict[arg_dict[buffer]["target"]]
                     value = torch.tensor(value)

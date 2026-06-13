@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from diffusers import StableDiffusionPipeline
 from diffusion_graph.pipeline.pipeline_compiler import DiffusionPipelineCompiler
 from diffusion_graph.pipeline.pipeline_runner import DiffusionGraphRunner
+
+from torch.profiler import profile, record_function, ProfilerActivity
 import os
 import time
 
@@ -150,10 +152,10 @@ def test_stable_diffusion(model_id, model_name, image_shape):
     ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, 
             "openai/clip-vit-large-patch14", "an astronaut riding a horse", 
             "oil painting, water color, drawing", {"guidance_scale": 7.5}),
-    # ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, 
-    #     "openai/clip-vit-large-patch14", "a scenary of a mountain", 
-    #     "oil painting, water color, drawing", {"eta": 0.5, "do_adaptive_guidance": True, 
-    #                                         "guidance_scale": 8.5, "do_classifier_free_guidance": False}),
+    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, 
+        "openai/clip-vit-large-patch14", "a scenary of a mountain", 
+        "oil painting, water color, drawing", {"eta": 0.5, "do_adaptive_guidance": True, 
+                                            "guidance_scale": 8.5, "do_classifier_free_guidance": False}),
 ))
 def test_stable_diffusion_inference(model_path, model_name, 
                                     device, num_inference_steps, 
@@ -166,9 +168,17 @@ def test_stable_diffusion_inference(model_path, model_name,
     runner = DiffusionGraphRunner(artifact_path, device, tokenizer)
     runner.load_pipeline()
 
+    activities = [
+        ProfilerActivity.CPU,
+        ProfilerActivity.CUDA,
+    ]
+
     start_time = time.perf_counter()
+    # with profile(activities=activities) as prof1:
     image = runner.generate(prompt, negative_prompt, num_inference_steps, **extra_kwargs)
+
     end_time = time.perf_counter()
+    # prof1.export_chrome_trace(f"{artifact_path}/sd_trace.json")
     print(f"Time taken: {end_time - start_time}")
 
     plt.imsave(f"{artifact_path}/output.png", image)

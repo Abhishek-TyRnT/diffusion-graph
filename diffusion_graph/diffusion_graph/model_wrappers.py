@@ -103,6 +103,6 @@ class UNetWrapper(ModelWrapper):
 
             self.unet_graph.replay()
 
-            return self.static_noise.clone()
+            return self.static_noise
 
 

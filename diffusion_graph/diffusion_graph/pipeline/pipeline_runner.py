@@ -192,9 +192,11 @@ class DiffusionGraphRunner:
             }
             return log
     
-    def _decode_latent(self, latent):
+    @torch.inference_mode()
+    def decode_latent(self, latent):
         latent = (1 / self.vae_scaling_factor) * latent
         image = self.vae_decoder(latent)
+        image = self._post_process_image(image)
         return image
 
     def _post_process_image(self, image):
@@ -255,23 +257,8 @@ class DiffusionGraphRunner:
         
         return sample
     
-    def generate(self, prompt: str, 
-                    negative_prompt: str | None = None, 
-                    num_inference_steps: int  = 50,
-                    guidance_scale: float = 7.5,
-                    do_classifier_free_guidance: bool = True,
-                    do_adaptive_guidance: bool = False,
-                    eta: float = 0.1 ):
-
-
-        if do_adaptive_guidance and do_classifier_free_guidance:
-            raise ValueError("Adaptive guidance and classifier free guidance cannot be used together")
-        
-        self.stepper.set_timesteps(num_inference_steps, device=self.device)
-
-        guidance_scale = torch.tensor(guidance_scale, device=self.device)
-
-
+    @torch.inference_mode()
+    def encode_prompt(self, prompt: str, negative_prompt: str | None = None):
         input_tokens = self.tokenizer(prompt, 
                         return_attention_mask=True, 
                         padding="max_length", 
@@ -297,11 +284,33 @@ class DiffusionGraphRunner:
 
         text_embeddings = text_embeddings.to(self.device)
         uncond_text_embeddings = uncond_text_embeddings.to(self.device)
+
+        return text_embeddings, uncond_text_embeddings
+
+    
+    def generate(self, prompt: str, 
+                    negative_prompt: str | None = None, 
+                    num_inference_steps: int  = 50,
+                    guidance_scale: float = 7.5,
+                    do_classifier_free_guidance: bool = True,
+                    do_adaptive_guidance: bool = False,
+                    eta: float = 0.1 ):
+
+
+        if do_adaptive_guidance and do_classifier_free_guidance:
+            raise ValueError("Adaptive guidance and classifier free guidance cannot be used together")
+        
+        self.stepper.set_timesteps(num_inference_steps, device=self.device)
+
+        guidance_scale = torch.tensor(guidance_scale, device=self.device)
+
+        text_embeddings, uncond_text_embeddings = self.encode_prompt(prompt, negative_prompt)
+
+
         sample = self.generate_sample()
         sample, = self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
         
-        image = self._decode_latent(sample)
-        image = self._post_process_image(image)
+        image = self.decode_latent(sample)
         return image
     
     def generate_stream(self,
@@ -320,32 +329,8 @@ class DiffusionGraphRunner:
         guidance_scale = torch.tensor(guidance_scale, device=self.device)
         self.stepper.set_timesteps(num_inference_steps, device=self.device)
 
+        text_embeddings, uncond_text_embeddings = self.encode_prompt(prompt, negative_prompt)
 
-        input_tokens = self.tokenizer(prompt, 
-                        return_attention_mask=True, 
-                        padding="max_length", 
-                        truncation=True, 
-                        max_length=self.max_length, 
-                        return_tensors="pt")
-        
-        input_tokens = {k: v.to(self.device) for k, v in input_tokens.items()}
-        text_embeddings = self.text_encoder(**input_tokens)
-
-        if negative_prompt is None:
-            negative_prompt = ""
-
-        negative_input_tokens = self.tokenizer(negative_prompt, 
-                        return_attention_mask=True, 
-                        padding="max_length", 
-                        truncation=True, 
-                        max_length=self.max_length, 
-                        return_tensors="pt")
-        negative_input_tokens = {k: v.to(self.device) for k, v in negative_input_tokens.items()}
-
-        uncond_text_embeddings = self.text_encoder(**negative_input_tokens)
-
-        text_embeddings = text_embeddings.to(self.device)
-        uncond_text_embeddings = uncond_text_embeddings.to(self.device)
         sample = self.generate_sample()
         def add_text(frame, text):
             # frame: numpy array (H, W, 3)
@@ -372,8 +357,7 @@ class DiffusionGraphRunner:
             format="FFMPEG"
         )
         for latent, timestep in self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta, stream=True):
-            image = self._decode_latent(latent)
-            image = self._post_process_image(image)
+            image = self.decode_latent(latent)
             image = add_text(image, f"Step {timestep}")
             writer.append_data(image)
 

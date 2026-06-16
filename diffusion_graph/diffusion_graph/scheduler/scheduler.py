@@ -1,7 +1,6 @@
 import torch
 import torch.multiprocessing as mp
 from typing import Any, Callable
-from queue import Queue
 
 from diffusion_graph.pipeline.pipeline_runner import DiffusionGraphRunner
 
@@ -59,30 +58,30 @@ def _worker_loop(name: str, method_name: str, lock: mp.Lock, q: mp.Queue):
 
 # ── Scheduler ────────────────────────────────────────────────────────────────
 
-class PipelineScheduler:
+class DiffusionGraphScheduler:
     """
     submit_pipeline()  — enqueue an input; returns immediately
     receive_pipeline() — generator; yields outputs in submission order
     """
 
-    _OUTPUT_SHAPE = (1, 3, 512, 512)
+    def __init__(self, artifact_directory: str, device:str, tokenizer:str):
+        mp.set_start_method("spawn")
+        self._pipeline = DiffusionGraphRunner(artifact_directory, device, tokenizer)
 
-    def __init__(self, pipeline: DiffusionPipeline):
-        self._pipeline    = pipeline
         self._input_queue  = mp.Queue()
         self._output_queue = mp.Queue()
+
+        self._result_queue = mp.Queue()
         self._next_seq_id  = 0
 
-        # Single shared output buffer
-        self._output_buffer = torch.empty(self._OUTPUT_SHAPE).share_memory_()
-
+        
         # One lock + queue for the single generate worker
-        self._lock = mp.Lock()
         self._worker_queue = mp.Queue()
 
+        print("Starting worker process...")
         self._worker = mp.Process(
-            target=PipelineScheduler._worker_loop,
-            args=(self._lock, self._worker_queue),
+            target=DiffusionGraphScheduler._worker_loop,
+            args=(self._worker_queue, self._result_queue),
             name="worker-generate",
             daemon=True,
         )
@@ -90,30 +89,31 @@ class PipelineScheduler:
         self._worker_queue.put(self._pipeline)      # bootstrap
 
         self._dispatcher = mp.Process(
-            target=PipelineScheduler._dispatcher_loop,
+            target=DiffusionGraphScheduler._dispatcher_loop,
             args=(
-                self._lock,
                 self._worker_queue,
-                self._output_buffer,
+                self._result_queue,
                 self._input_queue,
                 self._output_queue,
             ),
             name="dispatcher",
             daemon=True,
         )
+
+        print("Starting dispatcher process...")
         self._dispatcher.start()
 
     # ── public API ───────────────────────────────────────────────────────────
 
-    def submit_pipeline(self, image: torch.Tensor) -> int:
+    def submit_pipeline(self, input_args: tuple) -> int:
         """Enqueue an input. Returns immediately with the sequence id."""
-        image.share_memory_()
         seq_id = self._next_seq_id
         self._next_seq_id += 1
-        self._input_queue.put((seq_id, image))
+        self._input_queue.put((seq_id, input_args))
+        print(f"Input submitted to the scheduler with seq_id: {seq_id}")
         return seq_id
 
-    def receive_pipeline(self, total: int) -> Generator[torch.Tensor, None, None]:
+    def receive_pipeline(self, total: int):
         """
         Generator. Yields exactly `total` outputs in submission order.
         Blocks until each result is ready.
@@ -139,42 +139,36 @@ class PipelineScheduler:
 
     @staticmethod
     def _dispatcher_loop(
-        lock:          mp.Lock,
         worker_queue:  mp.Queue,
-        output_buffer: torch.Tensor,
+        result_queue:  mp.Queue,
         input_queue:   mp.Queue,
         output_queue:  mp.Queue,
     ):
         while True:
-            item = input_queue.get()        # blocks here when idle
+            item = input_queue.get()
             if item is None:
                 break
 
-            seq_id, image = item
+            seq_id, input_args = item
+            worker_queue.put(input_args)
 
-            done = mp.Event()
-            worker_queue.put((image, output_buffer, done))
-
-            with lock:
-                done.wait()
-
-            output_queue.put((seq_id, output_buffer.clone()))
+            result = result_queue.get()          # blocks until worker is done
+            output_queue.put((seq_id, result))
 
     # ── worker ───────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _worker_loop(lock: mp.Lock, q: mp.Queue):
-        pipeline = q.get()
-
+    def _worker_loop(worker_queue: mp.Queue, result_queue: mp.Queue):
+        pipeline = worker_queue.get()
+        pipeline.load_pipeline()
+        
         while True:
-            item = q.get()
+            item = worker_queue.get()
             if item is None:
                 break
 
-            input_tensor, output_tensor, done_event = item
+            extra_kwargs = item[-1]
+            input_args = item[:-1]
 
-            with lock:
-                result = pipeline.generate(input_tensor)
-                output_tensor.copy_(result)
-
-            done_event.set()
+            result = pipeline.generate(*input_args, **extra_kwargs)
+            result_queue.put(result)

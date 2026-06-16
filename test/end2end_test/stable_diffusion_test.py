@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from diffusers import StableDiffusionPipeline
 from diffusion_graph.pipeline.pipeline_compiler import DiffusionPipelineCompiler
 from diffusion_graph.pipeline.pipeline_runner import DiffusionGraphRunner
+from diffusion_graph.scheduler.scheduler import DiffusionGraphScheduler
 
 from torch.profiler import profile, record_function, ProfilerActivity
 import os
@@ -182,5 +183,42 @@ def test_stable_diffusion_inference(model_path, model_name,
     print(f"Time taken: {end_time - start_time}")
 
     plt.imsave(f"{artifact_path}/output.png", image)
+
+
+@pytest.mark.parametrize("model_path, model_name, device, num_inference_steps, tokenizer, prompt, negative_prompt, extra_kwargs", (
+    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", (50, 50, 50), 
+            "openai/clip-vit-large-patch14", 
+            ("an astronaut riding a horse",
+            "A cat and a mouse",
+            "A football match"
+            ), 
+            ("oil painting, water color, drawing",
+            "oil painting, water color, drawing",
+            "oil painting, water color, drawing"), 
+            ({"guidance_scale": 7.5},
+            {"guidance_scale": 7.5},
+            {"guidance_scale": 7.5}),
+    ),
+))
+def test_diffusion_graph_scheduler(model_path, model_name, device, num_inference_steps, tokenizer, prompt, negative_prompt, extra_kwargs):
+    root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    artifact_path = os.path.join(root_path, model_path)
+
+    scheduler = DiffusionGraphScheduler(artifact_path, device, tokenizer)
+
+    input_arg_0 = (prompt[0], negative_prompt[0], num_inference_steps[0], extra_kwargs[0])
+    input_arg_1 = (prompt[1], negative_prompt[1], num_inference_steps[1], extra_kwargs[1])
+    input_arg_2 = (prompt[2], negative_prompt[2], num_inference_steps[2], extra_kwargs[2])
+    
+    scheduler.submit_pipeline(input_arg_0)
+    scheduler.submit_pipeline(input_arg_1)
+    scheduler.submit_pipeline(input_arg_2)
+
+    for i, image in enumerate(scheduler.receive_pipeline(3)):
+        plt.imsave(f"{artifact_path}/scheduler_output_{i}.png", image)
+    
+    scheduler.shutdown()
+        
+        
     
     

@@ -13,3 +13,5 @@ from diffusion_graph.steppers.stepper import *
 
 from diffusion_graph.validator.model_validator import *
 
+from diffusion_graph.scheduler.scheduler import *
+

@@ -1,34 +1,19 @@
 import torch
+import uuid
 import torch.multiprocessing as mp
+from enum import Enum
+import time
+
 from typing import Any, Callable
 
 from diffusion_graph.pipeline.pipeline_runner import DiffusionGraphRunner
 
 
 
-# ── Worker functions (must be module-level for pickling) ────────────────────
-
-def _worker_loop(name: str, method_name: str, lock: mp.Lock, q: mp.Queue):
-    pipeline = q.get()
-    method   = getattr(pipeline, method_name)
-
-    while True:
-        item = q.get()
-        if item is None:
-            break
-
-        input_tensor, output_tensor, done_event = item
-        #              ▲                ▲
-        #              │                └─ mp.Event signals completion
-        #              └─ both already in shared memory; no copy needed
-
-        with lock:
-            result = method(input_tensor)
-            output_tensor.copy_(result)     # write directly into shared buffer
-
-        done_event.set()  
-
-
+class Status(Enum):
+    TODO = 1
+    IN_PROGRESS = 2
+    DONE = 3    
 #TODO: Use the TensorQueue for managing data transfer between processes
 # class TensorQueue:
 #     def __init__(self,):
@@ -74,7 +59,7 @@ class DiffusionGraphScheduler:
         self._result_queue = mp.Queue()
         self._next_seq_id  = 0
 
-        
+        self.global_state: dict = {}
         # One lock + queue for the single generate worker
         self._worker_queue = mp.Queue()
 
@@ -108,10 +93,12 @@ class DiffusionGraphScheduler:
     def submit_pipeline(self, input_args: tuple) -> int:
         """Enqueue an input. Returns immediately with the sequence id."""
         seq_id = self._next_seq_id
+        request_id = uuid.uuid4()
         self._next_seq_id += 1
-        self._input_queue.put((seq_id, input_args))
+        self._input_queue.put((seq_id, input_args, request_id))
+        self.global_state[request_id] = Status.TODO
         print(f"Input submitted to the scheduler with seq_id: {seq_id}")
-        return seq_id
+        return request_id
 
     def receive_pipeline(self, total: int):
         """
@@ -122,13 +109,36 @@ class DiffusionGraphScheduler:
         pending: dict[int, torch.Tensor] = {}
 
         while next_expected < total:
-            seq_id, result = self._output_queue.get()
+            seq_id, result, request_id = self._output_queue.get()
             pending[seq_id] = result                # already cloned by dispatcher
 
             while next_expected in pending:
                 yield pending.pop(next_expected)
                 next_expected += 1
 
+    def receive_by_request_id(self, request_id: uuid.UUID):
+        if request_id not in self.global_state:
+            raise ValueError(f"Request ID {request_id} not found.")
+        seconds = 10
+
+        iterations = 10
+        i = 0
+        while i < iterations and self.global_state[request_id] != Status.DONE:
+            time.sleep(seconds)
+            i += 1
+
+        if i == iterations:
+            return None
+        
+        total = self._output_queue.qsize()
+
+        for _ in range(total):
+            seq_id, result, curr_request_id = self._output_queue.get()
+            if curr_request_id == request_id:
+                return result
+        
+        return None
+        
     def shutdown(self):
         self._input_queue.put(None)     # stop dispatcher
         self._dispatcher.join()
@@ -149,11 +159,12 @@ class DiffusionGraphScheduler:
             if item is None:
                 break
 
-            seq_id, input_args = item
+            seq_id, input_args, request_id = item
             worker_queue.put(input_args)
-
+            self.global_state[request_id] = Status.IN_PROGRESS
             result = result_queue.get()          # blocks until worker is done
-            output_queue.put((seq_id, result))
+            output_queue.put((seq_id, result, request_id))
+            self.global_state[request_id] = Status.DONE
 
     # ── worker ───────────────────────────────────────────────────────────────
 

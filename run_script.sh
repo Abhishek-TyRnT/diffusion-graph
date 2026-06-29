@@ -27,6 +27,7 @@ run() {
         docker run -it -v $(pwd):/home/${user}/diffusion-project \
                 -v $VOLUME_NAME:/llvm-build \
                 --name $CONTAINER_NAME \
+                --publish 8000:8000 \
                 --user $(id -u) \
                 -w /home/${user} \
                 --gpus all \

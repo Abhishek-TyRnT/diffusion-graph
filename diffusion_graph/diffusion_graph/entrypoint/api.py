@@ -2,9 +2,12 @@ import os
 import sys
 import torch
 import logging
+import time
 from io import BytesIO
 from contextlib import asynccontextmanager
 from PIL import Image
+import argparse
+import uvicorn
 
 from fastapi import FastAPI, Response, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -56,7 +59,7 @@ async def lifespan(app: FastAPI):
     device = os.getenv("DIFFUSION_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
     tokenizer = os.getenv("DIFFUSION_TOKENIZER", "openai/clip-vit-large-patch14")
     
-    logger.info("Initializing DiffusionGraphRunner:")
+    logger.info("Initializing DiffusionGraphScheduler:")
     logger.info(f"  - Model Path: {model_path}")
     logger.info(f"  - Device: {device}")
     logger.info(f"  - Tokenizer: {tokenizer}")
@@ -68,6 +71,9 @@ async def lifespan(app: FastAPI):
     try:
         scheduler = DiffusionGraphScheduler(model_path, device, tokenizer)
         app.state.scheduler = scheduler
+
+        while not app.state.scheduler.is_ready():
+            time.sleep(5)
         logger.info("Scheduler initialized and ready for requests.")
     except Exception as e:
         logger.exception(f"Failed to initialize scheduler: {e}")
@@ -93,13 +99,8 @@ app = FastAPI(
 def run_generation(scheduler: DiffusionGraphScheduler, prompt: str, negative_prompt: str | None, steps: int, guidance_scale: float) -> bytes:
     """Helper to run the generation pipeline and convert output to PNG bytes."""
     # Run pipeline generation (it returns a numpy array of shape (H, W, 3) and type uint8)
-    req_id = scheduler.submit_pipeline(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        num_inference_steps=steps,
-        guidance_scale=guidance_scale,
-        do_classifier_free_guidance=True
-    )
+    input_args = (prompt, negative_prompt, steps, guidance_scale, {'do_classifier_free_guidance': True})
+    req_id = scheduler.submit_pipeline(input_args)
 
     image_numpy = scheduler.receive_by_request_id(req_id)
     if image_numpy is None:
@@ -168,7 +169,7 @@ def health_check():
     return {"status": "healthy", "pipeline_loaded": hasattr(app.state, "scheduler")}
 
 def parse_args():
-    import argparse
+    
     parser = argparse.ArgumentParser(description="Diffusion Graph API Server")
     parser.add_argument("--model-path", type=str, default="temp_files/stable_diffusion_v1_5", help="Path to the diffusion model")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device to run the model on")
@@ -178,7 +179,6 @@ def parse_args():
     return parser.parse_args()
 
 if __name__ == "__main__":
-    import uvicorn
     
     args = parse_args()
     

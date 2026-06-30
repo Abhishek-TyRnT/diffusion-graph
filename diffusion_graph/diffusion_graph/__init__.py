@@ -15,3 +15,5 @@ from diffusion_graph.validator.model_validator import *
 
 from diffusion_graph.scheduler.scheduler import *
 
+from diffusion_graph.entrypoint.api import *
+

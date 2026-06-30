@@ -1,34 +1,19 @@
 import torch
+import uuid
 import torch.multiprocessing as mp
+from enum import Enum
+import time
+
 from typing import Any, Callable
 
 from diffusion_graph.pipeline.pipeline_runner import DiffusionGraphRunner
 
 
 
-# ── Worker functions (must be module-level for pickling) ────────────────────
-
-def _worker_loop(name: str, method_name: str, lock: mp.Lock, q: mp.Queue):
-    pipeline = q.get()
-    method   = getattr(pipeline, method_name)
-
-    while True:
-        item = q.get()
-        if item is None:
-            break
-
-        input_tensor, output_tensor, done_event = item
-        #              ▲                ▲
-        #              │                └─ mp.Event signals completion
-        #              └─ both already in shared memory; no copy needed
-
-        with lock:
-            result = method(input_tensor)
-            output_tensor.copy_(result)     # write directly into shared buffer
-
-        done_event.set()  
-
-
+class Status(Enum):
+    TODO = 1
+    IN_PROGRESS = 2
+    DONE = 3    
 #TODO: Use the TensorQueue for managing data transfer between processes
 # class TensorQueue:
 #     def __init__(self,):
@@ -74,14 +59,18 @@ class DiffusionGraphScheduler:
         self._result_queue = mp.Queue()
         self._next_seq_id  = 0
 
-        
+        self.request_map: dict = {}
         # One lock + queue for the single generate worker
         self._worker_queue = mp.Queue()
+
+        # Shared event: set by worker subprocess once load_pipeline() completes.
+        # mp.Event uses shared memory, so it is visible across spawn'd processes.
+        self._pipeline_ready_event = mp.Event()
 
         print("Starting worker process...")
         self._worker = mp.Process(
             target=DiffusionGraphScheduler._worker_loop,
-            args=(self._worker_queue, self._result_queue),
+            args=(self._worker_queue, self._result_queue, self._pipeline_ready_event),
             name="worker-generate",
             daemon=True,
         )
@@ -103,32 +92,47 @@ class DiffusionGraphScheduler:
         print("Starting dispatcher process...")
         self._dispatcher.start()
 
+    def is_ready(self):
+        # Use the shared mp.Event instead of the plain bool on the main-process
+        # pipeline object. Under spawn, mutations made in the worker subprocess
+        # to self._pipeline.is_pipeline_ready are invisible here.
+        return self._pipeline_ready_event.is_set()
+        
+
     # ── public API ───────────────────────────────────────────────────────────
 
     def submit_pipeline(self, input_args: tuple) -> int:
         """Enqueue an input. Returns immediately with the sequence id."""
         seq_id = self._next_seq_id
+        request_id = uuid.uuid4()
         self._next_seq_id += 1
-        self._input_queue.put((seq_id, input_args))
+        self.request_map[request_id] = None
+        self._input_queue.put((seq_id, input_args, request_id))
+        
         print(f"Input submitted to the scheduler with seq_id: {seq_id}")
-        return seq_id
+        return request_id
 
     def receive_pipeline(self, total: int):
         """
-        Generator. Yields exactly `total` outputs in submission order.
+        Dequeues exactly `total` results from the output queue and stores
+        each in request_map keyed by its request_id.
         Blocks until each result is ready.
         """
-        next_expected = 0
-        pending: dict[int, torch.Tensor] = {}
-
-        while next_expected < total:
-            seq_id, result = self._output_queue.get()
-            pending[seq_id] = result                # already cloned by dispatcher
-
-            while next_expected in pending:
-                yield pending.pop(next_expected)
-                next_expected += 1
-
+        for _ in range(total):
+            seq_id, result, request_id = self._output_queue.get()
+            self.request_map[request_id] = result   # already cloned by dispatcher
+    
+    def receive_by_request_id(self, request_id: uuid.UUID):
+        if request_id not in self.request_map:
+            raise ValueError(f"Request ID {request_id} not found.")
+        
+        while self.request_map[request_id] is None:
+            time.sleep(2)
+            self.receive_pipeline(1)
+        
+        result = self.request_map.pop(request_id)
+        return result
+        
     def shutdown(self):
         self._input_queue.put(None)     # stop dispatcher
         self._dispatcher.join()
@@ -149,18 +153,19 @@ class DiffusionGraphScheduler:
             if item is None:
                 break
 
-            seq_id, input_args = item
+            seq_id, input_args, request_id = item
             worker_queue.put(input_args)
-
             result = result_queue.get()          # blocks until worker is done
-            output_queue.put((seq_id, result))
+            output_queue.put((seq_id, result, request_id))
 
     # ── worker ───────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _worker_loop(worker_queue: mp.Queue, result_queue: mp.Queue):
+    def _worker_loop(worker_queue: mp.Queue, result_queue: mp.Queue, pipeline_ready_event: mp.Event):
         pipeline = worker_queue.get()
         pipeline.load_pipeline()
+        # Signal the main process that the pipeline is ready.
+        pipeline_ready_event.set()
         
         while True:
             item = worker_queue.get()

@@ -86,6 +86,8 @@ class DiffusionGraphRunner:
         self.max_length = self.config["input_token_shape"][1]
         self.vae_scaling_factor = self.config["vae_downscaling_factor"]
 
+        self.is_pipeline_ready = False
+
     def load_tokenizer(self):
         return CLIPTokenizer.from_pretrained(self.tokenizer_name)
 
@@ -138,6 +140,7 @@ class DiffusionGraphRunner:
             self.unet.capture_graph()
             
         print("Pipeline constructed successfully")
+        self.is_pipeline_ready = True
 
     def generate_sample(self):
         x = torch.randn(*self.config["latent_shape"], device=self.device) * self.stepper.init_noise_sigma

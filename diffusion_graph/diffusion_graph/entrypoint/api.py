@@ -103,7 +103,7 @@ app = FastAPI(
 def run_generation(scheduler: DiffusionGraphScheduler, prompt: str, negative_prompt: str | None, steps: int, guidance_scale: float, do_classifier_free_guidance: bool = True, do_adaptive_guidance: bool = False) -> bytes:
     """Helper to run the generation pipeline and convert output to PNG bytes."""
     # Run pipeline generation (it returns a numpy array of shape (H, W, 3) and type uint8)
-    input_args = (prompt, negative_prompt, steps, guidance_scale, {'do_classifier_free_guidance': do_classifier_free_guidance, 'do_adaptive_guidance': do_adaptive_guidance})
+    input_args = (prompt, None, negative_prompt, steps, guidance_scale, {'do_classifier_free_guidance': do_classifier_free_guidance, 'do_adaptive_guidance': do_adaptive_guidance})
     req_id = scheduler.submit_pipeline(input_args)
 
     image_numpy = scheduler.receive_by_request_id(req_id)

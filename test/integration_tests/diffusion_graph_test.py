@@ -51,6 +51,7 @@ from test_models import *
     [Sigmoid, (), (torch.randn(1, 32, 16, 16),), {}],
     [SDPA, (), (torch.randn(1, 256, 256), torch.randn(1, 256, 256), torch.randn(1, 256, 256)), {}],
     [SDPA, (), (torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64)), {}],
+    [ConstantPadNd, ((0, 1, 0, 1), 2), (torch.randn(1, 1, 1, 1),), {}],
 
      ))
 def test_graph_compiler_python_to_dict(model,
@@ -99,6 +100,7 @@ def test_graph_compiler_python_to_dict(model,
      [SDPA, (), (torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64))],
      [PermuteLayerNorm, ((0, 2, 3, 1), (2, 16, 8)), (torch.randn(2, 8, 4, 4),)],
      [PermuteConv2D, ((0, 3, 1, 2), 3, 16, 3, 1, 1), (torch.randn(2, 4, 4, 3),)],
+    [ConstantPadNd, ((0, 1, 0, 1), 2), (torch.randn(1, 1, 1, 1),)],
 
      ))
 def test_graph_compiler_to_model(model,
@@ -179,6 +181,8 @@ def test_graph_compiler_function_partioning_to_model(model,
     [Sigmoid, (), (torch.randn(1, 32, 16, 16),)],
     [SDPA, (), (torch.randn(1, 256, 256), torch.randn(1, 256, 256), torch.randn(1, 256, 256))],
     [SDPA, (), (torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64), torch.randn(1, 8, 64, 64))],
+    [ConstantPadNd, ((0, 1, 0, 1), 2), (torch.randn(1, 1, 1, 1),)],
+    
 ))
 def test_model_ops_shapes_and_dtype_validation(model, model_args, inputs):
     if len(model_args) == 0:

@@ -86,12 +86,13 @@ class DiffusionGraphRunner:
         self.max_length = self.config["input_token_shape"][1]
         self.vae_scaling_factor = self.config["vae_downscaling_factor"]
 
+        self.image_shape = tuple(self.config["image_shape"])
         self.is_pipeline_ready = False
 
     def load_tokenizer(self):
         return CLIPTokenizer.from_pretrained(self.tokenizer_name)
 
-    def load_model(self, config_path: str,):
+    def load_model(self, config_path: str,**kwargs):
 
         assert os.path.isfile(config_path), f"Config file does not exist at location {config_path}"
         with open(config_path, "r") as f:
@@ -109,13 +110,15 @@ class DiffusionGraphRunner:
 
         print(f"Loading model {model_name} ...")
         model = reconstruct_model(model_config, config_dir)
-        model = WRAPPER_MAP[model_name](model)
+        model = WRAPPER_MAP[model_name](model, **kwargs)
         return model
     
     def load_pipeline(self, capture_graph = True):
         print("Constructing pipeline")
 
         self.vae_decoder = self.load_model(os.path.join(self.artifact_directory, "vae_decoder/model.json"))
+        self.vae_encoder = self.load_model(os.path.join(self.artifact_directory, "vae_encoder/model.json"), 
+                                            vae_scaling_factor=self.vae_scaling_factor)
         self.text_encoder = self.load_model(os.path.join(self.artifact_directory, "text_encoder/model.json"))
         self.unet = self.load_model(os.path.join(self.artifact_directory, "unet/model.json"))
 
@@ -132,6 +135,7 @@ class DiffusionGraphRunner:
         self.stepper = diffusers_scheduler
 
         self.vae_decoder.to(self.device)
+        self.vae_encoder.to(self.device)
         self.text_encoder.to(self.device)
         self.unet.to(self.device)
 
@@ -195,6 +199,17 @@ class DiffusionGraphRunner:
             }
             return log
     
+    def get_timesteps(self, num_inference_steps, strength, device):
+        # get the original timestep using init_timestep
+        init_timestep = min(int(num_inference_steps * strength), num_inference_steps)
+
+        t_start = max(num_inference_steps - init_timestep, 0)
+        timesteps = self.stepper.timesteps[t_start * self.stepper.order :]
+        if hasattr(self.stepper, "set_begin_index"):
+            self.stepper.set_begin_index(t_start * self.stepper.order)
+
+        return timesteps, t_start
+    
     @torch.inference_mode()
     def decode_latent(self, latent):
         latent = (1 / self.vae_scaling_factor) * latent
@@ -202,6 +217,16 @@ class DiffusionGraphRunner:
         image = self._post_process_image(image)
         return image
 
+    @torch.inference_mode()
+    def encode_image(self, image, strength, num_inference_steps):
+        image = self._preprocess_image(image)
+        latent = self.vae_encoder(image)
+        noise = torch.randn_like(latent)
+        timesteps, start_index = self.get_timesteps(num_inference_steps = num_inference_steps, strength = strength, device = self.device)
+        latent_timestep = timesteps[:1]
+        latent = self.stepper.add_noise(latent, noise, latent_timestep)
+        return latent, start_index
+    
     def _post_process_image(self, image):
         image = (image *0.5 + 0.5)
         image = image.clip(0, 1)
@@ -211,13 +236,24 @@ class DiffusionGraphRunner:
         image = (image * 255).round().astype(np.uint8)
         return image
     
+    def _preprocess_image(self, image):
+        image = torch.tensor(image, device=self.device)
+        image = image.float()
+        image = image / 255.0
+        image = (image * 2.0) - 1.0
+        image = image.permute(2, 0, 1)
+        image = image.unsqueeze(0)
+        return image
+    
+    
     def run_denoising_loop(self, sample, 
                         text_embeddings, 
                         uncond_text_embeddings, 
                         guidance_scale, 
                         do_adaptive_guidance, 
                         eta,
-                        stream = False
+                        stream = False,
+                        start_index = 0
                         ):
         
         print("Starting denoising process")
@@ -226,7 +262,7 @@ class DiffusionGraphRunner:
         # Pre-concatenate the text embeddings for efficiency
         multi_batch_text_embeddings = torch.cat([uncond_text_embeddings, text_embeddings], dim=0)
 
-        for timestep in tqdm(self.stepper.timesteps, desc="Denoising", unit="steps"):
+        for timestep in tqdm(self.stepper.timesteps[start_index:], desc="Denoising", unit="steps"):
             sample = self.run_timestep(sample, timestep, multi_batch_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
             if stream:
                 yield sample, timestep
@@ -292,12 +328,14 @@ class DiffusionGraphRunner:
 
     
     def generate(self, prompt: str, 
+                    image: np.ndarray | None = None, 
                     negative_prompt: str | None = None, 
                     num_inference_steps: int  = 50,
                     guidance_scale: float = 7.5,
                     do_classifier_free_guidance: bool = True,
                     do_adaptive_guidance: bool = False,
-                    eta: float = 0.1 ):
+                    eta: float = 0.1,
+                    strength: float = 0.8 ):
 
 
         if do_adaptive_guidance and do_classifier_free_guidance:
@@ -309,9 +347,18 @@ class DiffusionGraphRunner:
 
         text_embeddings, uncond_text_embeddings = self.encode_prompt(prompt, negative_prompt)
 
+        start_index = 0
 
-        sample = self.generate_sample()
-        sample, = self.run_denoising_loop(sample, text_embeddings, uncond_text_embeddings, guidance_scale, do_adaptive_guidance, eta)
+        if image is None:
+            sample = self.generate_sample()
+        else:
+            assert tuple(image.shape[:-1]) == self.image_shape[2:], f"Image shape {image.shape[:-1]} does not match expected shape {self.image_shape}"
+            sample, start_index = self.encode_image(image, strength, num_inference_steps)
+
+        sample, = self.run_denoising_loop(sample, text_embeddings, 
+                                    uncond_text_embeddings, guidance_scale, 
+                                    do_adaptive_guidance, eta,
+                                    start_index = start_index)
         
         image = self.decode_latent(sample)
         return image

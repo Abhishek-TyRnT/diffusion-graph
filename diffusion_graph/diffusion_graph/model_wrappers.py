@@ -1,5 +1,6 @@
 import torch
 from torch.nn import Module
+from diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
 
 class MethodWrapper(Module):
     def __init__(self, model: Module, method: str ):
@@ -27,8 +28,15 @@ class ModelWrapper(Module):
         return self.model(*args, **kwargs)
 
 class VaeEncoderWrapper(ModelWrapper):
-    def __init__(self, model: dict):
+    def __init__(self, model: dict, vae_scaling_factor: float):
         super().__init__(model)
+        self.vae_scaling_factor = vae_scaling_factor
+
+    def forward(self, latents: torch.Tensor):
+        parameters = self.model(latents)
+        posterior = DiagonalGaussianDistribution(parameters)
+        latent = posterior.sample() * self.vae_scaling_factor
+        return latent
 
 class VaeDecoderWrapper(ModelWrapper):
     def __init__(self, model: dict):

@@ -967,6 +967,30 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenLtTensorOp>::matchAndRewrite
 }
 
 template <>
+LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenConstantPadNdOp>::matchAndRewrite(
+    mlir::torch::Torch::AtenConstantPadNdOp op, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+    
+    Value input = adaptor.getOperands()[0];
+    Value pad = adaptor.getOperands()[1];
+    Value value = adaptor.getOperands()[2];
+    
+    Location loc = op.getLoc();
+    const TypeConverter *convertor = getTypeConverter();
+    Value result = op.getResult();
+    Type resultType = convertor->convertType(op.getResult().getType());
+    
+    auto constantStrAttr = rewriter.getStringAttr("constant");
+    Value mode = rewriter.create<diffusion_graph::ConstantStringOp>(loc, constantStrAttr);
+    
+    Value newResult = rewriter.create<diffusion_graph::PadOp>(loc, resultType, input, pad, mode, value);
+
+    result.replaceAllUsesWith(newResult);
+    rewriter.eraseOp(cast<Operation*>(op));
+    return success();
+}
+
+template <>
 LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewrite(
     mlir::torch::Torch::AtenSliceTensorOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -1429,11 +1453,10 @@ public:
         target.addIllegalOp<mlir::torch::Torch::ConstantDeviceOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::ConstantDeviceOp>>(typeConverter,
                                                          context);
-
-        target.addIllegalOp<mlir::torch::Torch::AtenOnesOp>();
-        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenOnesOp>>(typeConverter,
+        
+        target.addIllegalOp<mlir::torch::Torch::AtenConstantPadNdOp>();
+        patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenConstantPadNdOp>>(typeConverter,
                                                          context);
-
 
         target.addIllegalOp<mlir::torch::Torch::AtenMulTensorOp>();
         patterns.add<ConvertAtenOp<mlir::torch::Torch::AtenMulTensorOp>>(typeConverter,        

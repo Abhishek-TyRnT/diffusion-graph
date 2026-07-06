@@ -53,4 +53,5 @@ OP_MAP = {
     "diffusion_graph.torch.less_than": torch.lt,
     "diffusion_graph.torch.contiguous": funcs.get_contiguous,
     "diffusion_graph.torch.narrow": torch.narrow,
+    "diffusion_graph.torch.pad": torch.nn.functional.pad
 }

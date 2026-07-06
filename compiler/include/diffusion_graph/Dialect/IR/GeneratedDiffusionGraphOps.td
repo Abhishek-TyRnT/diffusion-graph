@@ -1150,3 +1150,31 @@ def diffusion_NarrowOp : DiffusionGraph_Op<"torch.narrow", [
     }];
 }
 
+def diffusion_PadOp : DiffusionGraph_Op<"torch.pad", [
+    diffusionAllowsTypeRefinement,
+    diffusionHasValueSemantics,
+    diffusionReadOnly
+  ]> {
+    let summary = "Generated op for `torch::pad : (Tensor, tuple, string, float) -> (Tensor)`";
+    let arguments = (ins
+      AnyTorchTensorType:$input,
+      Torch_ListType:$pad,
+      Torch_StringType:$mode,
+      F32:$value
+    );
+    let results = (outs
+      AnyTorchTensorType:$result
+    );
+    let hasCustomAssemblyFormat = 1;
+    let extraClassDefinition = [{
+      ParseResult PadOp::parse(OpAsmParser &parser, OperationState &result) {
+        return parseDefaultDiffusionGraphOp(parser, result, 4, 1);
+      }
+      void PadOp::print(OpAsmPrinter &printer) {
+        printDefaultDiffusionGraphOp(printer, *this, 4, 1);
+      }
+    }];
+}
+    
+    
+

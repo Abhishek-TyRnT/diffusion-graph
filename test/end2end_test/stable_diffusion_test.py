@@ -1,5 +1,6 @@
 import pytest
 import torch
+import numpy as np
 import matplotlib.pyplot as plt
 from diffusers import StableDiffusionPipeline
 from diffusion_graph.pipeline.pipeline_compiler import DiffusionPipelineCompiler
@@ -145,29 +146,46 @@ def test_stable_diffusion(model_id, model_name, image_shape):
 
     tmp_folder = "./temp_files"
     pipeline = generate_pipe(model_id)
-    compiler = DiffusionPipelineCompiler(model_name, tmp_folder, debug=False)
+    compiler = DiffusionPipelineCompiler(model_name, tmp_folder, debug=True)
     compiler.compile(pipeline, image_shape)
 
 
-@pytest.mark.parametrize("model_path, model_name, device, num_inference_steps, tokenizer, prompt, negative_prompt, extra_kwargs", (
+@pytest.mark.parametrize("model_path, model_name, device, num_inference_steps, tokenizer, prompt, image, negative_prompt, extra_kwargs", (
     ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, 
-            "openai/clip-vit-large-patch14", "an astronaut riding a horse", 
+            "openai/clip-vit-large-patch14", "an astronaut riding a horse", None,
             "oil painting, water color, drawing", {"guidance_scale": 7.5}),
     ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, 
-        "openai/clip-vit-large-patch14", "a scenary of a mountain", 
+        "openai/clip-vit-large-patch14", "a scenary of a mountain", None,
         "oil painting, water color, drawing", {"eta": 0.5, "do_adaptive_guidance": True, 
                                             "guidance_scale": 8.5, "do_classifier_free_guidance": False}),
+    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, 
+        "openai/clip-vit-large-patch14", "a photorealistic river, river in valley, blue water, natural, highly detailed, 8k", "test/examples/scenary.png",
+        "low quality, cartoon, painting, drawing, blurry", {
+                                            "guidance_scale": 8.5, "do_classifier_free_guidance": True,
+                                            "strength": 0.30}),
+    ("temp_files/stable_diffusion_v1_5", "stable_diffusion_v1_5", "cuda", 50, 
+        "openai/clip-vit-large-patch14", "a photorealistic bright yellow sun, daylight, 8k", "test/examples/example.jpg",
+        "low quality, cartoon, painting, drawing, blurry", {
+                                            "guidance_scale": 8.5, "do_classifier_free_guidance": True,
+                                            "strength": 0.25}),
 ))
 def test_stable_diffusion_inference(model_path, model_name, 
                                     device, num_inference_steps, 
                                     tokenizer, prompt, 
-                                    negative_prompt, extra_kwargs):
+                                    image, negative_prompt, extra_kwargs):
     
     root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     artifact_path = os.path.join(root_path, model_path)
     
     runner = DiffusionGraphRunner(artifact_path, device, tokenizer)
     runner.load_pipeline()
+
+    if image is not None:
+        _, extension = image.split(".")
+        image = plt.imread(os.path.join(root_path, image))
+        if extension == 'png':
+            image = image[:,:,:3]
+            image = (image * 255).astype(np.uint8)  # plt.imread returns float32 [0,1] for PNG; convert to uint8 [0,255]
 
     activities = [
         ProfilerActivity.CPU,
@@ -176,7 +194,7 @@ def test_stable_diffusion_inference(model_path, model_name,
 
     start_time = time.perf_counter()
     # with profile(activities=activities) as prof1:
-    image = runner.generate(prompt, negative_prompt, num_inference_steps, **extra_kwargs)
+    image = runner.generate(prompt, image, negative_prompt, num_inference_steps, **extra_kwargs)
 
     end_time = time.perf_counter()
     # prof1.export_chrome_trace(f"{artifact_path}/sd_trace.json")
@@ -206,9 +224,9 @@ def test_diffusion_graph_scheduler(model_path, model_name, device, num_inference
 
     scheduler = DiffusionGraphScheduler(artifact_path, device, tokenizer)
 
-    input_arg_0 = (prompt[0], negative_prompt[0], num_inference_steps[0], extra_kwargs[0])
-    input_arg_1 = (prompt[1], negative_prompt[1], num_inference_steps[1], extra_kwargs[1])
-    input_arg_2 = (prompt[2], negative_prompt[2], num_inference_steps[2], extra_kwargs[2])
+    input_arg_0 = (prompt[0], None, negative_prompt[0], num_inference_steps[0], extra_kwargs[0])
+    input_arg_1 = (prompt[1], None, negative_prompt[1], num_inference_steps[1], extra_kwargs[1])
+    input_arg_2 = (prompt[2], None, negative_prompt[2], num_inference_steps[2], extra_kwargs[2])
     
     scheduler.submit_pipeline(input_arg_0)
     scheduler.submit_pipeline(input_arg_1)

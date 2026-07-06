@@ -324,3 +324,13 @@ class PermuteConv2D(Module):
         x = torch.permute(x, self.permute_shape)
         x = self.conv(x)
         return x
+
+
+class ConstantPadNd(Module):
+    def __init__(self, padding, value = 0):
+        super().__init__()
+        self.padding = padding
+        self.value = value
+    
+    def forward(self, x):
+        return torch.nn.functional.pad(x, self.padding, value = self.value)

@@ -166,7 +166,13 @@ def test_hf_submodules(model, model_args, model_kwargs, inputs, input_kwargs):
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, method",
     (
         [AutoencoderKL, (), {}, (torch.randn(1, 4, 64, 64), ), {'return_dict': False}, "decode"],
-        [AutoencoderKL, (), {}, (torch.randn(1, 3, 64, 64), ), {}, "_encode"],
+        [AutoencoderKL, (), {
+            'down_block_types': ('DownEncoderBlock2D',)*4,
+            'up_block_types': ('UpDecoderBlock2D',)*4,
+            'block_out_channels': (128, 256, 512, 512),
+            'layers_per_block': 2,
+            'sample_size': 512,
+        }, (torch.randn(1, 3, 512, 512), ), {}, "_encode"],
     ))
 def test_diffusers_vae(model, 
                 model_args, 
@@ -183,8 +189,8 @@ def test_diffusers_vae(model,
     torch_model.eval()
     print("Model eval finished!")
     # breakpoint()
-    tmp_folder = f"/tmp"
-    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder)
+    tmp_folder = f"./temp_files"
+    dg_graph = DiffusionGraphCompiler(torch_model.__class__.__name__, tmp_folder, debug=True)
     dg_graph.compile(torch_model, inputs, input_kwargs)
     print("Model compiled!")
     IRdict = dg_graph.get_graph_dict()
@@ -412,7 +418,13 @@ def test_hf_submodules_shape_and_dtype_validation(model, model_args, model_kwarg
 @pytest.mark.parametrize("model, model_args, model_kwargs, inputs, input_kwargs, method",
     (
         [AutoencoderKL, (), {}, (torch.randn(1, 4, 64, 64), ), {'return_dict': False}, "decode"],
-        [AutoencoderKL, (), {}, (torch.randn(1, 3, 64, 64), ), {}, "_encode"],
+        [AutoencoderKL, (), {
+            'down_block_types': ('DownEncoderBlock2D',)*4,
+            'up_block_types': ('UpDecoderBlock2D',)*4,
+            'block_out_channels': (128, 256, 512, 512),
+            'layers_per_block': 2,
+            'sample_size': 512,
+        }, (torch.randn(1, 3, 512, 512), ), {}, "_encode"],
     ))  
 def test_vae_shape_and_dtype_validation(model, model_args, model_kwargs, inputs, input_kwargs, method):
     if len(model_args) == 0:

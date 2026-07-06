@@ -22,6 +22,7 @@ class DiffusionPipelineCompiler:
     def compile(self, pipeline: StableDiffusionPipeline, image_shape: tuple):
 
         vae = pipeline.vae
+        print(vae.config)
         downscale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
         latent_shape = (1, vae.config.latent_channels, image_shape[0] // downscale_factor, image_shape[1] // downscale_factor)
         dummy_latent = torch.randn(latent_shape)
@@ -34,6 +35,17 @@ class DiffusionPipelineCompiler:
         decoder_compiler.store_graph_dict()
 
         del decoder_compiler
+        gc.collect()
+
+        print("Compiling VAE Encoder")
+        image_shape = (1, 3, image_shape[0], image_shape[1])
+        dummy_image = torch.randn(image_shape)
+        vae_encoder = MethodWrapper(vae, "_encode")
+        vae_encoder_compiler = DiffusionGraphCompiler("vae_encoder", self.artifact_directory, self.debug)
+        vae_encoder_compiler.compile(vae_encoder, (dummy_image, ))
+        vae_encoder_compiler.store_graph_dict()
+
+        del vae_encoder_compiler
         gc.collect()
 
         text_encoder = pipeline.text_encoder

@@ -2,6 +2,7 @@
 
 #include "diffusion_graph/Dialect/IR/DiffusionGraphOps.hpp"
 #include "diffusion_graph/Dialect/IR/DiffusionGraphTypes.hpp"
+#include "diffusion_graph/Utils/Utils.hpp"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -211,3 +212,57 @@ void ViewOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
   
   patterns.add<EliminateRedundantView>(context);
 }
+
+// static Type promoteDtype(Type a, Type b) {
+//   if (a == b) return a;
+
+//   if (isa<arith::IntType>(a) && isa<arith::IntType>(b)){
+//     auto int_a = cast<arith::IntType>(a);
+//     auto int_b = cast<arith::IntType>(b);
+//     if (int_a.getWidth() > int_b.getWidth()){
+//       return a;
+//     } else {
+//       return b;
+//     }
+//   }
+//   if (isa<arith::FloatType>(a) && isa<arith::FloatType>(b)){
+//     auto float_a = cast<arith::FloatType>(a);
+//     auto float_b = cast<arith::FloatType>(b);
+//     if (float_a.getWidth() > float_b.getWidth()){
+//       return a;
+//     } else {
+//       return b;
+//     }
+//   }
+
+//   return Type();
+// }
+
+LogicalResult AddOp::inferReturnTypes(
+    MLIRContext *context, std::optional<Location> location,
+    ValueRange operands, DictionaryAttr attributes,
+    OpaqueProperties properties, RegionRange regions,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+
+  auto lhsType = dyn_cast<diffusion_graph::ValueTensorType>(operands[0].getType());
+  auto rhsType = dyn_cast<diffusion_graph::ValueTensorType>(operands[1].getType());
+  if (!lhsType && !rhsType)
+    return failure();
+
+  // dtype promotion rule: e.g. fp16 + fp32 -> fp32, int + float -> float
+  Type resultElemType = promoteDtype(lhsType.getOptionalDtype(),
+                                      rhsType.getOptionalDtype());
+  if (!resultElemType)
+    return emitOptionalError(location, "unsupported dtype combination for add: ",
+                              lhsType.getOptionalDtype(), " and ",
+                              rhsType.getOptionalDtype());
+
+  // shape rule: broadcasted shape (or just require equal shapes if your
+  // dialect doesn't support broadcasting)
+
+  inferredReturnTypes.push_back(
+      diffusion_graph::ValueTensorType::get(context, lhsType.getOptionalSizes(), resultElemType));
+  return success();
+}
+
+

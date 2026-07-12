@@ -28,7 +28,8 @@ def diffusion_ReluOp : DiffusionGraph_Op<"torch.Relu", [
 def diffusion_AddOp : DiffusionGraph_Op<"torch.add", [
         diffusionAllowsTypeRefinement,
         diffusionHasValueSemantics,
-        diffusionReadOnly
+        diffusionReadOnly,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
     ]> {
     
     let summary = "Generated op for `torch::Add : (Tensor, Tensor , scalar) -> (Tensor)`";

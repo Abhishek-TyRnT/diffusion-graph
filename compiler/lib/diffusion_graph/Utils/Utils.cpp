@@ -54,3 +54,24 @@ Type mlir::diffusion_graph::convertDGContainedType(Type type,
 
     return containedResultType;
 }
+
+Type mlir::diffusion_graph::promoteDtype(Type a, Type b) {
+  if (a == b) return a;
+
+  if (isa<mlir::IntegerType>(a) && isa<mlir::IntegerType>(b)){
+    auto int_a = cast<mlir::IntegerType>(a);
+    auto int_b = cast<mlir::IntegerType>(b);
+    if (int_a.getWidth() > int_b.getWidth()){
+      return a;
+    } else {
+      return b;
+    }
+  }
+  if (isa<mlir::Float32Type>(a) && isa<mlir::Float32Type>(b)){
+    auto float_a = cast<mlir::Float32Type>(a);
+    auto float_b = cast<mlir::Float32Type>(b);
+    return a;
+  }
+
+  return Type();
+}

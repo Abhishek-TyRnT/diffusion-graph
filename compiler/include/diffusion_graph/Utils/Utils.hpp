@@ -10,6 +10,8 @@
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/IR/Types.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+
 
 namespace mlir{
 namespace diffusion_graph{
@@ -21,6 +23,8 @@ RankedTensorType convertTorchvTypeToTensorType(Type type);
 
 Type convertDGContainedType(Type type, 
                         MLIRContext *context);
+
+Type promoteDtype(Type a, Type b);
 
 }// namespace diffusion_graph
 

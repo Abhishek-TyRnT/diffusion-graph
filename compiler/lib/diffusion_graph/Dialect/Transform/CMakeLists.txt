@@ -6,6 +6,7 @@ add_mlir_library(DiffusionGraphTransformPasses
   FunctionPartitionPass.cpp
   staticMaterializationPass.cpp
   contiguousInsertionPass.cpp
+  TypePropagationPass.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${PROJECT_SOURCE_DIR}/include/vllm_graph/Dialect/Transform
@@ -23,5 +24,4 @@ add_mlir_library(DiffusionGraphTransformPasses
   DiffusionGraphIRDialect
   DiffusionGraphTorchToDiffusionGraph
   DiffusionGraphPatternInterpreter
-  DiffusionGraphUtils
 )

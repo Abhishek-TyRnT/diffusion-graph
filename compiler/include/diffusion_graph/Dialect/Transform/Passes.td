@@ -64,4 +64,17 @@ def ContiguousInsertionPass : Pass<"contiguous-insertion-pass", "func::FuncOp"> 
     let constructor = "mlir::diffusion_graph::createContiguousInsertionPass()";
 }
 
+def TypePropagationPass : Pass<"diffusion-graph-type-propagation", "func::FuncOp"> {
+  let summary = "Propagate dtype changes through the def-use chain";
+  let description = [{
+    Walks the function in topological order and, for every op that
+    implements InferTypeOpInterface, recomputes its result types from
+    its (possibly already-updated) operands. If the inferred types
+    differ from the current ones, the op is rebuilt and all uses are
+    updated. This keeps a dtype change made to a producer from going
+    stale in its consumers without relying on canonicalization.
+  }];
+  let constructor = "mlir::diffusion_graph::createTypePropagationPass()";
+}
+
 #endif //DIFFUSION_GRAPH_TRANSFORM_PASSES_H_

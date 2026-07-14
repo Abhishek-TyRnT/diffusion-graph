@@ -246,16 +246,20 @@ LogicalResult AddOp::inferReturnTypes(
 
   auto lhsType = dyn_cast<diffusion_graph::ValueTensorType>(operands[0].getType());
   auto rhsType = dyn_cast<diffusion_graph::ValueTensorType>(operands[1].getType());
-  if (!lhsType && !rhsType)
+  // If either operand is not yet a ValueTensorType (e.g. still wrapped in a
+  // CastOp with Torch types before TypePropagationPass has run), return a
+  // silent failure so the op is left unchanged rather than crashing or
+  // emitting a spurious error diagnostic.
+  if (!lhsType || !rhsType)
     return failure();
 
   // dtype promotion rule: e.g. fp16 + fp32 -> fp32, int + float -> float
   Type resultElemType = promoteDtype(lhsType.getOptionalDtype(),
                                       rhsType.getOptionalDtype());
   if (!resultElemType)
-    return emitOptionalError(location, "unsupported dtype combination for add: ",
-                              lhsType.getOptionalDtype(), " and ",
-                              rhsType.getOptionalDtype());
+    // Soft failure: types aren't settled yet; TypePropagationPass will
+    // reconcile them later.  Avoid a hard error diagnostic here.
+    return failure();
 
   // shape rule: broadcasted shape (or just require equal shapes if your
   // dialect doesn't support broadcasting)
@@ -265,4 +269,45 @@ LogicalResult AddOp::inferReturnTypes(
   return success();
 }
 
+LogicalResult ViewOp::inferReturnTypes(
+    MLIRContext *context,
+    std::optional<Location> location,
+    ValueRange operands,
+    DictionaryAttr attributes,
+    OpaqueProperties properties,
+    RegionRange regions,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+
+    auto inputType =
+        mlir::dyn_cast<diffusion_graph::ValueTensorType>(
+            operands[0].getType());
+
+    if (!inputType)
+      return failure();
+
+    // Shape operand must come from a list_op.
+    auto listOp =
+        operands[1].getDefiningOp<diffusion_graph::ListOp>();
+
+    if (!listOp)
+      return failure();
+
+    SmallVector<int64_t> shape;
+
+    for (Value v : listOp.getOperands()) {
+      auto cst = v.getDefiningOp<arith::ConstantIntOp>();
+      if (!cst)
+        return failure();
+
+      shape.push_back(cst.value());
+    }
+
+    inferredReturnTypes.push_back(
+        diffusion_graph::ValueTensorType::get(
+            context,
+            shape,
+            inputType.getOptionalDtype()));
+
+    return success();
+}
 

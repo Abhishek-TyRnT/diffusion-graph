@@ -31,7 +31,7 @@ static bool propagateTypes(Operation *op, RewriterBase &rewriter) {
   auto inferIface = dyn_cast<InferTypeOpInterface>(op);
   if (!inferIface)
     return false; // no interface: nothing this pass can infer
-
+  
   SmallVector<Type, 4> inferred;
   if (failed(inferIface.inferReturnTypes(
           op->getContext(), op->getLoc(), op->getOperands(),
@@ -49,12 +49,14 @@ static bool propagateTypes(Operation *op, RewriterBase &rewriter) {
     return false;
   }
 
+
   bool changed = false;
   for (auto [result, newType] : llvm::zip(op->getResults(), inferred)) {
+
     if (result.getType() == newType)
       continue;
-    LLVM_DEBUG(llvm::dbgs() << "  " << result << " : "
-                            << result.getType() << " -> " << newType << "\n");
+    // LLVM_DEBUG(llvm::dbgs() << "  " << result << " : "
+    //                         << result.getType() << " -> " << newType << "\n");
     Value res = result;
     Type ty = newType;
     rewriter.modifyOpInPlace(op, [&] { res.setType(ty); });    
@@ -101,7 +103,12 @@ static void propagateThroughRegionToFixedPoint(Region &region,
         for (Region &nested : op.getRegions())
           propagateThroughRegionToFixedPoint(nested, rewriter, maxIterations);
 
-        if (propagateTypes(&op, rewriter))
+        if(auto cast_op = dyn_cast<diffusion_graph::CastOp>(op)){
+            Value input = cast_op.getOperand();
+            Value result = cast_op.getResult();
+            result.replaceAllUsesWith(input);
+        }
+        else if (propagateTypes(&op, rewriter))
           changed = true;
       }
 
@@ -170,6 +177,7 @@ struct TypePropagationPass
         }
       }
     });
+
   }
 };
 

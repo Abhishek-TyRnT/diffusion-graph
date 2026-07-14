@@ -239,7 +239,8 @@ def diffusion_AddmmOp : DiffusionGraph_Op<"torch.addmm", [
 
 def diffusion_ViewOp : DiffusionGraph_Op<"torch.view", [
     diffusionAllowsTypeRefinement,
-    diffusionReadOnly
+    diffusionReadOnly,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>
   ]> {
   let summary = "Generated op for `torch::view : (Tensor, Tensor) -> (Tensor)`";
   let arguments = (ins

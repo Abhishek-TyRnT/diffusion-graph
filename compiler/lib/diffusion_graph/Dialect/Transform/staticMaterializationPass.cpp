@@ -38,6 +38,9 @@ LogicalResult StaticOpMaterializationPattern<diffusion_graph::ArangeOp>::matchAn
     Value step = op.getOperands()[2];
     Value dtype = op.getOperands()[3];
     MLIRContext *context = op.getContext();
+    Location loc = op.getLoc();
+
+    Value result = op.getResult();
 
     if(start.getDefiningOp<arith::ConstantIntOp>() && 
        end.getDefiningOp<arith::ConstantIntOp>() && 
@@ -53,7 +56,8 @@ LogicalResult StaticOpMaterializationPattern<diffusion_graph::ArangeOp>::matchAn
 
     
         int64_t dtype_val = dtype.getDefiningOp<arith::ConstantIntOp>().value();
-
+        
+        Value literalOp;
         if(dtype_val == 6){
         
             float start_val = static_cast<float>(start_index);
@@ -71,7 +75,7 @@ LogicalResult StaticOpMaterializationPattern<diffusion_graph::ArangeOp>::matchAn
             ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(size_arr, 1), rewriter.getF32Type());
             auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
 
-            rewriter.replaceOpWithNewOp<diffusion_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
+            literalOp = rewriter.create<diffusion_graph::ValueTensorLiteralOp>(loc, RangeType, denseAttr);
             
         } else if(dtype_val == 4) {
         
@@ -87,11 +91,15 @@ LogicalResult StaticOpMaterializationPattern<diffusion_graph::ArangeOp>::matchAn
             ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(size_arr, 1),rewriter.getIntegerType(32));
             auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
 
-            rewriter.replaceOpWithNewOp<diffusion_graph::ValueTensorLiteralOp>(op, RangeType, denseAttr);
+            literalOp = rewriter.create<diffusion_graph::ValueTensorLiteralOp>(loc, RangeType, denseAttr);
         } else {
         
             return rewriter.notifyMatchFailure(op, "dtypes other than float32 or int32, not supported yet\n");
         }
+
+        Value castOp = rewriter.create<diffusion_graph::CastOp>(loc, op.getResult().getType(), literalOp);
+        result.replaceAllUsesWith(castOp);
+        rewriter.eraseOp(cast<Operation*>(op));
         
     } else {
     

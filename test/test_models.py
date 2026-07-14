@@ -348,7 +348,8 @@ class ArangeAddView(Module):
         self.shape  = shape
 
     def forward(self, y):
-        x = torch.arange(self.n, dtype=torch.int64)   # int64 tensor [0, n)
-        x = x + y                            # add (int64 + int scalar)
-        x = x.view(self.shape)                         # reshape
+        range_out = torch.arange(self.n, dtype=torch.int64)   # int64 tensor [0, n)
+        x = range_out + y                            # add (int64 + int scalar)
+        x = x.view(self.shape)
+        x = x < range_out                          # reshape
         return x

@@ -1043,61 +1043,6 @@ LogicalResult ConvertAtenOp<mlir::torch::Torch::AtenSliceTensorOp>::matchAndRewr
     rewriter.replaceOpWithNewOp<diffusion_graph::NarrowOp>(op, resultType, self, dim, start, lengthOp);
     return success();
 
-    // if(start.getDefiningOp<arith::ConstantIntOp>() && 
-    //    end.getDefiningOp<arith::ConstantIntOp>() && 
-    //    step.getDefiningOp<arith::ConstantIntOp>() 
-    // ){
-    //     int64_t start_index = start.getDefiningOp<arith::ConstantIntOp>().value();
-    //     int64_t end_index = end.getDefiningOp<arith::ConstantIntOp>().value();
-    //     int64_t step_size = step.getDefiningOp<arith::ConstantIntOp>().value();
-        
-    //     // end_index = -1, means there is bit overflow while conversion int64 to int32
-    //     // Since we only support int32 shape, that means this case is not taken care of
-    //     // TODO: Add support for int64 shape
-    //     if (end_index == -1){
-    //         Type inputType = self.getType();
-    //         ArrayRef<int64_t> inputShape = cast<RankedTensorType>(inputType).getShape();
-    //         int64_t dim_size = inputShape[dim.getDefiningOp<arith::ConstantIntOp>().value()];
-    //         if(dim_size == -1){
-    //             return rewriter.notifyMatchFailure(op, "dim_size is unknown\n");
-    //         }
-    //         end_index = dim_size;
-    //     }
-
-    //     std::vector<int32_t> range;
-    //     for(int32_t i = start_index; i < end_index; i+=step_size)
-    //         range.push_back(i);
-        
-    //     ArrayRef<int32_t> range_array(range.data(), range.size());
-    //     int64_t x = static_cast<int64_t>(range.size());
-    //     int64_t shape[] = {x};
-
-    //     auto IndicesType = diffusion_graph::ValueTensorType::get(context, ArrayRef<int64_t>(shape, 1), elemType);//RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
-        
-    //     ShapedType shapetype = RankedTensorType::get(ArrayRef<int64_t>(shape, 1), elemType);
-    //     auto denseAttr = DenseElementsAttr::get(shapetype, range_array);
-
-    //     RangeValOp = rewriter.create<diffusion_graph::ValueTensorLiteralOp>(loc, IndicesType, denseAttr);
-    // } else {
-    //     diffusion_graph::ValueTensorType RangeTypeOp;
-    //     RangeTypeOp = RangeTypeOp.get(context, 
-    //                     ArrayRef<int64_t>({-1}), 
-    //                     elemType);
-        
-    //     Value arithOp = rewriter.create<arith::ConstantIntOp>(loc, 4, elemType);
-    //     RangeValOp = rewriter.create<diffusion_graph::ArangeOp>(loc, RangeTypeOp, start, end, step, arithOp);
-        
-    // }
-    
-    // Value result = op.getResult();
-    // Type resultType = convertor->convertType(op.getResult().getType());
-
-    // Value indexSelectResult = rewriter.create<diffusion_graph::IndexSelectOp>(loc, resultType, self, dim, RangeValOp);
-    // result.replaceAllUsesWith(indexSelectResult);
-    // rewriter.eraseOp(cast<Operation*>(op));
-    return mlir::success();
-    
-
 }
 
 

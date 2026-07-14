@@ -21,6 +21,7 @@ void mlir::diffusion_graph::createTorchToDiffusionGraphPipeline(PassManager &pm)
 
     FuncOpPM.addPass(createRecomposeSimpleOpsToComplexOps());
     FuncOpPM.addPass(createStaticOpMaterializationPass());
+    FuncOpPM.addPass(createTypePropagationPass());
     FuncOpPM.addPass(createContiguousInsertionPass());
     pm.addPass(createDiffusionGraphFunctionPartitionPass());
     pm.addPass(createCanonicalizerPass());

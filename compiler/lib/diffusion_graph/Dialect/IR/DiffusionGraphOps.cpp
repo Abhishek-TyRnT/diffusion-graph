@@ -250,11 +250,19 @@ LogicalResult AddOp::inferReturnTypes(
   // CastOp with Torch types before TypePropagationPass has run), return a
   // silent failure so the op is left unchanged rather than crashing or
   // emitting a spurious error diagnostic.
-  if (!lhsType || !rhsType)
+  if (!lhsType && !rhsType)
     return failure();
 
   // dtype promotion rule: e.g. fp16 + fp32 -> fp32, int + float -> float
-  Type resultElemType = promoteDtype(lhsType.getOptionalDtype(),
+  Type resultElemType;
+  if(lhsType && rhsType)
+    resultElemType = promoteDtype(lhsType.getOptionalDtype(),
+                                      rhsType.getOptionalDtype());
+  else if(lhsType && !rhsType)
+    resultElemType = promoteDtype(lhsType.getOptionalDtype(),
+                                      operands[1].getType());
+  else if(!lhsType && rhsType)
+    resultElemType = promoteDtype(operands[0].getType(),
                                       rhsType.getOptionalDtype());
   if (!resultElemType)
     // Soft failure: types aren't settled yet; TypePropagationPass will
@@ -292,15 +300,48 @@ LogicalResult ViewOp::inferReturnTypes(
     if (!listOp)
       return failure();
 
-    SmallVector<int64_t> shape;
+  SmallVector<int64_t> shape;
+  int64_t inferredDimIndex = -1;
 
-    for (Value v : listOp.getOperands()) {
-      auto cst = v.getDefiningOp<arith::ConstantIntOp>();
-      if (!cst)
+  for (Value v : listOp.getOperands()) {
+    auto cst = v.getDefiningOp<arith::ConstantIntOp>();
+    if (!cst)
+      return failure();
+
+    int64_t val = cst.value();
+    if (val == -1) {
+      if (inferredDimIndex != -1)
+        // more than one -1 is illegal in view semantics
         return failure();
-
-      shape.push_back(cst.value());
+      inferredDimIndex = shape.size();
+      shape.push_back(-1); // placeholder, fixed up below
+    } else {
+      shape.push_back(val);
     }
+  }
+
+  if (inferredDimIndex != -1) {
+    // Need input to be fully static to resolve -1.
+    // if (!inputType.hasSizes() || !inputType.areAllSizesKnown())
+    //   return failure(); // or emit a dynamic dim sentinel instead of failing
+
+    int64_t inputNumElements = 1;
+    SmallVector<int64_t, 4> inputShape(inputType.getOptionalSizes()->begin(), inputType.getOptionalSizes()->end());
+    for (int64_t d : inputShape)
+      inputNumElements *= d;
+
+    int64_t knownProduct = 1;
+    for (int64_t i = 0; i < (int64_t)shape.size(); ++i) {
+      if (i == inferredDimIndex)
+        continue;
+      knownProduct *= shape[i];
+    }
+
+    if (knownProduct == 0 || inputNumElements % knownProduct != 0)
+      return failure();
+
+    shape[inferredDimIndex] = inputNumElements / knownProduct;
+  }
 
     inferredReturnTypes.push_back(
         diffusion_graph::ValueTensorType::get(

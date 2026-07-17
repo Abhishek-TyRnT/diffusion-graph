@@ -457,7 +457,7 @@ def test_vae_shape_and_dtype_validation(model, model_args, model_kwargs, inputs,
 
 @pytest.mark.parametrize("model_name, text, model_class",
     (
-       pytest.param("openai/clip-vit-large-patch14", "Hello, my dog is cute", CLIPTextModel, marks=pytest.mark.xfail),
+       ["openai/clip-vit-large-patch14", "Hello, my dog is cute", CLIPTextModel],
     ))
 def test_hf_models_shape_and_dtype_validation(model_name, text, model_class):
     tokenizer = AutoTokenizer.from_pretrained(model_name)

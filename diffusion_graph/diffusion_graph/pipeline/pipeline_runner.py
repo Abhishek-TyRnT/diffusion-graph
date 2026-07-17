@@ -2,6 +2,8 @@ import torch
 import os
 import json
 from diffusion_graph.reconstruct import reconstruct_model
+from diffusion_graph.validator.model_validator import build_validated_engine
+from diffusion_graph.modelmaps import TYPE_MAP
 from diffusion_graph.model_wrappers import VaeEncoderWrapper, VaeDecoderWrapper, CLIPWrapper, UNetWrapper
 from diffusion_graph.steppers.stepper import PNDMStepper
 from transformers import CLIPTokenizer
@@ -91,8 +93,25 @@ class DiffusionGraphRunner:
 
     def load_tokenizer(self):
         return CLIPTokenizer.from_pretrained(self.tokenizer_name)
+    
+    def _generate_dummy_inputs(self, model_dict):
 
-    def load_model(self, config_path: str,**kwargs):
+        tensors = []
+        for arg_index in model_dict['main']['entrypoint']:
+            arg_info = model_dict['main'][arg_index]
+            dtype_str = arg_info["dtype"]
+            dtype = TYPE_MAP[dtype_str]
+
+            if dtype == torch.bool:
+                tensors.append(torch.randint(0, 2, arg_info["shape"], dtype=torch.bool))
+            elif dtype in (torch.int8, torch.int16, torch.int32, torch.int64, torch.uint8):
+                tensors.append(torch.randint(0, 100, arg_info["shape"], dtype=dtype))
+            else:
+                tensors.append(torch.randn(arg_info["shape"], dtype=dtype))
+        return tensors
+
+
+    def load_model(self, config_path: str, validate_pipeline: bool, **kwargs):
 
         assert os.path.isfile(config_path), f"Config file does not exist at location {config_path}"
         with open(config_path, "r") as f:
@@ -110,17 +129,26 @@ class DiffusionGraphRunner:
 
         print(f"Loading model {model_name} ...")
         model = reconstruct_model(model_config, config_dir)
+        if validate_pipeline:
+            new_input = self._generate_dummy_inputs(model_config)
+            print("Validating model", model_name)
+            build_validated_engine(model_config, model['main'], user_dummy_inputs=new_input)
+            print("Validated model", model_name)
         model = WRAPPER_MAP[model_name](model, **kwargs)
         return model
     
-    def load_pipeline(self, capture_graph = True):
+    def load_pipeline(self, capture_graph = True, validate_pipeline = True):
         print("Constructing pipeline")
 
-        self.vae_decoder = self.load_model(os.path.join(self.artifact_directory, "vae_decoder/model.json"))
+        self.vae_decoder = self.load_model(os.path.join(self.artifact_directory, "vae_decoder/model.json"),
+                                            validate_pipeline=validate_pipeline)
         self.vae_encoder = self.load_model(os.path.join(self.artifact_directory, "vae_encoder/model.json"), 
+                                            validate_pipeline=validate_pipeline,
                                             vae_scaling_factor=self.vae_scaling_factor)
-        self.text_encoder = self.load_model(os.path.join(self.artifact_directory, "text_encoder/model.json"))
-        self.unet = self.load_model(os.path.join(self.artifact_directory, "unet/model.json"))
+        self.text_encoder = self.load_model(os.path.join(self.artifact_directory, "text_encoder/model.json"),
+                                            validate_pipeline=validate_pipeline)
+        self.unet = self.load_model(os.path.join(self.artifact_directory, "unet/model.json"),
+                                            validate_pipeline=validate_pipeline)
 
         self.tokenizer = self.load_tokenizer()
 
@@ -137,7 +165,7 @@ class DiffusionGraphRunner:
         self.vae_decoder.to(self.device)
         self.vae_encoder.to(self.device)
         self.text_encoder.to(self.device)
-        self.unet.to(self.device)
+        self.unet.to(self.device)            
 
         if capture_graph and self.device == "cuda":
             self.unet.generate_dummy_inputs(self.config['latent_shape'], self.config['hidden_state_shape'], do_classifier_free_guidance=True)

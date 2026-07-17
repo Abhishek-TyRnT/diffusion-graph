@@ -28,7 +28,8 @@ def diffusion_ReluOp : DiffusionGraph_Op<"torch.Relu", [
 def diffusion_AddOp : DiffusionGraph_Op<"torch.add", [
         diffusionAllowsTypeRefinement,
         diffusionHasValueSemantics,
-        diffusionReadOnly
+        diffusionReadOnly,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
     ]> {
     
     let summary = "Generated op for `torch::Add : (Tensor, Tensor , scalar) -> (Tensor)`";
@@ -238,7 +239,8 @@ def diffusion_AddmmOp : DiffusionGraph_Op<"torch.addmm", [
 
 def diffusion_ViewOp : DiffusionGraph_Op<"torch.view", [
     diffusionAllowsTypeRefinement,
-    diffusionReadOnly
+    diffusionReadOnly,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>
   ]> {
   let summary = "Generated op for `torch::view : (Tensor, Tensor) -> (Tensor)`";
   let arguments = (ins

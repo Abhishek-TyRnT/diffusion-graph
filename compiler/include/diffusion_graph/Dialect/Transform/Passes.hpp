@@ -23,6 +23,8 @@ std::unique_ptr<OperationPass<ModuleOp>> createDiffusionGraphFunctionPartitionPa
 
 std::unique_ptr<OperationPass<func::FuncOp>> createContiguousInsertionPass();
 
+std::unique_ptr<OperationPass<func::FuncOp>> createTypePropagationPass();
+
 void createTorchToDiffusionGraphPipeline(PassManager &pm);
 
 void registerDiffusionGraphPasses();

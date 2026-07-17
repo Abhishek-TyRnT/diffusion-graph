@@ -334,3 +334,22 @@ class ConstantPadNd(Module):
     
     def forward(self, x):
         return torch.nn.functional.pad(x, self.padding, value = self.value)
+
+class ArangeAddView(Module):
+    """torch.arange (int64) → add → view chain.
+
+    Args:
+        n      : number of elements produced by arange (end value).
+        shape  : target shape passed to view.
+    """
+    def __init__(self, n: int, shape: tuple):
+        super().__init__()
+        self.n      = n
+        self.shape  = shape
+
+    def forward(self, y):
+        range_out = torch.arange(self.n, dtype=torch.int64)   # int64 tensor [0, n)
+        x = range_out + y                            # add (int64 + int scalar)
+        x = x.view(self.shape)
+        x = x < range_out                          # reshape
+        return x

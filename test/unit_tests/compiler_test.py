@@ -141,6 +141,7 @@ def test_diffusion_graph_compiler_passes_from_models(model,
     [PermuteLayerNorm, ((0, 2, 3, 1), (2, 16, 8)), (torch.randn(2, 8, 4, 4),)],
     [PermuteConv2D, ((0, 3, 1, 2), 3, 16, 3, 1, 1), (torch.randn(2, 4, 4, 3),)],
     [ConstantPadNd, ((0, 1, 0, 1), 2), (torch.randn(1, 1, 1, 1),)],
+    [ArangeAddView, (77, (77, 1)), (1, )],
      ))
 def test_diffusion_graph_compiler_from_models(model,
                                         model_args,
@@ -159,7 +160,7 @@ def test_diffusion_graph_compiler_from_models(model,
                                 decomposition_table = get_decompositions(DECOMPOSITION_OPS),
                                 enable_graph_printing = True)
 
-    filename = f"/tmp/{torch_model.__class__.__name__}.mlir"
+    filename = f"./temp_files/{torch_model.__class__.__name__}.mlir"
     with open(filename , "w") as f:
         f.write(str(torchIR))
     

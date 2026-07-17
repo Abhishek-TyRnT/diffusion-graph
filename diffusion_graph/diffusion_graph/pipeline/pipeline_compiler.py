@@ -22,7 +22,6 @@ class DiffusionPipelineCompiler:
     def compile(self, pipeline: StableDiffusionPipeline, image_shape: tuple):
 
         vae = pipeline.vae
-        print(vae.config)
         downscale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
         latent_shape = (1, vae.config.latent_channels, image_shape[0] // downscale_factor, image_shape[1] // downscale_factor)
         dummy_latent = torch.randn(latent_shape)

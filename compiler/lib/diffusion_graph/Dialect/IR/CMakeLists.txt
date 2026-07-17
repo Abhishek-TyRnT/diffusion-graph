@@ -26,6 +26,7 @@ add_mlir_library(DiffusionGraphIRDialect
   MLIRControlFlowInterfaces
   MLIRInferTypeOpInterface
   MLIRSideEffectInterfaces
+  DiffusionGraphUtils
 )
 
 #torch_mlir_target_includes(vLLMGraphIRDialect)
